@@ -69,6 +69,7 @@ import { UnifiedSearchModule } from "./modules/unified-search/unified-search.mod
         CurriculumNavigationModule,
         NotificationPreferencesModule,
         StudyAlertsModule,
+        PrivacyDataExportsModule ,
     ],
 })
 export class AppModule {}
