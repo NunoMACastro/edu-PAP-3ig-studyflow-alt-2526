@@ -73,6 +73,7 @@ import { NotificationPoliciesModule } from "./modules/notification-policies/noti
         CurriculumNavigationModule,
         NotificationPreferencesModule,
         StudyAlertsModule,
+        PrivacyDataExportsModule ,
         ContextNotificationsModule,
         FollowUpAlertsModule,
         NotificationPoliciesModule,
