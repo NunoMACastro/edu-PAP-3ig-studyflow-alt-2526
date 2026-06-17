@@ -1,0 +1,1160 @@
+{
+  "generated_at": "2026-04-19",
+  "project": "studyflow",
+  "constraints_file": "scripts/plan_constraints_studyflow.json",
+  "status": "feasible",
+  "summary": {
+    "total_bk": 101,
+    "total_effort_u": 153,
+    "core_effort_u": 127,
+    "support_effort_u": 26,
+    "global_core_dual_percent": 83.0,
+    "reclassified_count": 1,
+    "owner_changes": 9,
+    "sprint_changes": 12
+  },
+  "assignments": [
+    {
+      "bk_id": "BK-MF0-01",
+      "owner": "Natalia",
+      "sprint": "S01",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF0-02",
+      "owner": "Natalia",
+      "sprint": "S01",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF0-03",
+      "owner": "Guilherme",
+      "sprint": "S01",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF0-04",
+      "owner": "Natalia",
+      "sprint": "S01",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF0-05",
+      "owner": "Guilherme",
+      "sprint": "S01",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF0-06",
+      "owner": "Kaua",
+      "sprint": "S01",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF0-07",
+      "owner": "Guilherme",
+      "sprint": "S01",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF0-08",
+      "owner": "Kaua",
+      "sprint": "S01",
+      "classe_core_dual": "CORE-IA",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF0-09",
+      "owner": "Guilherme",
+      "sprint": "S03",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF0-10",
+      "owner": "Daniel",
+      "sprint": "S01",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF0-11",
+      "owner": "Natalia",
+      "sprint": "S02",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF0-12",
+      "owner": "Natalia",
+      "sprint": "S02",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF1-01",
+      "owner": "Natalia",
+      "sprint": "S03",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF1-02",
+      "owner": "Kaua",
+      "sprint": "S02",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF1-03",
+      "owner": "Guilherme",
+      "sprint": "S04",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF1-04",
+      "owner": "Daniel",
+      "sprint": "S03",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF1-07",
+      "owner": "Guilherme",
+      "sprint": "S03",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF1-08",
+      "owner": "Natalia",
+      "sprint": "S03",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF1-09",
+      "owner": "Kaua",
+      "sprint": "S03",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": true,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF1-10",
+      "owner": "Natalia",
+      "sprint": "S03",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF1-11",
+      "owner": "Natalia",
+      "sprint": "S03",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF1-12",
+      "owner": "Kaua",
+      "sprint": "S03",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF2-01",
+      "owner": "Guilherme",
+      "sprint": "S05",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF2-02",
+      "owner": "Guilherme",
+      "sprint": "S05",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF2-03",
+      "owner": "Natalia",
+      "sprint": "S05",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF2-04",
+      "owner": "Guilherme",
+      "sprint": "S05",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF2-05",
+      "owner": "Kaua",
+      "sprint": "S05",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF2-06",
+      "owner": "Guilherme",
+      "sprint": "S04",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF2-07",
+      "owner": "Natalia",
+      "sprint": "S05",
+      "classe_core_dual": "CORE-IA",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF2-08",
+      "owner": "Kaua",
+      "sprint": "S05",
+      "classe_core_dual": "CORE-IA",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF2-09",
+      "owner": "Natalia",
+      "sprint": "S05",
+      "classe_core_dual": "CORE-IA",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF2-10",
+      "owner": "Daniel",
+      "sprint": "S05",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF2-11",
+      "owner": "Guilherme",
+      "sprint": "S04",
+      "classe_core_dual": "CORE-IA",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF2-12",
+      "owner": "Natalia",
+      "sprint": "S05",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF3-01",
+      "owner": "Natalia",
+      "sprint": "S07",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF3-02",
+      "owner": "Natalia",
+      "sprint": "S07",
+      "classe_core_dual": "CORE-IA",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF3-03",
+      "owner": "Kaua",
+      "sprint": "S07",
+      "classe_core_dual": "CORE-IA",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF3-04",
+      "owner": "Guilherme",
+      "sprint": "S06",
+      "classe_core_dual": "CORE-IA",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF3-05",
+      "owner": "Natalia",
+      "sprint": "S06",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF3-06",
+      "owner": "Guilherme",
+      "sprint": "S06",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF3-07",
+      "owner": "Guilherme",
+      "sprint": "S06",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF3-08",
+      "owner": "Daniel",
+      "sprint": "S06",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF3-09",
+      "owner": "Guilherme",
+      "sprint": "S07",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF3-10",
+      "owner": "Guilherme",
+      "sprint": "S07",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF3-11",
+      "owner": "Natalia",
+      "sprint": "S06",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF3-12",
+      "owner": "Daniel",
+      "sprint": "S06",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF4-01",
+      "owner": "Kaua",
+      "sprint": "S06",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF4-02",
+      "owner": "Guilherme",
+      "sprint": "S07",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF4-03",
+      "owner": "Natalia",
+      "sprint": "S07",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF4-04",
+      "owner": "Kaua",
+      "sprint": "S08",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF4-05",
+      "owner": "Daniel",
+      "sprint": "S08",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": true,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF4-06",
+      "owner": "Guilherme",
+      "sprint": "S08",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF4-07",
+      "owner": "Kaua",
+      "sprint": "S02",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF4-08",
+      "owner": "Natalia",
+      "sprint": "S06",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF4-09",
+      "owner": "Kaua",
+      "sprint": "S07",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF4-10",
+      "owner": "Natalia",
+      "sprint": "S08",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": true,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF5-01",
+      "owner": "Daniel",
+      "sprint": "S09",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF5-03",
+      "owner": "Guilherme",
+      "sprint": "S09",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF5-04",
+      "owner": "Kaua",
+      "sprint": "S09",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF5-05",
+      "owner": "Natalia",
+      "sprint": "S09",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF5-06",
+      "owner": "Kaua",
+      "sprint": "S08",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": true,
+      "sprint_changed": false,
+      "class_changed": true,
+      "reclass_reason": "repair_sprint_core_ratio"
+    },
+    {
+      "bk_id": "BK-MF5-07",
+      "owner": "Natalia",
+      "sprint": "S08",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF5-08",
+      "owner": "Guilherme",
+      "sprint": "S08",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF5-09",
+      "owner": "Daniel",
+      "sprint": "S11",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF5-10",
+      "owner": "Guilherme",
+      "sprint": "S09",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": true,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF5-11",
+      "owner": "Kaua",
+      "sprint": "S07",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF5-12",
+      "owner": "Guilherme",
+      "sprint": "S10",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF6-01",
+      "owner": "Natalia",
+      "sprint": "S10",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF6-02",
+      "owner": "Daniel",
+      "sprint": "S11",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF6-03",
+      "owner": "Natalia",
+      "sprint": "S08",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF6-04",
+      "owner": "Guilherme",
+      "sprint": "S10",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF6-05",
+      "owner": "Kaua",
+      "sprint": "S10",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF6-06",
+      "owner": "Natalia",
+      "sprint": "S10",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF6-07",
+      "owner": "Daniel",
+      "sprint": "S10",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": true,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF6-08",
+      "owner": "Natalia",
+      "sprint": "S10",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF6-09",
+      "owner": "Natalia",
+      "sprint": "S09",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF6-10",
+      "owner": "Natalia",
+      "sprint": "S09",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF6-11",
+      "owner": "Kaua",
+      "sprint": "S10",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF6-12",
+      "owner": "Kaua",
+      "sprint": "S09",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF7-01",
+      "owner": "Kaua",
+      "sprint": "S11",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF7-02",
+      "owner": "Guilherme",
+      "sprint": "S10",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF7-03",
+      "owner": "Natalia",
+      "sprint": "S11",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF7-04",
+      "owner": "Guilherme",
+      "sprint": "S11",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF7-05",
+      "owner": "Guilherme",
+      "sprint": "S06",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF7-06",
+      "owner": "Natalia",
+      "sprint": "S07",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF7-07",
+      "owner": "Daniel",
+      "sprint": "S12",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF7-08",
+      "owner": "Kaua",
+      "sprint": "S12",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF7-09",
+      "owner": "Kaua",
+      "sprint": "S12",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF7-10",
+      "owner": "Natalia",
+      "sprint": "S12",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF7-11",
+      "owner": "Guilherme",
+      "sprint": "S12",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-01",
+      "owner": "Natalia",
+      "sprint": "S12",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-02",
+      "owner": "Natalia",
+      "sprint": "S11",
+      "classe_core_dual": "CORE-IA",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-03",
+      "owner": "Daniel",
+      "sprint": "S12",
+      "classe_core_dual": "CORE-IA",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-04",
+      "owner": "Guilherme",
+      "sprint": "S11",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": true,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-05",
+      "owner": "Natalia",
+      "sprint": "S11",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": true,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-06",
+      "owner": "Natalia",
+      "sprint": "S12",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-07",
+      "owner": "Guilherme",
+      "sprint": "S12",
+      "classe_core_dual": "CORE-IA",
+      "owner_changed": true,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-08",
+      "owner": "Kaua",
+      "sprint": "S11",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-09",
+      "owner": "Natalia",
+      "sprint": "S08",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-10",
+      "owner": "Daniel",
+      "sprint": "S07",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-11",
+      "owner": "Guilherme",
+      "sprint": "S03",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": false,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    }
+  ],
+  "per_sprint": [
+    {
+      "sprint": "S01",
+      "capacity_u": 16.5,
+      "load_u": 15.0,
+      "core_u": 15.0,
+      "support_u": 0.0,
+      "core_dual_percent": 100.0
+    },
+    {
+      "sprint": "S02",
+      "capacity_u": 16.5,
+      "load_u": 7.0,
+      "core_u": 5.0,
+      "support_u": 2.0,
+      "core_dual_percent": 71.4
+    },
+    {
+      "sprint": "S03",
+      "capacity_u": 16.5,
+      "load_u": 14.0,
+      "core_u": 13.0,
+      "support_u": 1.0,
+      "core_dual_percent": 92.9
+    },
+    {
+      "sprint": "S04",
+      "capacity_u": 19.0,
+      "load_u": 4.0,
+      "core_u": 4.0,
+      "support_u": 0.0,
+      "core_dual_percent": 100.0
+    },
+    {
+      "sprint": "S05",
+      "capacity_u": 16.5,
+      "load_u": 15.0,
+      "core_u": 15.0,
+      "support_u": 0.0,
+      "core_dual_percent": 100.0
+    },
+    {
+      "sprint": "S06",
+      "capacity_u": 16.5,
+      "load_u": 11.0,
+      "core_u": 8.0,
+      "support_u": 3.0,
+      "core_dual_percent": 72.7
+    },
+    {
+      "sprint": "S07",
+      "capacity_u": 16.5,
+      "load_u": 15.0,
+      "core_u": 12.0,
+      "support_u": 3.0,
+      "core_dual_percent": 80.0
+    },
+    {
+      "sprint": "S08",
+      "capacity_u": 19.0,
+      "load_u": 14.0,
+      "core_u": 10.0,
+      "support_u": 4.0,
+      "core_dual_percent": 71.4
+    },
+    {
+      "sprint": "S09",
+      "capacity_u": 16.5,
+      "load_u": 14.0,
+      "core_u": 10.0,
+      "support_u": 4.0,
+      "core_dual_percent": 71.4
+    },
+    {
+      "sprint": "S10",
+      "capacity_u": 16.5,
+      "load_u": 15.0,
+      "core_u": 13.0,
+      "support_u": 2.0,
+      "core_dual_percent": 86.7
+    },
+    {
+      "sprint": "S11",
+      "capacity_u": 16.5,
+      "load_u": 15.0,
+      "core_u": 12.0,
+      "support_u": 3.0,
+      "core_dual_percent": 80.0
+    },
+    {
+      "sprint": "S12",
+      "capacity_u": 19.0,
+      "load_u": 14.0,
+      "core_u": 10.0,
+      "support_u": 4.0,
+      "core_dual_percent": 71.4
+    }
+  ],
+  "per_owner": [
+    {
+      "owner": "Natalia",
+      "capacity_weekly_u": 6.0,
+      "total_effort_u": 61.0,
+      "p0": 25,
+      "p1": 10,
+      "p2": 1
+    },
+    {
+      "owner": "Guilherme",
+      "capacity_weekly_u": 4.5,
+      "total_effort_u": 43.0,
+      "p0": 13,
+      "p1": 13,
+      "p2": 4
+    },
+    {
+      "owner": "Kaua",
+      "capacity_weekly_u": 3.5,
+      "total_effort_u": 31.0,
+      "p0": 9,
+      "p1": 12,
+      "p2": 1
+    },
+    {
+      "owner": "Daniel",
+      "capacity_weekly_u": 2.5,
+      "total_effort_u": 18.0,
+      "p0": 5,
+      "p1": 6,
+      "p2": 2
+    }
+  ]
+}

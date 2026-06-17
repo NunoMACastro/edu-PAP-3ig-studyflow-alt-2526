@@ -1,0 +1,739 @@
+# BK-MF3-08 - IA coletiva para sessões de grupo.
+
+## Header
+
+- `doc_id`: `GUIA-BK-MF3-08`
+- `bk_id`: `BK-MF3-08`
+- `macro`: `MF3`
+- `owner`: `Daniel`
+- `apoio`: `Kaua`
+- `prioridade`: `P2`
+- `estado`: `TODO`
+- `esforco`: `S`
+- `dependencias`: `BK-MF3-05`
+- `rf_rnf`: `RF44`
+- `fase_documental`: `Fase 2`
+- `sprint`: `S06`
+- `core_or_reforco`: `Core`
+- `proximo_bk`: `BK-MF3-09`
+- `guia_path`: `docs/planificacao/guias-bk/MF3/BK-MF3-08-ia-coletiva-para-sessoes-de-grupo.md`
+- `last_updated`: `2026-06-16`
+
+#### Objetivo
+
+Neste BK vais implementar IA coletiva com fontes partilhadas do grupo. O guia parte dos contratos canónicos de RF44, da sequência MF0-MF2 e dos BKs que desbloqueiam este requisito.
+
+#### Importância
+
+Este BK transforma o requisito RF44 numa entrega copiável e testável. A funcionalidade fica no backend, com validação, sessão autenticada e resposta tipada para o frontend. Assim, o aluno percebe o domínio StudyFlow antes de escrever código e não precisa de adivinhar services, DTOs ou endpoints.
+
+#### Scope-in
+
+- Perguntar à IA do grupo.
+- Usar fontes partilhadas autorizadas.
+- Guardar pergunta, resposta e fontes.
+
+#### Scope-out
+
+- IA da turma oficial.
+- Resposta sem fonte.
+- Criação automática de materiais.
+
+#### Estado antes e depois
+
+##### Estado antes
+
+- O fluxo ainda não estava totalmente alinhado com o contrato executável do `real_dev`.
+- As rotas, imports, autenticação e testes ainda precisavam de ficar coerentes com a app real.
+
+##### Estado depois
+
+- O BK apresenta endpoint `POST /api/study-groups/:groupId/group-ai/questions`, DTO, backend, frontend, validações e handoff para `BK-MF3-09`.
+- O código apresentado valida sessão, ownership ou membership antes de ler ou gravar dados.
+
+##### Decisões de escopo
+
+- Prioridade, owner, dependências, sprint e RF são CANONICO porque vêm de `MATRIZ-CANONICA-BK.md`, `BACKLOG-MVP.md` e `CONTRATO-CAMPOS-BK.md`.
+- O endpoint `POST /api/study-groups/:groupId/group-ai/questions` é DERIVADO como contrato técnico mínimo para cumprir RF44 sem contrariar os documentos canónicos.
+- Usar `SessionGuard` e `AuthenticatedUser` é DERIVADO dos BKs anteriores e obrigatório para manter ownership e membership no backend.
+- A resposta do frontend usa `credentials: 'include'` porque a sessão vem de cookie HttpOnly.
+
+#### Pre-requisitos
+
+- `BK-MF3-05` com `StudyGroupsService.ensureMember`.
+- `BK-MF1-03` com `RoomSharesService.findUsableSharesForRoom`.
+- `BK-MF3-01` com guardrails de grupo.
+
+#### Glossário
+
+- **Actor autenticado**: utilizador obtido da sessão segura, nunca do body.
+- **DTO**: classe que valida dados de entrada antes de chegarem ao service.
+- **Service**: camada que aplica regras de domínio, ownership e membership.
+- **Controller**: camada que expõe o endpoint HTTP e delega no service.
+- **Schema Mongoose**: contrato de persistência em MongoDB para dados novos do BK.
+- **Frontend client**: função tipada que chama a API com cookie de sessão.
+
+#### Conceitos teóricos essenciais
+
+##### Conceitos de domínio StudyFlow
+
+- IA coletiva responde com base em fontes partilhadas na sala/grupo.
+- O aluno só pode usar IA se for membro do grupo.
+- Sem fontes partilhadas processáveis, o backend devolve `422`.
+- As citações apontam para partilhas autorizadas e não para materiais privados de outro aluno.
+
+##### Conceitos backend
+
+- O controller recebe HTTP, mas não decide permissões.
+- O service valida sessão, ownership ou membership antes de tocar em dados sensíveis.
+- O DTO protege o service contra campos vazios, tipos errados e payloads demasiado grandes.
+- O módulo NestJS liga controller, service, schemas e módulos herdados.
+
+##### Conceitos frontend
+
+- O componente React separa input, loading, erro, sucesso e vazio.
+- O cliente API é tipado para alinhar payload e resposta.
+- `credentials: 'include'` envia o cookie HttpOnly sem guardar tokens no browser.
+
+##### Conceitos de segurança
+
+- O frontend nunca envia `userId` como fonte de verdade.
+- O backend valida membership ou ownership com services herdados.
+- Erros negativos são controlados com `400`, `401`, `403`, `404`, `422` ou `503`, conforme a causa.
+
+#### Arquitetura do BK
+
+- Endpoint: `POST /api/study-groups/:groupId/group-ai/questions`.
+- Backend: `real_dev/api/src/modules/study-group-ai`.
+- Frontend: `real_dev/web/src/features/study-group-ai`.
+- DTO principal: `AskStudyGroupAiDto`.
+- Service principal: `StudyGroupAiService`.
+- Controller principal: `StudyGroupAiController`.
+- Módulo principal: `StudyGroupAiModule`.
+- Handoff: `BK-MF3-09`.
+
+#### Ficheiros a criar/editar/rever
+
+- CRIAR: `real_dev/api/src/modules/study-group-ai/dto/ask-study-group-ai.dto.ts`
+- CRIAR: `real_dev/api/src/modules/study-group-ai/schemas/study-group-ai-answer.schema.ts`
+- CRIAR: `real_dev/api/src/modules/study-group-ai/study-group-ai.service.ts`
+- CRIAR: `real_dev/api/src/modules/study-group-ai/study-group-ai.controller.ts`
+- CRIAR: `real_dev/api/src/modules/study-group-ai/study-group-ai.module.ts`
+- CRIAR: `real_dev/web/src/features/study-group-ai/ask-study-group-ai.ts`
+- CRIAR: `real_dev/web/src/features/study-group-ai/study-group-ai-panel.tsx`
+- REVER: `real_dev/api/src/app.module.ts` para importar o módulo criado.
+
+#### Tutorial técnico linear
+
+
+
+### Passo 1 - Definir o DTO validado
+
+1. Objetivo funcional do passo no contexto da app.
+   Garantir que o endpoint recebe dados claros e rejeita input inválido antes do service.
+2. Ficheiros envolvidos:
+   - CRIAR: `real_dev/api/src/modules/study-group-ai/dto/ask-study-group-ai.dto.ts`
+   - LOCALIZAÇÃO: `ficheiro completo`
+3. Instruções do que fazer.
+   Cria o DTO com validações declarativas e nomes iguais ao payload documentado neste BK.
+4. Código completo, correto e integrado com a app final.
+
+```ts
+// real_dev/api/src/modules/study-group-ai/dto/ask-study-group-ai.dto.ts
+import { IsArray, IsMongoId, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+
+/**
+ * Pedido para IA coletiva com fontes partilhadas do grupo.
+ */
+export class AskStudyGroupAiDto {
+    /**
+     * Pergunta coletiva.
+     */
+    @IsString()
+    @MinLength(5)
+    @MaxLength(1200)
+    question!: string;
+
+    /**
+     * Partilhas específicas a usar como fontes, quando o grupo as escolher.
+     */
+    @IsOptional()
+    @IsArray()
+    @IsMongoId({ each: true })
+    sourceShareIds?: string[];
+}
+```
+
+5. Explicação do código.
+   O DTO define o contrato de entrada. Cada campo tem JSDoc para explicar de onde vem e que erro evita. As validações devolvem `400 Bad Request` antes de qualquer leitura de dados.
+6. Validação do passo.
+   Envia para `POST /api/study-groups/:groupId/group-ai/questions` um body vazio e confirma que a validação devolve `400`.
+7. Cenário negativo/erro esperado.
+   Não aceites IDs de aluno no body. O utilizador vem da sessão autenticada.
+
+### Passo 2 - Criar o schema de persistência
+
+1. Objetivo funcional do passo no contexto da app.
+   Guardar dados mínimos do fluxo para histórico, defesa e integração com BKs seguintes.
+2. Ficheiros envolvidos:
+   - CRIAR: `real_dev/api/src/modules/study-group-ai/schemas/study-group-ai-answer.schema.ts`
+   - LOCALIZAÇÃO: `ficheiro completo`
+3. Instruções do que fazer.
+   Cria o schema Mongoose do resultado produzido por este BK.
+4. Código completo, correto e integrado com a app final.
+
+```ts
+// real_dev/api/src/modules/study-group-ai/schemas/study-group-ai-answer.schema.ts
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { HydratedDocument, Types } from "mongoose";
+
+export type StudyGroupAiAnswerDocument = HydratedDocument<StudyGroupAiAnswer>;
+
+@Schema({ _id: false })
+export class StudyGroupAiSource {
+    @Prop({ required: true })
+    shareId!: string;
+
+    @Prop({ required: true })
+    title!: string;
+}
+
+export const StudyGroupAiSourceSchema =
+    SchemaFactory.createForClass(StudyGroupAiSource);
+
+/**
+ * Resposta de IA coletiva associada a um grupo.
+ */
+@Schema({ timestamps: true })
+export class StudyGroupAiAnswer {
+    _id!: { toString(): string };
+
+    @Prop({ required: true, type: Types.ObjectId, index: true })
+    groupId!: Types.ObjectId;
+
+    @Prop({ required: true, type: Types.ObjectId, index: true })
+    studentId!: Types.ObjectId;
+
+    @Prop({ required: true })
+    question!: string;
+
+    @Prop({ required: true })
+    answer!: string;
+
+    @Prop({ required: true, type: [StudyGroupAiSourceSchema] })
+    sources!: StudyGroupAiSource[];
+}
+
+export const StudyGroupAiAnswerSchema =
+    SchemaFactory.createForClass(StudyGroupAiAnswer);
+```
+
+5. Explicação do código.
+   O schema evita respostas soltas: a app guarda quem executou o fluxo, que dados foram usados e que resultado foi devolvido. Isto permite testes e continuidade.
+6. Validação do passo.
+   Arranca a API depois do módulo e confirma que o schema é registado pelo NestJS.
+7. Cenário negativo/erro esperado.
+   Não guardes segredos, tokens ou dados de outros contextos neste documento.
+
+### Passo 3 - Implementar o service de aplicação
+
+1. Objetivo funcional do passo no contexto da app.
+   Concentrar regras de negócio, ownership, membership, erros e efeitos de persistência num ponto testável.
+2. Ficheiros envolvidos:
+   - CRIAR: `real_dev/api/src/modules/study-group-ai/study-group-ai.service.ts`
+   - LOCALIZAÇÃO: `classe completa do service`
+3. Instruções do que fazer.
+   Cria o service e injeta apenas módulos herdados ou ficheiros criados neste BK.
+4. Código completo, correto e integrado com a app final.
+
+```ts
+// real_dev/api/src/modules/study-group-ai/study-group-ai.service.ts
+import {
+    Inject,
+    Injectable,
+    ServiceUnavailableException,
+    UnprocessableEntityException,
+} from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, Types } from "mongoose";
+import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
+import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider.js";
+import {
+    RoomSharesService,
+    RoomShareSource,
+} from "../study-rooms/room-shares.service.js";
+import { StudyGroupsService } from "../study-groups/study-groups.service.js";
+import { AskStudyGroupAiDto } from "./dto/ask-study-group-ai.dto.js";
+import {
+    StudyGroupAiAnswer,
+    StudyGroupAiAnswerDocument,
+    StudyGroupAiSource,
+} from "./schemas/study-group-ai-answer.schema.js";
+
+export type StudyGroupAiAnswerView = {
+    _id: string;
+    groupId: string;
+    question: string;
+    answer: string;
+    sources: StudyGroupAiSource[];
+    createdAt?: Date;
+};
+
+/**
+ * Serviço da IA coletiva baseada em fontes partilhadas.
+ */
+@Injectable()
+export class StudyGroupAiService {
+    constructor(
+        @InjectModel(StudyGroupAiAnswer.name)
+        private readonly answerModel: Model<StudyGroupAiAnswerDocument>,
+        private readonly studyGroupsService: StudyGroupsService,
+        private readonly roomSharesService: RoomSharesService,
+        @Inject(AI_PROVIDER)
+        private readonly aiProvider: AiProvider,
+    ) {}
+
+    /**
+     * Responde a uma pergunta coletiva usando apenas partilhas processáveis.
+     *
+     * @param actor Aluno autenticado.
+     * @param groupId Grupo alvo.
+     * @param input Pergunta e fontes opcionais.
+     * @returns Resposta guardada com fontes.
+     * @throws UnprocessableEntityException quando não há fontes partilhadas.
+     * @throws ServiceUnavailableException quando o provider falha ou devolve output inválido.
+     */
+    async ask(
+        actor: AuthenticatedUser,
+        groupId: string,
+        input: AskStudyGroupAiDto,
+    ): Promise<StudyGroupAiAnswerView> {
+        await this.studyGroupsService.ensureMember(actor.id, groupId);
+        const sources = await this.roomSharesService.findUsableSharesForRoom(
+            actor.id,
+            groupId,
+            input.sourceShareIds,
+        );
+
+        if (sources.length === 0) {
+            throw new UnprocessableEntityException({
+                code: "NO_GROUP_AI_SOURCES",
+                message: "Este grupo ainda não tem fontes partilhadas processáveis.",
+            });
+        }
+
+        const selected = sources.slice(0, 3);
+        const answer = await this.generateAnswer(input.question, selected);
+        const document = await this.answerModel.create({
+            groupId: new Types.ObjectId(groupId),
+            studentId: new Types.ObjectId(actor.id),
+            question: input.question.trim(),
+            answer,
+            sources: selected.map((source) => ({
+                shareId: source.shareId,
+                title: source.title,
+            })),
+        });
+        const created = document.toObject() as { createdAt?: Date };
+        return {
+            _id: String(document._id),
+            groupId,
+            question: document.question,
+            answer: document.answer,
+            sources: document.sources,
+            createdAt: created.createdAt,
+        };
+    }
+
+    /**
+     * Chama o provider IA com fontes de grupo já autorizadas.
+     *
+     * @param question Pergunta coletiva.
+     * @param sources Partilhas autorizadas.
+     * @returns Resposta validada.
+     */
+    private async generateAnswer(
+        question: string,
+        sources: RoomShareSource[],
+    ): Promise<string> {
+        const prompt = [
+            "Responde em português de Portugal.",
+            "Age como IA coletiva de grupo e usa apenas fontes partilhadas autorizadas.",
+            `Pergunta do grupo: ${question.trim()}`,
+            "Fontes partilhadas:",
+            sources
+                .map(
+                    (source, index) =>
+                        `Fonte ${index + 1} (${source.shareId}, ${source.title}): ${source.contentText.trim().slice(0, 420)}`,
+                )
+                .join("\n"),
+            "Devolve JSON com a chave answer.",
+        ].join("\n");
+
+        let providerResult: Record<string, unknown>;
+        try {
+            providerResult = await this.aiProvider.generateStudyTool({
+                prompt,
+                type: "EXPLANATION",
+            });
+        } catch {
+            throw new ServiceUnavailableException({
+                code: "AI_PROVIDER_UNAVAILABLE",
+                message: "A IA está temporariamente indisponível.",
+            });
+        }
+
+        const answer = providerResult.answer;
+        if (typeof answer !== "string" || answer.trim().length === 0) {
+            throw new ServiceUnavailableException({
+                code: "AI_PROVIDER_INVALID_RESPONSE",
+                message: "A IA devolveu uma resposta inválida.",
+            });
+        }
+
+        return answer.trim();
+    }
+}
+```
+
+5. Explicação do código.
+   O service recebe o actor autenticado, valida o contexto com services de BKs anteriores e só depois lê, grava ou chama IA. Isto impede que a UI contorne regras de segurança.
+6. Validação do passo.
+   Cria testes unitários para sessão válida, contexto proibido e dados insuficientes.
+7. Cenário negativo/erro esperado.
+   Não faças consultas diretas por ID sem validar owner ou membership.
+
+### Passo 4 - Expor o endpoint no controller
+
+1. Objetivo funcional do passo no contexto da app.
+   Ligar `POST /api/study-groups/:groupId/group-ai/questions` ao service sem colocar regras sensíveis no controller.
+2. Ficheiros envolvidos:
+   - CRIAR: `real_dev/api/src/modules/study-group-ai/study-group-ai.controller.ts`
+   - LOCALIZAÇÃO: `classe completa do controller`
+3. Instruções do que fazer.
+   Cria o controller com `SessionGuard`, `@Req() request: AuthenticatedRequest` e delegação direta para o service.
+4. Código completo, correto e integrado com a app final.
+
+```ts
+// real_dev/api/src/modules/study-group-ai/study-group-ai.controller.ts
+import { Body, Controller, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { SessionGuard } from "../../common/guards/session.guard.js";
+import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
+import { AskStudyGroupAiDto } from "./dto/ask-study-group-ai.dto.js";
+import { StudyGroupAiService } from "./study-group-ai.service.js";
+
+/**
+ * Endpoint de IA coletiva para grupos.
+ */
+@Controller("api/study-groups/:groupId/group-ai/questions")
+@UseGuards(SessionGuard)
+export class StudyGroupAiController {
+    constructor(private readonly groupAiService: StudyGroupAiService) {}
+
+    /**
+     * Responde com base nas fontes partilhadas do grupo.
+     *
+     * @param request Pedido autenticado.
+     * @param groupId Grupo alvo.
+     * @param body Pergunta e fontes opcionais.
+     * @returns Resposta coletiva.
+     */
+    @Post()
+    ask(
+        @Req() request: AuthenticatedRequest,
+        @Param("groupId") groupId: string,
+        @Body() body: AskStudyGroupAiDto,
+    ) {
+        return this.groupAiService.ask(request.user!, groupId, body);
+    }
+}
+```
+
+5. Explicação do código.
+   O controller transforma HTTP em chamada de aplicação. A autorização continua no service para que testes unitários cubram o comportamento sem depender de HTTP.
+6. Validação do passo.
+   Faz um pedido sem cookie para `POST /api/study-groups/:groupId/group-ai/questions` e confirma `401 Unauthorized`.
+7. Cenário negativo/erro esperado.
+   Não leias `userId` do body ou da query string; o `SessionGuard` deve anexar o utilizador ao `request` autenticado.
+
+### Passo 5 - Publicar o módulo NestJS
+
+1. Objetivo funcional do passo no contexto da app.
+   Permitir que a aplicação carregue controller, service, schema e dependências num módulo coeso.
+2. Ficheiros envolvidos:
+   - CRIAR: `real_dev/api/src/modules/study-group-ai/study-group-ai.module.ts`
+   - EDITAR: `real_dev/api/src/app.module.ts`
+   - LOCALIZAÇÃO: `módulo completo e lista de imports do AppModule`
+3. Instruções do que fazer.
+   Cria o módulo e adiciona `StudyGroupAiModule` à lista de imports do AppModule, preservando os módulos existentes.
+4. Código completo, correto e integrado com a app final.
+
+```ts
+// real_dev/api/src/modules/study-group-ai/study-group-ai.module.ts
+import { Module } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
+import { AiModule } from "../ai/ai.module.js";
+import { AuthModule } from "../auth/auth.module.js";
+import { StudyGroupsModule } from "../study-groups/study-groups.module.js";
+import { StudyRoomsModule } from "../study-rooms/study-rooms.module.js";
+import {
+    StudyGroupAiAnswer,
+    StudyGroupAiAnswerSchema,
+} from "./schemas/study-group-ai-answer.schema.js";
+import { StudyGroupAiController } from "./study-group-ai.controller.js";
+import { StudyGroupAiService } from "./study-group-ai.service.js";
+
+/**
+ * Módulo MF3 para IA coletiva de grupos.
+ */
+@Module({
+    imports: [
+        AuthModule,
+        AiModule,
+        StudyGroupsModule,
+        StudyRoomsModule,
+        MongooseModule.forFeature([
+            { name: StudyGroupAiAnswer.name, schema: StudyGroupAiAnswerSchema },
+        ]),
+    ],
+    controllers: [StudyGroupAiController],
+    providers: [StudyGroupAiService],
+})
+export class StudyGroupAiModule {}
+```
+
+5. Explicação do código.
+   O módulo explicita dependências. Se algum import falhar, o erro aparece no arranque da API em vez de surgir no meio do fluxo do aluno.
+6. Validação do passo.
+   Arranca a API e confirma que o módulo resolve todos os providers.
+7. Cenário negativo/erro esperado.
+   Não declares outro provider de IA nem dupliques módulos herdados.
+
+### Passo 6 - Criar o cliente frontend tipado
+
+1. Objetivo funcional do passo no contexto da app.
+   Isolar a chamada HTTP para que o componente não tenha URLs, métodos ou parsing espalhados.
+2. Ficheiros envolvidos:
+   - CRIAR: `real_dev/web/src/features/study-group-ai/ask-study-group-ai.ts`
+   - LOCALIZAÇÃO: `ficheiro completo`
+3. Instruções do que fazer.
+   Cria uma função de API com payload e resposta tipados.
+4. Código completo, correto e integrado com a app final.
+
+```ts
+// real_dev/web/src/features/study-group-ai/ask-study-group-ai.ts
+import { requestMf3Json } from "../mf3/request-mf3-json.js";
+
+export type StudyGroupAiAnswer = {
+    _id: string;
+    groupId: string;
+    question: string;
+    answer: string;
+    sources: { shareId: string; title: string }[];
+    createdAt?: string;
+};
+
+/**
+ * Pede resposta coletiva baseada em fontes partilhadas.
+ *
+ * @param groupId Grupo alvo.
+ * @param input Pergunta e fontes opcionais.
+ * @returns Resposta da IA coletiva.
+ */
+export function askStudyGroupAi(
+    groupId: string,
+    input: { question: string; sourceShareIds?: string[] },
+): Promise<StudyGroupAiAnswer> {
+    return requestMf3Json<StudyGroupAiAnswer>(
+        `/api/study-groups/${groupId}/group-ai/questions`,
+        {
+            method: "POST",
+            body: JSON.stringify(input),
+        },
+    );
+}
+```
+
+5. Explicação do código.
+   `credentials: 'include'` envia o cookie de sessão sem guardar tokens no `localStorage`. O erro é lançado para a UI mostrar feedback controlado.
+6. Validação do passo.
+   Força a API a devolver erro e confirma que o componente recebe uma exceção.
+7. Cenário negativo/erro esperado.
+   Não uses `localStorage` para tokens de autenticação.
+
+### Passo 7 - Montar a interface mínima
+
+1. Objetivo funcional do passo no contexto da app.
+   Dar ao aluno um ecrã simples para testar o endpoint sem ferramentas externas.
+2. Ficheiros envolvidos:
+   - CRIAR: `real_dev/web/src/features/study-group-ai/study-group-ai-panel.tsx`
+   - LOCALIZAÇÃO: `componente completo`
+3. Instruções do que fazer.
+   Cria o componente com formulário, loading, erro, vazio e sucesso.
+4. Código completo, correto e integrado com a app final.
+
+```tsx
+// real_dev/web/src/features/study-group-ai/study-group-ai-panel.tsx
+import { FormEvent, useEffect, useState } from "react";
+import { askStudyGroupAi, StudyGroupAiAnswer } from "./ask-study-group-ai.js";
+
+type StudyGroupAiPanelProps = {
+    initialGroupId?: string | null;
+};
+
+/**
+ * Painel de IA coletiva.
+ *
+ * @param props Grupo selecionado pela página agregadora.
+ * @returns Formulário e resposta.
+ */
+export function StudyGroupAiPanel({ initialGroupId }: StudyGroupAiPanelProps) {
+    const [groupId, setGroupId] = useState(initialGroupId ?? "");
+    const [question, setQuestion] = useState("");
+    const [sourceShareIds, setSourceShareIds] = useState("");
+    const [answer, setAnswer] = useState<StudyGroupAiAnswer | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        setGroupId(initialGroupId ?? "");
+    }, [initialGroupId]);
+
+    async function handleSubmit(event: FormEvent): Promise<void> {
+        event.preventDefault();
+        setLoading(true);
+        setError(null);
+        try {
+            setAnswer(
+                await askStudyGroupAi(groupId, {
+                    question,
+                    sourceShareIds: sourceShareIds
+                        .split(",")
+                        .map((sourceId) => sourceId.trim())
+                        .filter(Boolean),
+                }),
+            );
+        } catch (caught) {
+            setError(caught instanceof Error ? caught.message : "Erro ao responder.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <section className="sf-panel space-y-4">
+            <h2 className="text-lg font-semibold">IA coletiva</h2>
+            {error ? <p className="sf-error">{error}</p> : null}
+            <form className="space-y-3" onSubmit={(event) => void handleSubmit(event)}>
+                <label className="block">
+                    Grupo
+                    <input value={groupId} onChange={(event) => setGroupId(event.target.value)} />
+                </label>
+                <label className="block">
+                    Fontes
+                    <input value={sourceShareIds} onChange={(event) => setSourceShareIds(event.target.value)} />
+                </label>
+                <label className="block">
+                    Pergunta
+                    <textarea rows={3} value={question} onChange={(event) => setQuestion(event.target.value)} />
+                </label>
+                <button className="sf-button-primary" disabled={loading || !groupId || question.trim().length < 5}>
+                    {loading ? "A responder..." : "Responder"}
+                </button>
+            </form>
+            {answer ? (
+                <div className="space-y-2 text-sm">
+                    <p className="whitespace-pre-line text-slate-800">{answer.answer}</p>
+                    {answer.sources.map((source) => (
+                        <p className="text-slate-600" key={source.shareId}>{source.title}</p>
+                    ))}
+                </div>
+            ) : null}
+        </section>
+    );
+}
+```
+
+5. Explicação do código.
+   O componente valida o fluxo real: envia dados pelo cliente tipado, mostra erros e apresenta a resposta sem expor dados sensíveis.
+6. Validação do passo.
+   Preenche o formulário, submete e confirma que o resultado aparece sem reload da página.
+7. Cenário negativo/erro esperado.
+   Não escondas erros; feedback silencioso faz o aluno pensar que a app não respondeu.
+
+### Passo 8 - Fechar validação do BK
+
+1. Objetivo funcional do passo no contexto da app.
+   Registar o contrato mínimo que a equipa deve cobrir com testes e evidência.
+2. Ficheiros envolvidos:
+   - REVER: `real_dev/api/src/modules/mf3-http-contracts.spec.ts`
+   - LOCALIZAÇÃO: `teste de contrato MF3 e teste unitário do módulo`
+3. Instruções do que fazer.
+   Revê os testes Jest já configurados para a MF3 e confirma o cenário deste BK sem adicionar dependências novas.
+4. Código completo, correto e integrado com a app final.
+
+Sem código neste passo. Este passo é de validação: usa os testes Jest existentes em `real_dev/api/src/modules/mf3-http-contracts.spec.ts` e o teste unitário do módulo correspondente, sem adicionar dependências novas.
+
+5. Explicação do código.
+   A validação usa Jest e os testes de contrato existentes da MF3 para confirmar rota, autenticação, DTO e cenário negativo sem introduzir dependências HTTP externas.
+6. Validação do passo.
+   Executa os testes unitários da API e confirma que o ficheiro `real_dev/api/src/modules/mf3-http-contracts.spec.ts` cobre o endpoint documentado.
+7. Cenário negativo/erro esperado.
+   Não marques o BK como concluído sem pelo menos um negativo de autenticação/autorização e um negativo de validação.
+
+#### Critérios de aceite
+
+##### Expected results
+
+- Pedido válido para `POST /api/study-groups/:groupId/group-ai/questions` devolve `201 Created` com resposta e fontes do grupo.
+- Pedido sem sessão devolve `401 Unauthorized`.
+- Pedido com dados inválidos devolve `400 Bad Request`.
+- Pedido sem ownership, membership ou fonte autorizada devolve `403 Forbidden`, `404 Not Found` ou `422 Unprocessable Entity`.
+- O frontend mostra loading, erro, vazio e sucesso sem guardar tokens.
+
+##### Critérios de aceite mensuráveis
+
+- O guia usa linguagem pedagógica final e evita referências a processos internos de revisão.
+- Todos os passos têm os pontos 1 a 7 e localização concreta.
+- O endpoint `POST /api/study-groups/:groupId/group-ai/questions` está alinhado entre controller e cliente frontend.
+- O backend valida sessão antes de usar dados do actor.
+- O service valida ownership ou membership com services herdados.
+- O código TypeScript/TSX tem JSDoc nas declarações relevantes.
+- O handoff para `BK-MF3-09` fica claro.
+
+#### Validação final
+
+##### Smoke test
+
+```bash
+curl -i -X POST http://localhost:3000/api/study-groups/:groupId/group-ai/questions \
+  -H 'Content-Type: application/json' \
+  -d '{ "question": "Que pontos devemos rever na sessão?", "sourceShareIds": ["share_123"] }'
+```
+
+##### Negativos obrigatórios
+
+- Sem cookie de sessão: `401 Unauthorized`.
+- Campo obrigatório em falta: `400 Bad Request`.
+- Recurso de outro aluno, grupo ou turma: `403 Forbidden` ou `404 Not Found`.
+- Fonte inexistente ou não processável: `422 Unprocessable Entity` nos fluxos que usam fontes.
+
+#### Evidence para PR/defesa
+
+- Output do smoke test com payload válido.
+- Output de pelo menos dois cenários negativos.
+- Screenshot ou vídeo curto do painel frontend com sucesso e erro.
+- Nota no PR com os documentos canónicos consultados e os requisitos cobertos.
+- Referência ao requisito `RF44` e ao próximo BK `BK-MF3-09`.
+
+#### Handoff
+
+- Este BK entrega `StudyGroupAiModule`, `StudyGroupAiService`, `StudyGroupAiController` e cliente frontend tipado.
+- O próximo BK é `BK-MF3-09`.
+- A equipa deve partir dos nomes exactos deste guia para evitar drift de imports.
+- Se algum service herdado tiver assinatura diferente na implementação real, ajusta a chamada no PR e regista a diferença no relatório técnico.
+
+#### Changelog
+
+- `2026-06-16`: contratos de autenticação, rotas, imports e caminhos alinhados com `real_dev`.
+- `2026-06-13`: versão pedagógica inicial com tutorial linear e código integrado por passo.

@@ -1,0 +1,47 @@
+{
+  "version": "1.0.0",
+  "project": "studyflow",
+  "last_updated": "2026-04-19",
+  "owner_capacity_weekly": {
+    "Natalia": 6.0,
+    "Guilherme": 4.5,
+    "Kaua": 3.5,
+    "Daniel": 2.5
+  },
+  "sprint_capacity": {
+    "default": 16.5,
+    "gate": 19.0,
+    "gates": ["S04", "S08", "S12"]
+  },
+  "hard_rules": {
+    "ids_immutable": true,
+    "preserve_dependencies": true,
+    "no_dependency_cycle": true,
+    "core_dual_percent_min_per_sprint": 70.0,
+    "p0_latest_sprint": "S12"
+  },
+  "rebalance_order": ["P2", "P1", "P0_low_risk"],
+  "owner_target_order": ["Natalia", "Guilherme", "Kaua", "Daniel"],
+  "objective_weights": {
+    "dependency_violation": 100000,
+    "p0_move": 300,
+    "p1_p2_move": 80,
+    "owner_change": 120,
+    "late_shift": 10
+  },
+  "reclassification": {
+    "enabled": true,
+    "target_class": "CORE-HIBRIDO",
+    "eligible_domains": [
+      "ux_accessibility",
+      "performance_scalability",
+      "security_hardening",
+      "reliability_ops",
+      "quality_architecture",
+      "compatibility_browser",
+      "localization"
+    ],
+    "ineligible_domains": ["admin_governance"],
+    "rank_order": ["impact_user", "priority_desc", "effort_desc"]
+  }
+}

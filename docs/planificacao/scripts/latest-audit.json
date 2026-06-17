@@ -1,0 +1,70 @@
+{
+  "project": "studyflow",
+  "counts": {
+    "rf_docs": 57,
+    "rnf_docs": 44,
+    "matriz_bk": 101,
+    "backlog_bk": 101,
+    "guide_bk": 101
+  },
+  "coverage": {
+    "missing_rf_matrix": [],
+    "missing_rnf_matrix": [],
+    "missing_rf_backlog": [],
+    "missing_rnf_backlog": [],
+    "invalid_refs": []
+  },
+  "consistency": {
+    "missing_artifacts": [],
+    "missing_in_backlog": [],
+    "missing_in_matrix": [],
+    "missing_in_guides": [],
+    "extra_guides": [],
+    "broken_links_docs": [],
+    "scorecard_contract_issues": [],
+    "scorecard_plan_load_issues": [],
+    "sprint_label_issues": [],
+    "gate_issues": [],
+    "core_dual_contract_issues": [],
+    "matrix_proximo_bk_issues": [],
+    "declared_totals_issues": [],
+    "rnf_index_anchor_issues": [],
+    "drift_critical_count": 0
+  },
+  "guides_quality": {
+    "naming_issues": [],
+    "guide_header_issues": [],
+    "guide_content_issues": []
+  },
+  "governance": {
+    "governance_issues": [],
+    "adequacao_12o_issues": [],
+    "score": {
+      "weights": {
+        "Cobertura/rastreabilidade": 25,
+        "Coerencia documental": 20,
+        "Pedagogia/guidance/step-by-step": 25,
+        "Adequacao ao 12o": 20,
+        "Governanca/avaliacao": 10
+      },
+      "breakdown": {
+        "Cobertura/rastreabilidade": 25,
+        "Coerencia documental": 20,
+        "Pedagogia/guidance/step-by-step": 25,
+        "Adequacao ao 12o": 20,
+        "Governanca/avaliacao": 10
+      },
+      "total": 100
+    }
+  },
+  "status": {
+    "coverage_pass": true,
+    "consistency_pass": true,
+    "guides_pass": true,
+    "governance_pass": true,
+    "adequacao_12o_pass": true,
+    "score_ge_97": true,
+    "drift_critical_zero": true,
+    "overall_pass": true
+  }
+}
