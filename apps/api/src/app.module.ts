@@ -32,7 +32,9 @@ import { StudyGroupsModule } from "./modules/study-groups/study-groups.module.js
 import { UnifiedSearchModule } from "./modules/unified-search/unified-search.module.js";
 import { ContextNotificationsModule } from "./modules/context-notifications/context-notifications.module.js";
 import { FollowUpAlertsModule } from "./modules/follow-up-alerts/follow-up-alerts.module.js";
+import { NotificationPoliciesModule } from "./modules/notification-policies/notification-policies.module.js";
 
+/**
 /**
  * Módulo raiz da API.
  *
@@ -73,6 +75,7 @@ import { FollowUpAlertsModule } from "./modules/follow-up-alerts/follow-up-alert
         StudyAlertsModule,
         ContextNotificationsModule,
         FollowUpAlertsModule,
+        NotificationPoliciesModule,
     ],
 })
 export class AppModule {}
