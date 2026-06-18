@@ -78,6 +78,7 @@ import { NotificationPoliciesModule } from "./modules/notification-policies/noti
         FollowUpAlertsModule,
         NotificationPoliciesModule,
         AccountDeletionModule,
+        AiConsentsModule,
     ],
 })
 export class AppModule {}

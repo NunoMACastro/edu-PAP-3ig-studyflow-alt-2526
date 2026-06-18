@@ -17,10 +17,16 @@ import { MaterialsService } from "../materials/materials.service.js";
 import { StudyAreasService } from "../study-areas/study-areas.service.js";
 import { AskPrivateAreaAiDto } from "./dto/ask-private-area-ai.dto.js";
 import { buildPrivateAreaAiPrompt } from "./prompts/private-area-ai.prompt.js";
+import { AiConsentsService } from "../ai-consents/ai-consents.service.js";
+import { AiConsentPurpose } from "../ai-consents/dto/upsert-ai-consent.dto.js";
 import {
     PrivateAreaAiAnswer,
     PrivateAreaAiAnswerDocument,
 } from "./schemas/private-area-ai-answer.schema.js";
+
+private async assertPrivateAreaAiConsent(actor: AuthenticatedUser): Promise<void> {
+    await this.aiConsentsService.assertGranted(actor.id, AiConsentPurpose.PRIVATE_AREA_AI);
+}
 
 /**
  * Serviço de IA privada por área de estudo.
