@@ -5,7 +5,8 @@ import { Body, Controller, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
 import { AskPrivateAreaAiDto } from "./dto/ask-private-area-ai.dto.js";
-import { PrivateAreaAiService } from "./private-area-ai.service.js";
+import { PrivateAreaAiService } from "./private-area-ai.service.js";// Imports a acrescentar nos quatro services IA.
+
 
 /**
  * Endpoint do assistente IA privado por área.

@@ -13,6 +13,8 @@ import {
 } from "./schemas/study-group-ai-answer.schema.js";
 import { StudyGroupAiController } from "./study-group-ai.controller.js";
 import { StudyGroupAiService } from "./study-group-ai.service.js";
+import { AiConsentsModule } from "../ai-consents/ai-consents.module.js";
+
 
 /**
  * Módulo MF3 para IA coletiva de grupos.
@@ -21,6 +23,7 @@ import { StudyGroupAiService } from "./study-group-ai.service.js";
     imports: [
         AuthModule,
         AiModule,
+        AiConsentsModule,
         StudyGroupsModule,
         StudyRoomsModule,
         MongooseModule.forFeature([

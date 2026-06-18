@@ -18,6 +18,8 @@ import { SubjectsService } from "../subjects/subjects.service.js";
 import { TeacherAiVoiceService } from "../teacher-ai/teacher-ai-voice.service.js";
 import { AskClassAiDto } from "./dto/ask-class-ai.dto.js";
 import { buildClassAiPrompt } from "./prompts/class-ai.prompt.js";
+import { AiConsentsService } from "../ai-consents/ai-consents.service.js";
+import { AiConsentPurpose } from "../ai-consents/dto/upsert-ai-consent.dto.js";
 import {
     ClassAiInteraction,
     ClassAiInteractionDocument,
@@ -44,7 +46,18 @@ export class ClassAiService {
         private readonly subjectsService: SubjectsService,
         private readonly materialsService: OfficialMaterialsService,
         private readonly voiceService: TeacherAiVoiceService,
+        private readonly aiConsentsService: AiConsentsService,
     ) {}
+
+    /**
+     * Valida consentimento antes de usar materiais oficiais da disciplina com IA.
+     */
+    private async assertClassAiConsent(actor: AuthenticatedUser): Promise<void> {
+        await this.aiConsentsService.assertGranted(
+            actor.id,
+            AiConsentPurpose.CLASS_AI,
+        );
+    }
 
     /**
      * Orquestra uma pergunta de IA em IA da disciplina, limitando contexto e validando a resposta antes de a devolver.
@@ -69,6 +82,7 @@ export class ClassAiService {
         // A inscrição na disciplina é validada antes de qualquer material oficial ser exposto ao aluno.
         const { subject, schoolClass } =
             await this.subjectsService.findSubjectForStudent(actor.id, subjectId);
+        await this.assertClassAiConsent(actor);
         const materials = await this.materialsService.listProcessedForSubject(
             subject._id,
         );

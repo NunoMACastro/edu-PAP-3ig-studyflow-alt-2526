@@ -16,6 +16,8 @@ import {
     RoomShareSource,
 } from "../study-rooms/room-shares.service.js";
 import { StudyGroupsService } from "../study-groups/study-groups.service.js";
+import { AiConsentsService } from "../ai-consents/ai-consents.service.js";
+import { AiConsentPurpose } from "../ai-consents/dto/upsert-ai-consent.dto.js";
 import { AskStudyGroupAiDto } from "./dto/ask-study-group-ai.dto.js";
 import {
     StudyGroupAiAnswer,
@@ -55,7 +57,18 @@ export class StudyGroupAiService {
         private readonly roomSharesService: RoomSharesService,
         @Inject(AI_PROVIDER)
         private readonly aiProvider: AiProvider,
+        private readonly aiConsentsService: AiConsentsService,
     ) {}
+
+    /**
+     * Valida consentimento antes de usar fontes partilhadas do grupo com IA.
+     */
+    private async assertStudyGroupAiConsent(actor: AuthenticatedUser): Promise<void> {
+        await this.aiConsentsService.assertGranted(
+            actor.id,
+            AiConsentPurpose.STUDY_GROUP_AI,
+        );
+    }
 
     /**
      * Responde a uma pergunta coletiva usando apenas partilhas processáveis.
@@ -74,6 +87,7 @@ export class StudyGroupAiService {
     ): Promise<StudyGroupAiAnswerView> {
         // A membership é validada antes de ler partilhas para evitar fuga de notas de outros grupos.
         await this.studyGroupsService.ensureMember(actor.id, groupId);
+        await this.assertStudyGroupAiConsent(actor);
         const sources = await this.roomSharesService.findUsableSharesForRoom(
             actor.id,
             groupId,

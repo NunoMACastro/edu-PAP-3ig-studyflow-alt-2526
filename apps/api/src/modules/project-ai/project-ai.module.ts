@@ -9,6 +9,7 @@ import { ClassProjectsModule } from "../class-projects/class-projects.module.js"
 import { ProjectAiController } from "./project-ai.controller.js";
 import { ProjectAiService } from "./project-ai.service.js";
 import { ProjectAiPlan, ProjectAiPlanSchema } from "./schemas/project-ai-plan.schema.js";
+import { AiConsentsModule } from "../ai-consents/ai-consents.module.js";
 
 /**
  * Módulo de assistência IA gradual a projectos.
@@ -17,6 +18,7 @@ import { ProjectAiPlan, ProjectAiPlanSchema } from "./schemas/project-ai-plan.sc
     imports: [
         AuthModule,
         AiModule,
+        AiConsentsModule,
         ClassProjectsModule,
         MongooseModule.forFeature([
             { name: ProjectAiPlan.name, schema: ProjectAiPlanSchema },

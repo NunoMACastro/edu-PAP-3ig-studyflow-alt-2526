@@ -9,6 +9,7 @@ import { MaterialsModule } from "../materials/materials.module.js";
 import { StudyAreasModule } from "../study-areas/study-areas.module.js";
 import { PrivateAreaAiController } from "./private-area-ai.controller.js";
 import { PrivateAreaAiService } from "./private-area-ai.service.js";
+import { AiConsentsModule } from "../ai-consents/ai-consents.module.js";
 import {
     PrivateAreaAiAnswer,
     PrivateAreaAiAnswerSchema,
@@ -21,10 +22,14 @@ import {
     imports: [
         AuthModule,
         AiModule,
+        AiConsentsModule,
         StudyAreasModule,
         MaterialsModule,
         MongooseModule.forFeature([
-            { name: PrivateAreaAiAnswer.name, schema: PrivateAreaAiAnswerSchema },
+            {
+                name: PrivateAreaAiAnswer.name,
+                schema: PrivateAreaAiAnswerSchema,
+            },
         ]),
     ],
     controllers: [PrivateAreaAiController],

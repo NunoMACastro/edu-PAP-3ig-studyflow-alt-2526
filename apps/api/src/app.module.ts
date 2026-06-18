@@ -1,38 +1,35 @@
-/**
- * Agrupa os módulos principais da API para expor a aplicação StudyFlow.
- */
+// apps/api/src/app.module.ts
 import "./common/config/load-env.js";
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
-import { AuthModule } from "./modules/auth/auth.module.js";
-import { StudentsModule } from "./modules/students/students.module.js";
-import { StudyModule } from "./modules/study/study.module.js";
-import { StudyAreasModule } from "./modules/study-areas/study-areas.module.js";
-import { MaterialsModule } from "./modules/materials/materials.module.js";
-import { AiModule } from "./modules/ai/ai.module.js";
-import { StudyRoomsModule } from "./modules/study-rooms/study-rooms.module.js";
-import { ClassesModule } from "./modules/classes/classes.module.js";
-import { SubjectsModule } from "./modules/subjects/subjects.module.js";
-import { OfficialMaterialsModule } from "./modules/official-materials/official-materials.module.js";
-import { TeacherAiModule } from "./modules/teacher-ai/teacher-ai.module.js";
-import { ClassAiModule } from "./modules/class-ai/class-ai.module.js";
-import { ClassPostsModule } from "./modules/class-posts/class-posts.module.js";
-import { Mf2Module } from "./modules/mf2/mf2.module.js";
 import { AdaptiveExplanationsModule } from "./modules/adaptive-explanations/adaptive-explanations.module.js";
 import { AiGuardrailsModule } from "./modules/ai-guardrails/ai-guardrails.module.js";
+import { AiConsentsModule } from "./modules/ai-consents/ai-consents.module.js";
+import { AiModule } from "./modules/ai/ai.module.js";
+import { AuthModule } from "./modules/auth/auth.module.js";
+import { ClassAiModule } from "./modules/class-ai/class-ai.module.js";
+import { ClassPostsModule } from "./modules/class-posts/class-posts.module.js";
+import { ClassesModule } from "./modules/classes/classes.module.js";
 import { CurriculumNavigationModule } from "./modules/curriculum-navigation/curriculum-navigation.module.js";
 import { ExternalKnowledgeAiModule } from "./modules/external-knowledge-ai/external-knowledge-ai.module.js";
+import { MaterialsModule } from "./modules/materials/materials.module.js";
+import { Mf2Module } from "./modules/mf2/mf2.module.js";
 import { NotificationPreferencesModule } from "./modules/notification-preferences/notification-preferences.module.js";
+import { OfficialMaterialsModule } from "./modules/official-materials/official-materials.module.js";
 import { SourceGroundedAiModule } from "./modules/source-grounded-ai/source-grounded-ai.module.js";
+import { StudentsModule } from "./modules/students/students.module.js";
 import { StudyAlertsModule } from "./modules/study-alerts/study-alerts.module.js";
+import { StudyAreasModule } from "./modules/study-areas/study-areas.module.js";
 import { StudyGroupAiModule } from "./modules/study-group-ai/study-group-ai.module.js";
 import { StudyGroupMessagesModule } from "./modules/study-group-messages/study-group-messages.module.js";
 import { StudyGroupSessionsModule } from "./modules/study-group-sessions/study-group-sessions.module.js";
 import { StudyGroupsModule } from "./modules/study-groups/study-groups.module.js";
+import { StudyModule } from "./modules/study/study.module.js";
+import { StudyRoomsModule } from "./modules/study-rooms/study-rooms.module.js";
+import { SubjectsModule } from "./modules/subjects/subjects.module.js";
+import { TeacherAiModule } from "./modules/teacher-ai/teacher-ai.module.js";
 import { UnifiedSearchModule } from "./modules/unified-search/unified-search.module.js";
-import { ContextNotificationsModule } from "./modules/context-notifications/context-notifications.module.js";
-import { FollowUpAlertsModule } from "./modules/follow-up-alerts/follow-up-alerts.module.js";
-import { NotificationPoliciesModule } from "./modules/notification-policies/notification-policies.module.js";
+
 
 /**
 /**
@@ -73,11 +70,7 @@ import { NotificationPoliciesModule } from "./modules/notification-policies/noti
         CurriculumNavigationModule,
         NotificationPreferencesModule,
         StudyAlertsModule,
-        PrivacyDataExportsModule,
-        ContextNotificationsModule,
-        FollowUpAlertsModule,
-        NotificationPoliciesModule,
-        AccountDeletionModule,
+        AiConsentsModule,
     ],
 })
 export class AppModule {}
