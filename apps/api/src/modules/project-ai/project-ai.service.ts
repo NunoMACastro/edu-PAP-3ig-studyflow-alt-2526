@@ -16,6 +16,8 @@ import { ClassProjectsService } from "../class-projects/class-projects.service.j
 import { CreateProjectAiPlanDto } from "./dto/create-project-ai-plan.dto.js";
 import { buildProjectAiPrompt } from "./prompts/project-ai.prompt.js";
 import { ProjectAiPlan, ProjectAiPlanDocument } from "./schemas/project-ai-plan.schema.js";
+import { AiConsentsService } from "../ai-consents/ai-consents.service.js";
+import { AiConsentPurpose } from "../ai-consents/dto/upsert-ai-consent.dto.js";
 
 /**
  * Serviço de IA assistiva para planear projectos publicados.
@@ -34,7 +36,18 @@ export class ProjectAiService {
         private readonly planModel: Model<ProjectAiPlanDocument>,
         @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
         private readonly projectsService: ClassProjectsService,
+        private readonly aiConsentsService: AiConsentsService,
     ) {}
+
+    /**
+     * Valida consentimento antes de gerar um plano de projecto com IA.
+     */
+    private async assertProjectAiConsent(actor: AuthenticatedUser): Promise<void> {
+        await this.aiConsentsService.assertGranted(
+            actor.id,
+            AiConsentPurpose.PROJECT_AI,
+        );
+    }
 
     /**
      * Cria planeamento de projetos com IA depois de validar permissões, normalizar input e preparar o contrato público.
@@ -60,6 +73,7 @@ export class ProjectAiService {
             actor.id,
             projectId,
         );
+        await this.assertProjectAiConsent(actor);
         const knownDifficulties = (input.knownDifficulties ?? [])
             .map((difficulty) => difficulty.trim())
             .filter(Boolean);

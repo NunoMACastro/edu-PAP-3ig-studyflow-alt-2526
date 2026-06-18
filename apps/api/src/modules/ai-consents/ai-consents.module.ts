@@ -10,7 +10,12 @@ import { AiConsent, AiConsentSchema } from "./schemas/ai-consent.schema.js";
  * Módulo de consentimentos IA.
  */
 @Module({
-    imports: [AuthModule, MongooseModule.forFeature([{ name: AiConsent.name, schema: AiConsentSchema }])],
+    imports: [
+        AuthModule,
+        MongooseModule.forFeature([
+            { name: AiConsent.name, schema: AiConsentSchema },
+        ]),
+    ],
     controllers: [AiConsentsController],
     providers: [AiConsentsService],
     exports: [AiConsentsService],

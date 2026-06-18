@@ -10,6 +10,7 @@ import { SubjectsModule } from "../subjects/subjects.module.js";
 import { TeacherAiModule } from "../teacher-ai/teacher-ai.module.js";
 import { ClassAiController } from "./class-ai.controller.js";
 import { ClassAiService } from "./class-ai.service.js";
+import { AiConsentsModule } from "../ai-consents/ai-consents.module.js";
 import {
     ClassAiInteraction,
     ClassAiInteractionSchema,
@@ -22,6 +23,7 @@ import {
     imports: [
         AuthModule,
         AiModule,
+        AiConsentsModule,
         SubjectsModule,
         OfficialMaterialsModule,
         TeacherAiModule,

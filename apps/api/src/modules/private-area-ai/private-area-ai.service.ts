@@ -47,7 +47,18 @@ export class PrivateAreaAiService {
         @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
         private readonly studyAreasService: StudyAreasService,
         private readonly materialsService: MaterialsService,
+        private readonly aiConsentsService: AiConsentsService,
     ) {}
+
+    /**
+     * Valida consentimento antes de ler fontes privadas ou chamar `AI_PROVIDER`.
+     */
+    private async assertPrivateAreaAiConsent(actor: AuthenticatedUser): Promise<void> {
+        await this.aiConsentsService.assertGranted(
+            actor.id,
+            AiConsentPurpose.PRIVATE_AREA_AI,
+        );
+    }
 
     /**
      * Orquestra uma pergunta de IA em IA privada da área de estudo, limitando contexto e validando a resposta antes de a devolver.
@@ -68,6 +79,15 @@ export class PrivateAreaAiService {
                 message: "Esta funcionalidade é exclusiva de alunos.",
             });
         }
+
+        await this.assertPrivateAreaAiConsent(actor);
+
+        // Só depois do consentimento activo se leem a área e os materiais privados.
+        const area = await this.studyAreasService.getMyStudyArea(actor.id, studyAreaId);
+        const materials = await this.materialsService.listReadyTextSources(
+            actor.id,
+            studyAreaId,
+        );
 
         // A área é carregada pelo service do aluno para garantir ownership antes de obter fontes privadas.
         const area = await this.studyAreasService.getMyStudyArea(
