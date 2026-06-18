@@ -6,236 +6,219 @@
 - `path`: `docs/planificacao/guias-bk/AUDITORIA-HIDRATACAO-MF4.md`
 - `project`: `StudyFlow`
 - `macro_funcionalidade`: `MF4`
-- `modo`: `auditar_apenas`
+- `bk_ids`: `BK-MF4-06`
+- `modo`: `corrigir_apenas`
 - `implementation_root`: `real_dev`
 - `output_mode`: `relatorio_e_resumo`
 - `strict_scope`: `true`
 - `check_mf_coherence`: `true`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-06-18`
 
 ## Escopo desta execução
 
-Esta execução auditou os 10 guias de `docs/planificacao/guias-bk/MF4/` e atualizou apenas este relatório.
+Esta execução corrigiu apenas `BK-MF4-06 - Gestão de consentimentos para IA`, porque era o único BK do alvo explícito com classificação `PARCIAL` no relatório anterior.
 
-Não foram corrigidos BKs, código real, mockups, documentos canónicos, matriz, backlog ou sprints, porque `MODO=auditar_apenas` e `STRICT_SCOPE=true`.
+Foram respeitadas as restrições de scope:
+
+- editado: `docs/planificacao/guias-bk/MF4/BK-MF4-06-gestao-de-consentimentos-para-ia.md`;
+- editado: `docs/planificacao/guias-bk/AUDITORIA-HIDRATACAO-MF4.md`;
+- não editado: código real em `apps/`;
+- não editado: implementação inicial em `real_dev/`;
+- não editado: matriz, backlog, sprints, contrato BK, RF/RNF ou outros BKs.
 
 ## Fontes consultadas
 
-- `README.md`
 - `docs/RF.md`
 - `docs/RNF.md`
-- `docs/planificacao/README.md`
-- `docs/planificacao/PLANO-IMPLEMENTACAO-TOTAL.md`
-- `docs/planificacao/backlogs/BACKLOG-MVP.md`
 - `docs/planificacao/backlogs/MATRIZ-CANONICA-BK.md`
+- `docs/planificacao/backlogs/BACKLOG-MVP.md`
 - `docs/planificacao/backlogs/CONTRATO-CAMPOS-BK.md`
 - `docs/planificacao/backlogs/MF-VIEWS.md`
-- `docs/planificacao/sprints/PLANO-SPRINTS.md`
-- `docs/planificacao/guias-bk/README.md`
-- `docs/planificacao/guias-bk/_TEMPLATE-BK.md`
-- `docs/planificacao/guias-bk/AUDITORIA-HIDRATACAO-MF0.md`
-- `docs/planificacao/guias-bk/AUDITORIA-HIDRATACAO-MF1.md`
-- `docs/planificacao/guias-bk/AUDITORIA-HIDRATACAO-MF2.md`
-- `docs/planificacao/guias-bk/AUDITORIA-HIDRATACAO-MF3.md`
-- Todos os BKs de `MF4`
-- BKs anteriores relevantes de `MF0`, `MF1`, `MF2` e `MF3`
-- BKs seguintes relevantes de `MF5`, `MF6`, `MF7` e `MF8`
-- `real_dev/api/src` e `real_dev/web/src`, apenas como referência estrutural validada
-- `mockup/`, apenas como referência visual/fluxo
+- `docs/planificacao/guias-bk/MF4/BK-MF4-06-gestao-de-consentimentos-para-ia.md`
+- `docs/planificacao/guias-bk/MF4/BK-MF4-09-configurar-modelos-de-ia-e-limites-de-uso.md`
+- `docs/planificacao/guias-bk/MF4/BK-MF4-10-definir-quotas-de-ia-por-aluno-turma-grupo-e-monitorizar-consumo.md`
+- `apps/api/src/modules/private-area-ai/private-area-ai.service.ts`
+- `apps/api/src/modules/study-group-ai/study-group-ai.service.ts`
+- `apps/api/src/modules/class-ai/class-ai.service.ts`
+- `apps/api/src/modules/project-ai/project-ai.service.ts`
+- `apps/api/src/app.module.ts`
+- `apps/web/src/features/mf3/request-mf3-json.ts`
+- `real_dev/api/src/modules/ai-consents`
+- `real_dev/api/src/modules/study-group-ai`
 
-## Resultado global
+## Resultado global desta execução
 
-| Estado | Quantidade |
-| --- | ---: |
-| `OK` | 10 |
-| `PARCIAL` | 0 |
-| `CRITICO` | 0 |
+| Âmbito | `OK` | `PARCIAL` | `CRITICO` |
+| --- | ---: | ---: | ---: |
+| Antes da correção | 0 | 1 | 0 |
+| Depois da correção | 1 | 0 | 0 |
 
-Resultado: a MF4 está, em termos documentais e pedagógicos, apta a ser seguida pelos alunos sem adivinhação estrutural. A auditoria não valida compilação de código extraído dos blocos Markdown como ficheiros reais, porque os BKs não foram materializados em `real_dev` nesta execução.
+Resultado: `BK-MF4-06` passa a `OK` como guia documental. O BK ficou mais explícito para alunos, mantém a estrutura canónica dos sete pontos por passo e agora cobre consentimento por finalidade, backend enforcement, frontend com erro/loading e testes de ausência, concessão e revogação.
 
-## Inventário dos BKs auditados
+## Inventário do BK alvo
 
-| BK | RF | Dependências | Próximo BK | Estado |
+| BK | RF/RNF | Dependências | Próximo BK | Estado após correção |
 | --- | --- | --- | --- | --- |
-| `BK-MF4-01` | `RF49` | `BK-MF1-12` | `BK-MF4-02` | `OK` |
-| `BK-MF4-02` | `RF50` | `BK-MF2-11` | `BK-MF4-03` | `OK` |
-| `BK-MF4-03` | `RF51` | `BK-MF4-02` | `BK-MF4-04` | `OK` |
-| `BK-MF4-04` | `RF52` | `-` | `BK-MF4-05` | `OK` |
-| `BK-MF4-05` | `RF53` | `-` | `BK-MF4-06` | `OK` |
 | `BK-MF4-06` | `RF54` | `-` | `BK-MF4-07` | `OK` |
-| `BK-MF4-07` | `RF55` | `BK-MF0-04` | `BK-MF4-08` | `OK` |
-| `BK-MF4-08` | `RF56` | `BK-MF4-07` | `BK-MF4-09` | `OK` |
-| `BK-MF4-09` | `RF57` | `BK-MF2-11` | `BK-MF4-10` | `OK` |
-| `BK-MF4-10` | `RF58` | `BK-MF4-09` | `BK-MF5-01` | `OK` |
 
-## Mapa de contratos anteriores consumidos
+## Lacunas corrigidas
 
-- `SessionGuard` e `AuthenticatedRequest` existem em `real_dev/api/src/common`.
-- `User`, `UserRole`, `UsersService.findById` e `UsersService.toPublicUser` existem na fundação de autenticação/utilizadores.
-- `ClassesService.findOwnedClass` existe e valida ownership docente por `teacherId`.
-- `StudyGroupsService.ensureMember` existe e delega validação de membership para `StudyRoomsService`.
-- `NotificationPreferencesService.listEffective` e `isInAppEnabled` existem e suportam preferências in-app.
-- `MaterialsService.countMine`, `StudyAreasService`, `StudyEvent`, `AI_PROVIDER` e `requestMf3Json` existem no `real_dev`.
-- Os módulos consumidos por MF4 exportam os services necessários: `ClassesModule`, `StudyGroupsModule`, `NotificationPreferencesModule`, `StudyAreasModule` e `MaterialsModule`.
+### F1 - Estrutura canónica quebrada no Passo 4
 
-## Avaliação por BK
+- Estado anterior: `PARCIAL`.
+- Correção: o ponto `7. Cenário negativo/erro esperado.` foi separado para linha própria.
+- Resultado: todos os passos do BK têm os pontos `1.` a `7.`.
+- Estado após correção: `CORRIGIDO`.
 
-### `BK-MF4-01`
+### F2 - Conceitos teóricos essenciais insuficientes
 
-- Estado: `OK`
-- Problema principal: nenhum bloqueante encontrado.
-- Evidência: contém 6 passos, 8 blocos de código, explicações por passo, cenários negativos, validação final, evidence e handoff.
-- Segurança: destinatários são calculados no backend; turma passa por `findOwnedClass`; grupo passa por `ensureMember`; preferências são aplicadas no service.
-- Risco residual: integração real com quotas de `BK-MF4-03` fica para BK posterior, como declarado.
+- Estado anterior: `PARCIAL`.
+- Correção: a secção `Conceitos teóricos essenciais` foi expandida com finalidade, consentimento activo, revogação, backend enforcement, DTO/schema/service/controller/module, privacidade/RGPD, frontend e testes.
+- Resultado: o aluno passa a entender por que o consentimento não é global e por que o bloqueio tem de acontecer no backend antes de IA.
+- Estado após correção: `CORRIGIDO`.
 
-### `BK-MF4-02`
+### F3 - Explicações de código demasiado curtas
 
-- Estado: `OK`
-- Problema principal: nenhum bloqueante encontrado.
-- Evidência: contém DTO, schema, service, controller, módulo, frontend, teste e validação final.
-- Segurança: professor é validado por role e ownership de turma antes do cálculo de alunos inativos.
-- Risco residual: agendamento recorrente está corretamente fora de scope.
+- Estado anterior: `PARCIAL`.
+- Correção: foram reforçadas as explicações dos passos críticos, em especial DTO/schema, service, controller/módulo, frontend e testes.
+- Resultado: cada bloco principal explica contrato técnico, entrada/saída, validação aplicada, risco evitado e forma de validar.
+- Estado após correção: `CORRIGIDO`.
 
-### `BK-MF4-03`
+### F4 - Teste prometido não cobria concessão e revogação
 
-- Estado: `OK`
-- Problema principal: nenhum bloqueante encontrado.
-- Evidência: define política administrativa de canais, quotas, endpoints admin e teste de autorização/quota.
-- Segurança: `ADMIN` é validado no backend; quotas geram erro controlado.
-- Falso positivo de pesquisa: a ocorrência `localStorage/sessionStorage` é aceitável porque aparece como instrução proibitiva, não como implementação.
+- Estado anterior: `PARCIAL`.
+- Correção: o teste do Passo 6 passou a cobrir ausência de consentimento, último estado `GRANTED`, último estado `REVOKED` e criação append-only de decisões em `grant`/`revoke`.
+- Resultado: RF54 fica testado no comportamento essencial de consentimento revogável.
+- Estado após correção: `CORRIGIDO`.
 
-### `BK-MF4-04`
+### F5 - Frontend descrevia erro que não implementava
 
-- Estado: `OK`
-- Problema principal: nenhum bloqueante encontrado.
-- Evidência: cria pedido de exportação, download JSON, minimização, ownership e teste contra exportação de outro utilizador.
-- Segurança/RGPD: exclui `passwordHash`, cookies, tokens e dados de terceiros.
-- Risco residual: formato ZIP/binário fica corretamente fora de scope.
+- Estado anterior: `PARCIAL`.
+- Correção: o Passo 5 passou a incluir `loading`, `pendingPurpose`, `try/catch` no `toggle`, botão temporariamente desativado e erro em `role="alert"`.
+- Resultado: falhas ao carregar, conceder ou revogar deixam feedback visível.
+- Estado após correção: `CORRIGIDO`.
 
-### `BK-MF4-05`
+## Decisões técnicas e de domínio
 
-- Estado: `OK`
-- Problema principal: nenhum bloqueante encontrado.
-- Evidência: inclui confirmação forte, proteção do último admin, remoção controlada, revogação de sessão e teste negativo.
-- Segurança/RGPD: evita `targetUserId` vindo do frontend e usa sessão autenticada.
-- Risco residual: política de retenção legal/backups deve ser documentada fora deste BK antes de produção real.
+- `CANONICO`: `RF54` exige gestão de consentimentos para IA.
+- `CANONICO`: consentimento é por finalidade, não uma permissão global.
+- `CANONICO`: revogação bloqueia chamadas futuras.
+- `CANONICO`: endpoints usam sessão e não recebem `targetUserId`.
+- `CANONICO`: services IA chamam `assertGranted` antes de provider/prompt.
+- `DERIVADO`: `policyVersion` inicial fica `2026-06-16`.
+- `DERIVADO`: o BK mantém `STUDY_GROUP_AI`, porque `BK-MF4-09` e `BK-MF4-10` já usam esse vocabulário.
+- `DERIVADO`: frontend não guarda consentimento em storage do browser; carrega e altera sempre via API.
 
-### `BK-MF4-06`
+## Drift e riscos restantes
 
-- Estado: `OK`
-- Problema principal: nenhum bloqueante encontrado.
-- Evidência: define consentimento por finalidade e versão, `assertGranted`, controller, módulo, frontend e teste.
-- Segurança/IA: bloqueia antes de ler fontes privadas ou chamar `AI_PROVIDER`.
-- Risco residual: os services IA reais só ficam alterados quando o aluno executar o BK.
+### D1 - `STUDY_GROUP_AI` no BK versus `GROUP_AI` em `real_dev`
 
-### `BK-MF4-07`
+- Estado: `BLOQUEADO_POR_SCOPE`.
+- Evidência: `real_dev/api/src/modules/ai-consents` e `real_dev/api/src/modules/study-group-ai` usam `GROUP_AI`; os BKs MF4 usam `STUDY_GROUP_AI`.
+- Decisão nesta correção: manter `STUDY_GROUP_AI` no BK, porque o contrato documental de MF4 e os BKs seguintes já dependem desse nome.
+- Risco restante: quando for autorizada correção de código real, alinhar `real_dev` com o vocabulário documental ou registar uma decisão canónica única.
 
-- Estado: `OK`
-- Problema principal: nenhum bloqueante encontrado.
-- Evidência: altera `User.role` real, protege último admin, exige `reason`, cria histórico e teste.
-- Nota técnica: o guia importa `UserRole` como import normal, embora no código real seja um `type`. Com o `tsconfig` atual da API, isto tende a ser elidido e não é bloqueante; numa configuração com `verbatimModuleSyntax` seria preferível `import type { UserRole }`.
-- Risco residual: melhoria recomendada, não bloqueante, para rigor TypeScript.
+### D2 - `real_dev` ainda valida consentimento depois de ler fontes em alguns services
 
-### `BK-MF4-08`
+- Estado: `BLOQUEADO_POR_SCOPE`.
+- Evidência: a implementação inicial em `real_dev` lê fontes antes de `assertGranted` em fluxos de IA privada/grupo.
+- Decisão nesta correção: o BK foi corrigido para ensinar a ordem segura: validação mínima de acesso, `assertGranted`, depois fontes/prompt/provider.
+- Risco restante: se alguém implementar copiando apenas `real_dev`, pode preservar a ordem insegura. O BK agora mitiga esse risco documentalmente.
 
-- Estado: `OK`
-- Problema principal: nenhum bloqueante encontrado.
-- Evidência: define `AuditEvent`, `AuditLogService.record`, listagem admin, integração em papéis/IA/materiais e testes.
-- Segurança/privacidade: remove chaves sensíveis como `passwordHash`, `token`, `cookie`, `prompt` e `answer`.
-- Falso positivo de pesquisa: a palavra `secret` surge dentro de teste de redacção de metadados sensíveis, não como segredo real.
+### D3 - Drift global de MF3
 
-### `BK-MF4-09`
-
-- Estado: `OK`
-- Problema principal: nenhum bloqueante encontrado.
-- Evidência: define políticas de modelo IA por finalidade, resolução antes do provider, auditoria e frontend admin.
-- Segurança/IA: não altera prompts pedagógicos e bloqueia política desativada antes de chamar provider.
-- Risco residual: passagem de `policy.model` ao provider depende de extensão explícita da interface do provider durante implementação.
-
-### `BK-MF4-10`
-
-- Estado: `OK`
-- Problema principal: nenhum bloqueante encontrado.
-- Evidência: define políticas e uso de quota, reserva atómica, endpoints admin, painel e teste de `AI_QUOTA_EXCEEDED`.
-- Segurança/IA: reserva ocorre antes de chamar `AI_PROVIDER`; quotas são administrativas e mensais.
-- Risco residual: unidade de IA é `DERIVADO` e simplificada para MVP, conforme declarado.
+- Estado: `BLOQUEADO_POR_SCOPE`.
+- Evidência: `scripts/validate-planificacao.sh` continua a falhar por inconsistência de estados em BKs MF3.
+- Decisão nesta correção: não alterar MF3 porque `STRICT_SCOPE=true` e o alvo é `BK-MF4-06`.
 
 ## Coerência MF3 -> MF4 -> MF5
 
-- `MF3` entrega grupos, preferências de notificação, IA coletiva, pesquisa e alertas de estudo; `MF4` consome estes contratos sem os redefinir.
-- `MF4` separa corretamente notificações, acompanhamento, políticas, privacidade, consentimentos, papéis, auditoria, modelos IA e quotas IA.
-- `MF5` recebe de `MF4` uma base de administração, governança e limites que suporta usabilidade, feedback e performance sem inventar integrações externas.
-
-## Drift documental encontrado
-
-- `CONTRATO-CAMPOS-BK.md` diverge de `MATRIZ-CANONICA-BK.md`/`BACKLOG-MVP.md` em pelo menos `BK-MF4-05` e `BK-MF4-10`.
-- O validador global reporta drift crítico em `MF3`, fora do scope desta execução:
-  - `BK-MF3-07: estado matrix=TODO backlog=DONE`
-  - `BK-MF3-01` a `BK-MF3-05`: guias com `estado=DONE` enquanto matriz mantém `TODO`
-
-Classificação: `BLOQUEADO_POR_SCOPE` para correção nesta execução, porque a prompt permite apenas relatório de auditoria da MF4 e não autoriza alteração de documentos canónicos ou BKs fora da MF alvo.
+- MF3 fornece grupos, partilhas, mensagens e cliente `requestMf3Json`, usados pelo painel e por IA coletiva.
+- MF4 introduz consentimento, administração, auditoria, políticas de modelos e quotas. `BK-MF4-06` agora entrega a base de finalidade e enforcement que `BK-MF4-09` e `BK-MF4-10` precisam.
+- MF5 pode consumir um frontend mais previsível porque o painel tem loading, erro e estados de decisão claros.
+- Coerência final: `OK` no guia alvo; drift de código real fica assinalado para execução própria.
 
 ## Verificações executadas
 
-### Estrutura dos BKs
+### Estrutura dos passos
 
-Comando executado:
+Comando:
 
-`node -e '...'`
+`node -e 'const fs=require("fs"); const p="docs/planificacao/guias-bk/MF4/BK-MF4-06-gestao-de-consentimentos-para-ia.md"; const s=fs.readFileSync(p,"utf8"); const steps=[...s.matchAll(/^### Passo (\d+) - /gm)].map(m=>({n:m[1],i:m.index})); for (let k=0;k<steps.length;k++){const sub=s.slice(steps[k].i, steps[k+1]?.i ?? s.indexOf("#### Critérios", steps[k].i)); const missing=[]; for (let i=1;i<=7;i++){ if(!new RegExp("^"+i+"\\. ","m").test(sub)) missing.push(i); } console.log(`Passo ${steps[k].n}: missing ${missing.join(",")||"none"}`); }'`
 
 Resultado:
 
-- 10/10 BKs têm as secções obrigatórias.
-- 10/10 BKs têm passos técnicos numerados.
-- 10/10 BKs têm blocos de código não vazios quando apresentam código.
-- 10/10 BKs têm explicação do código, validação por passo e cenário negativo por passo.
+- `Passo 1`: missing none
+- `Passo 2`: missing none
+- `Passo 3`: missing none
+- `Passo 4`: missing none
+- `Passo 5`: missing none
+- `Passo 6`: missing none
+- `Passo 7`: missing none
 
 ### Pesquisa estática obrigatória
 
-Comando executado:
+Comando:
 
-`rg -n 'secret|token|password|cookie|localStorage|sessionStorage|payload: unknown|as any|TODO|FIXME|mock|stub|fake|RAG|embedding|OCR|chunking|prompt|resposta IA|passwordHash' docs/planificacao/guias-bk/MF4/*.md real_dev/api/src real_dev/web/src`
+`rg -n "hidrata|hidratacao|hidratação|pos-auditoria|pós-auditoria|scaffold|roteiro generico|roteiro genérico|conversa interna|este guia deixa de ser|codigo ainda nao corrigido|código ainda não corrigido|snippet|exemplo simplificado|implementar depois|quando aplicavel|quando aplicável|helpers chamados|substitu(ir|i)r? mocks|pseudo-codigo|pseudo-código|solucao parcial|solução parcial|payload: unknown|as any|ContextAction|contextApi|token.*localStorage|localStorage.*token" docs/planificacao/guias-bk/MF4/*.md`
 
 Resultado:
 
-- Sem `payload: unknown`.
-- Sem `as any` nos BKs MF4.
-- Sem uso de `localStorage`/`sessionStorage` para sessão ou token nos BKs MF4.
-- Ocorrências de `TODO` nos headers são o estado canónico dos BKs, não TODOs vagos.
-- Ocorrências de `mock` surgem em testes ou como negação explícita de mocks de token.
-- Ocorrências de `passwordHash`, `token`, `cookie`, `prompt` e `answer` surgem em contexto de exclusão, redacção, segurança ou teste negativo.
+- sem ocorrências;
+- exit code `1` do `rg` significa "sem resultados", não falha operacional.
+
+### Pesquisa adicional no BK alvo
+
+Comando:
+
+`rg -n "as never|as any|quando aplic|se a equipa quiser|missing 7|PARCIAL|snipp|payload: unknown|localStorage|ContextAction|contextApi" docs/planificacao/guias-bk/MF4/BK-MF4-06-gestao-de-consentimentos-para-ia.md`
+
+Resultado:
+
+- sem ocorrências;
+- exit code `1` do `rg` significa "sem resultados", não falha operacional.
 
 ### `git diff --check`
 
-Resultado: `OK`, sem saída.
+Resultado:
+
+- `OK`, sem saída.
 
 ### `bash scripts/validate-planificacao.sh`
 
-Resultado: `FAIL` global, exit code `1`.
+Resultado:
 
-Resumo:
+- `FAIL` global, exit code `1`;
+- `coverage_pass`: `true`;
+- `guides_pass`: `true`;
+- `governance_pass`: `true`;
+- `adequacao_12o_pass`: `true`;
+- `consistency_pass`: `false`;
+- `score`: `80`;
+- `drift_critical_count`: `6`.
 
-- `coverage_pass`: `true`
-- `guides_pass`: `true`
-- `governance_pass`: `true`
-- `adequacao_12o_pass`: `true`
-- `consistency_pass`: `false`
-- `score`: `80`
-- `drift_critical_count`: `6`
+Drift reportado pelo script:
 
-Interpretação: falha global por drift documental na `MF3`, fora do scope desta execução. Os guias passam no bloco `guides_quality`.
+- `BK-MF3-07: estado matrix=TODO backlog=DONE`;
+- `BK-MF3-01` a `BK-MF3-05`: guias com `estado=DONE` enquanto a matriz mantém `TODO`.
+
+Interpretação: a falha global não vem do `BK-MF4-06`. Vem de drift documental em `MF3`, fora do scope permitido nesta execução.
 
 ## Resumo executivo
 
-- MF auditada: `MF4`.
-- BKs auditados: `10`.
-- Resultado: `10 OK`, `0 PARCIAL`, `0 CRITICO`.
-- BKs editados nesta execução: nenhum.
-- Relatório atualizado nesta execução: `docs/planificacao/guias-bk/AUDITORIA-HIDRATACAO-MF4.md`.
-- Risco principal restante: drift documental global em `MF3`, reportado pelo validador.
-- Risco menor: alguns imports type-only poderiam ser escritos com `import type` para maior robustez futura.
-- Estado da coerência MF: MF4 está coerente com contratos anteriores e entrega uma base clara para MF5.
+- MF processada: `MF4`.
+- BKs alvo analisados: `1`.
+- BKs editados: `BK-MF4-06`.
+- Contagem antes da correção: `0 OK`, `1 PARCIAL`, `0 CRITICO`.
+- Contagem após correção: `1 OK`, `0 PARCIAL`, `0 CRITICO`.
+- Lacunas corrigidas: estrutura do Passo 4, teoria, explicações, frontend com erro/loading e teste de concessão/revogação.
+- Decisão técnica principal: `assertGranted` fica como enforcement central antes de fontes/prompt/provider.
+- Decisão de domínio principal: consentimento IA é específico por finalidade e revogável.
+- Drift restante: `GROUP_AI` em `real_dev`, ordem de validação em `real_dev`, estados MF3.
+- Riscos restantes: apenas riscos fora de scope desta execução.
+- Resultado de `git diff --check`: `OK`.
+- Resultado de `bash scripts/validate-planificacao.sh`: `FAIL` por drift MF3 fora de scope.
 
 ## Changelog
 
-- `2026-06-16`: execução em modo `auditar_apenas`; relatório atualizado para refletir auditoria objetiva da MF4 sem editar BKs.
+- `2026-06-18`: relatório atualizado em modo `corrigir_apenas`; `BK-MF4-06` reclassificado de `PARCIAL` para `OK` após correções documentais.

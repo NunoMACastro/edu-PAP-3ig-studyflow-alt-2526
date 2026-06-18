@@ -17,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF4-07`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-06-gestao-de-consentimentos-para-ia.md`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-06-18`
 
 #### Objetivo
 
@@ -77,7 +77,21 @@ Fica um módulo `ai-consents` com histórico versionado e método de enforcement
 
 #### Conceitos teóricos essenciais
 
-Consentimento não é uma flag global. Deve ser específico, revogável e verificável no backend. O frontend ajuda o utilizador a escolher, mas o service de IA é quem bloqueia a chamada se a finalidade não estiver activa.
+Consentimento não é uma flag global. No StudyFlow, cada funcionalidade de IA trata dados diferentes e tem riscos diferentes: a IA privada trabalha com materiais do aluno, a IA de grupo trabalha com fontes partilhadas, a IA da turma trabalha com materiais oficiais e a IA de projecto trabalha com o enunciado publicado. Por isso, o consentimento tem de ser separado por finalidade.
+
+Finalidade é o motivo técnico e funcional do tratamento. `PRIVATE_AREA_AI`, `STUDY_GROUP_AI`, `CLASS_AI` e `PROJECT_AI` não são apenas nomes de enum; são barreiras de privacidade. Um aluno pode aceitar uma finalidade e recusar outra. Isto evita que um consentimento amplo seja usado como permissão para todos os contextos de IA.
+
+Consentimento activo é a última decisão guardada para uma finalidade. Se o último registo for `GRANTED`, a funcionalidade pode continuar o fluxo. Se for `REVOKED`, ou se não existir decisão, o backend deve bloquear com `AI_CONSENT_REQUIRED`. A revogação não apaga o histórico, porque a app precisa de rastreabilidade para defesa técnica e privacidade.
+
+O backend é o ponto de enforcement. O frontend mostra botões para conceder e revogar, mas não decide se a IA pode correr. Os services que chamam `AI_PROVIDER` devem chamar `AiConsentsService.assertGranted` antes de preparar prompt ou enviar dados para IA. Isto evita confiar no browser e protege mesmo que alguém tente chamar a API manualmente.
+
+DTO, schema, service, controller e módulo têm papéis diferentes. O DTO valida o payload recebido; o schema define como a decisão fica guardada em MongoDB; o service concentra regras como listar, conceder, revogar e bloquear; o controller expõe rotas protegidas por sessão; o módulo exporta `AiConsentsService` para os services de IA.
+
+Privacidade e RGPD aparecem aqui como minimização e finalidade. A app só deve tratar com IA os dados necessários para a finalidade consentida. Também não deve registar prompts privados, respostas completas ou materiais sensíveis em logs. O que fica guardado no consentimento é a decisão, a finalidade, a versão da política e a data.
+
+No frontend, estado local, loading e erro servem para o utilizador perceber o que aconteceu. Como conceder ou revogar consentimento altera uma decisão sensível, a interface deve impedir cliques duplicados e mostrar falhas de API em `role="alert"`.
+
+Nos testes, o cenário mais importante é o default seguro: sem consentimento activo, a IA não corre. Também é obrigatório provar que uma concessão permite a finalidade e que uma revogação posterior volta a bloquear. Estes testes protegem BK-MF4-09 e BK-MF4-10, que dependem da mesma finalidade para modelos e quotas.
 
 #### Arquitetura do BK
 
@@ -111,8 +125,8 @@ Consentimento não é uma flag global. Deve ser específico, revogável e verifi
 1. Objetivo funcional do passo no contexto da app.
    Persistir consentimentos por finalidade e versão.
 2. Ficheiros envolvidos:
-   - CRIAR: `apps/api/src/modules/ai-consents/dto/upsert-ai-consent.dto.ts`
-   - CRIAR: `apps/api/src/modules/ai-consents/schemas/ai-consent.schema.ts`
+    - CRIAR: `apps/api/src/modules/ai-consents/dto/upsert-ai-consent.dto.ts`
+    - CRIAR: `apps/api/src/modules/ai-consents/schemas/ai-consent.schema.ts`
 3. Instruções do que fazer.
    Modela finalidades explícitas e estado revogável.
 4. Código completo, correto e integrado com a app final.
@@ -121,6 +135,9 @@ Consentimento não é uma flag global. Deve ser específico, revogável e verifi
 // apps/api/src/modules/ai-consents/dto/upsert-ai-consent.dto.ts
 import { IsEnum, IsString, MaxLength, MinLength } from "class-validator";
 
+/**
+ * Finalidades de IA que podem ser consentidas separadamente.
+ */
 export enum AiConsentPurpose {
     PRIVATE_AREA_AI = "PRIVATE_AREA_AI",
     STUDY_GROUP_AI = "STUDY_GROUP_AI",
@@ -159,10 +176,15 @@ export type AiConsentStatus = "GRANTED" | "REVOKED";
  */
 @Schema({ timestamps: true, collection: "ai_consents" })
 export class AiConsent {
+    // O userId vem sempre da sessão autenticada; nunca vem do body ou da query string.
     @Prop({ type: Types.ObjectId, ref: "User", required: true, index: true })
     userId!: Types.ObjectId;
 
-    @Prop({ required: true, enum: Object.values(AiConsentPurpose), index: true })
+    @Prop({
+        required: true,
+        enum: Object.values(AiConsentPurpose),
+        index: true,
+    })
     purpose!: AiConsentPurpose;
 
     @Prop({ required: true, trim: true, maxlength: 40 })
@@ -171,6 +193,7 @@ export class AiConsent {
     @Prop({ required: true, enum: ["GRANTED", "REVOKED"], default: "GRANTED" })
     status!: AiConsentStatus;
 
+    // Guardar a data da decisão permite descobrir qual foi o último estado efectivo.
     @Prop({ required: true, default: Date.now })
     decidedAt!: Date;
 }
@@ -180,18 +203,20 @@ AiConsentSchema.index({ userId: 1, purpose: 1, decidedAt: -1 });
 ```
 
 5. Explicação do código.
-   O schema permite histórico. Em vez de actualizar uma flag, cada decisão fica rastreável por data, finalidade e versão.
+   O DTO define o contrato de entrada para conceder consentimento: a finalidade tem de existir no enum e a versão da política tem tamanho controlado para não aceitar texto arbitrário. O schema guarda cada decisão como um novo registo, em vez de actualizar uma única flag. Isto preserva histórico, permite provar quando o utilizador concedeu ou revogou e torna possível descobrir o estado activo ordenando por `decidedAt`.
+
+   `userId` fica no schema porque cada consentimento pertence a um utilizador autenticado. Esse valor não deve vir do frontend; o service vai obtê-lo de `AuthenticatedUser`. `purpose` separa as finalidades para impedir permissões globais. `status` permite revogar sem apagar histórico. `policyVersion` liga a decisão ao texto de consentimento apresentado ao utilizador. O índice por `userId`, `purpose` e `decidedAt` acelera a consulta do último consentimento de cada finalidade.
 6. Validação do passo.
-   Uma finalidade fora do enum deve falhar.
+   Criar um DTO com finalidade fora de `AiConsentPurpose` deve falhar na validação. Criar um documento com `purpose` válido, `status` válido e `policyVersion` preenchida deve guardar uma decisão rastreável.
 7. Cenário negativo/erro esperado.
-   Consentimento sem `policyVersion` deve ser rejeitado.
+   Consentimento sem `policyVersion` deve ser rejeitado. Uma finalidade inventada, como `"ALL_AI"`, também deve ser rejeitada porque transformaria consentimento específico numa permissão global.
 
 ### Passo 2 - Implementar service com enforcement
 
 1. Objetivo funcional do passo no contexto da app.
    Listar, conceder, revogar e bloquear IA sem consentimento.
 2. Ficheiros envolvidos:
-   - CRIAR: `apps/api/src/modules/ai-consents/ai-consents.service.ts`
+    - CRIAR: `apps/api/src/modules/ai-consents/ai-consents.service.ts`
 3. Instruções do que fazer.
    O método `assertGranted` deve ser pequeno e reutilizável.
 4. Código completo, correto e integrado com a app final.
@@ -202,10 +227,18 @@ import { ForbiddenException, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
-import { AiConsentPurpose, UpsertAiConsentDto } from "./dto/upsert-ai-consent.dto.js";
+import {
+    AiConsentPurpose,
+    UpsertAiConsentDto,
+} from "./dto/upsert-ai-consent.dto.js";
 import { AiConsent, AiConsentDocument } from "./schemas/ai-consent.schema.js";
 
-export type AiConsentView = { purpose: AiConsentPurpose; policyVersion: string; status: string; decidedAt: Date };
+export type AiConsentView = {
+    purpose: AiConsentPurpose;
+    policyVersion: string;
+    status: string;
+    decidedAt: Date;
+};
 
 /**
  * Serviço de consentimentos IA com bloqueio centralizado.
@@ -217,7 +250,14 @@ export class AiConsentsService {
         private readonly consentModel: Model<AiConsentDocument>,
     ) {}
 
+    /**
+     * Lista o histórico de consentimentos do utilizador autenticado.
+     *
+     * @param actor Utilizador autenticado pela sessão.
+     * @returns Decisões ordenadas da mais recente para a mais antiga.
+     */
     async listMine(actor: AuthenticatedUser): Promise<AiConsentView[]> {
+        // O filtro usa actor.id da sessão para impedir listagem de consentimentos de outro utilizador.
         const rows = await this.consentModel
             .find({ userId: new Types.ObjectId(actor.id) })
             .sort({ decidedAt: -1 })
@@ -225,7 +265,18 @@ export class AiConsentsService {
         return rows.map((row) => this.toView(row));
     }
 
-    async grant(actor: AuthenticatedUser, input: UpsertAiConsentDto): Promise<AiConsentView> {
+    /**
+     * Regista uma nova concessão de consentimento IA.
+     *
+     * @param actor Utilizador autenticado que concede a finalidade.
+     * @param input Finalidade e versão de política aceites pelo utilizador.
+     * @returns Decisão criada em formato público.
+     */
+    async grant(
+        actor: AuthenticatedUser,
+        input: UpsertAiConsentDto,
+    ): Promise<AiConsentView> {
+        // Cada decisão é append-only para preservar histórico e permitir auditoria posterior.
         const row = await this.consentModel.create({
             userId: new Types.ObjectId(actor.id),
             purpose: input.purpose,
@@ -236,7 +287,18 @@ export class AiConsentsService {
         return this.toView(row.toObject());
     }
 
-    async revoke(actor: AuthenticatedUser, purpose: AiConsentPurpose): Promise<AiConsentView> {
+    /**
+     * Regista uma revogação sem apagar decisões anteriores.
+     *
+     * @param actor Utilizador autenticado que revoga a finalidade.
+     * @param purpose Finalidade IA a bloquear daqui para a frente.
+     * @returns Decisão criada em estado `REVOKED`.
+     */
+    async revoke(
+        actor: AuthenticatedUser,
+        purpose: AiConsentPurpose,
+    ): Promise<AiConsentView> {
+        // Revogar cria um novo registo para que o último estado seja bloqueante e rastreável.
         const row = await this.consentModel.create({
             userId: new Types.ObjectId(actor.id),
             purpose,
@@ -250,48 +312,87 @@ export class AiConsentsService {
     /**
      * Bloqueia qualquer chamada IA sem consentimento activo para a finalidade.
      */
-    async assertGranted(userId: string, purpose: AiConsentPurpose): Promise<void> {
+    async assertGranted(
+        userId: string,
+        purpose: AiConsentPurpose,
+    ): Promise<void> {
+        // Só a decisão mais recente interessa para saber se o consentimento está activo.
         const latest = await this.consentModel
             .findOne({ userId: new Types.ObjectId(userId), purpose })
             .sort({ decidedAt: -1 })
             .lean();
         if (latest?.status !== "GRANTED") {
-            throw new ForbiddenException({ code: "AI_CONSENT_REQUIRED", message: "É necessário consentimento activo para usar esta funcionalidade de IA." });
+            throw new ForbiddenException({
+                code: "AI_CONSENT_REQUIRED",
+                message:
+                    "É necessário consentimento activo para usar esta funcionalidade de IA.",
+            });
         }
     }
 
-    private toView(row: { purpose: AiConsentPurpose; policyVersion: string; status: string; decidedAt: Date }): AiConsentView {
-        return { purpose: row.purpose, policyVersion: row.policyVersion, status: row.status, decidedAt: row.decidedAt };
+    /**
+     * Converte o documento interno para o contrato público do módulo.
+     *
+     * @param row Documento ou objecto Mongoose já materializado.
+     * @returns Vista sem `_id`, `userId` ou outros detalhes internos.
+     */
+    private toView(row: {
+        purpose: AiConsentPurpose;
+        policyVersion: string;
+        status: string;
+        decidedAt: Date;
+    }): AiConsentView {
+        return {
+            purpose: row.purpose,
+            policyVersion: row.policyVersion,
+            status: row.status,
+            decidedAt: row.decidedAt,
+        };
     }
 }
 ```
 
 5. Explicação do código.
-   `assertGranted` é o ponto de segurança. Os services IA não devem consultar a base directamente; chamam este método antes de construir prompt ou contactar provider.
+   `AiConsentsService` é a fronteira de regras do módulo. `listMine` usa `actor.id` vindo da sessão para garantir que ninguém lista consentimentos de outro utilizador. `grant` e `revoke` criam sempre novos registos, por isso o histórico fica preservado e a app consegue explicar a última decisão. `assertGranted` consulta apenas o registo mais recente da finalidade e lança `ForbiddenException` com `AI_CONSENT_REQUIRED` quando não há consentimento activo.
+
+   Os services IA não consultam MongoDB directamente para saber se podem correr. Eles chamam `assertGranted` antes de preparar prompt ou contactar provider. Isto mantém a regra de privacidade num único ponto e evita duplicação. A conversão em `toView` impede que detalhes internos do documento sejam expostos ao frontend.
 6. Validação do passo.
-   Último registo `REVOKED` deve bloquear.
+   Com um último registo `GRANTED`, `assertGranted` deve resolver sem erro. Com ausência de registo ou último registo `REVOKED`, deve lançar `ForbiddenException` com `code: "AI_CONSENT_REQUIRED"`.
 7. Cenário negativo/erro esperado.
-   Sem qualquer consentimento, `assertGranted` devolve `AI_CONSENT_REQUIRED`.
+   Sem qualquer consentimento, `assertGranted` devolve `AI_CONSENT_REQUIRED`. Se o service aceitasse ausência de registo, a app trataria dados com IA sem decisão explícita do utilizador.
 
 ### Passo 3 - Criar controller e módulo
 
 1. Objetivo funcional do passo no contexto da app.
    Permitir ao utilizador gerir os próprios consentimentos.
 2. Ficheiros envolvidos:
-   - CRIAR: `apps/api/src/modules/ai-consents/ai-consents.controller.ts`
-   - CRIAR: `apps/api/src/modules/ai-consents/ai-consents.module.ts`
-   - EDITAR: `apps/api/src/app.module.ts`
+    - CRIAR: `apps/api/src/modules/ai-consents/ai-consents.controller.ts`
+    - CRIAR: `apps/api/src/modules/ai-consents/ai-consents.module.ts`
+    - EDITAR: `apps/api/src/app.module.ts`
 3. Instruções do que fazer.
    As rotas usam a sessão; nenhuma recebe `userId`.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
 // apps/api/src/modules/ai-consents/ai-consents.controller.ts
-import { Body, Controller, Delete, Get, Param, Put, Req, UseGuards } from "@nestjs/common";
+import {
+    Body,
+    Controller,
+    Delete,
+    Get,
+    Param,
+    ParseEnumPipe,
+    Put,
+    Req,
+    UseGuards,
+} from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
 import { AiConsentsService } from "./ai-consents.service.js";
-import { AiConsentPurpose, UpsertAiConsentDto } from "./dto/upsert-ai-consent.dto.js";
+import {
+    AiConsentPurpose,
+    UpsertAiConsentDto,
+} from "./dto/upsert-ai-consent.dto.js";
 
 /**
  * API de consentimentos IA do próprio utilizador.
@@ -301,18 +402,38 @@ import { AiConsentPurpose, UpsertAiConsentDto } from "./dto/upsert-ai-consent.dt
 export class AiConsentsController {
     constructor(private readonly consentsService: AiConsentsService) {}
 
+    /**
+     * Lista o histórico de decisões IA do utilizador autenticado.
+     */
     @Get()
     listMine(@Req() request: AuthenticatedRequest) {
+        // O utilizador vem da sessão validada pelo SessionGuard, não do body.
         return this.consentsService.listMine(request.user!);
     }
 
+    /**
+     * Concede consentimento para a finalidade indicada no URL.
+     */
     @Put(":purpose")
-    grant(@Req() request: AuthenticatedRequest, @Param("purpose") purpose: AiConsentPurpose, @Body() input: UpsertAiConsentDto) {
+    grant(
+        @Req() request: AuthenticatedRequest,
+        @Param("purpose", new ParseEnumPipe(AiConsentPurpose))
+        purpose: AiConsentPurpose,
+        @Body() input: UpsertAiConsentDto,
+    ) {
+        // O purpose do URL prevalece para evitar divergência entre URL e body.
         return this.consentsService.grant(request.user!, { ...input, purpose });
     }
 
+    /**
+     * Revoga consentimento para a finalidade indicada no URL.
+     */
     @Delete(":purpose")
-    revoke(@Req() request: AuthenticatedRequest, @Param("purpose") purpose: AiConsentPurpose) {
+    revoke(
+        @Req() request: AuthenticatedRequest,
+        @Param("purpose", new ParseEnumPipe(AiConsentPurpose))
+        purpose: AiConsentPurpose,
+    ) {
         return this.consentsService.revoke(request.user!, purpose);
     }
 }
@@ -331,7 +452,12 @@ import { AiConsent, AiConsentSchema } from "./schemas/ai-consent.schema.js";
  * Módulo de consentimentos IA.
  */
 @Module({
-    imports: [AuthModule, MongooseModule.forFeature([{ name: AiConsent.name, schema: AiConsentSchema }])],
+    imports: [
+        AuthModule,
+        MongooseModule.forFeature([
+            { name: AiConsent.name, schema: AiConsentSchema },
+        ]),
+    ],
     controllers: [AiConsentsController],
     providers: [AiConsentsService],
     exports: [AiConsentsService],
@@ -339,54 +465,415 @@ import { AiConsent, AiConsentSchema } from "./schemas/ai-consent.schema.js";
 export class AiConsentsModule {}
 ```
 
+```ts
+// apps/api/src/app.module.ts
+import "./common/config/load-env.js";
+import { Module } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
+import { AdaptiveExplanationsModule } from "./modules/adaptive-explanations/adaptive-explanations.module.js";
+import { AiGuardrailsModule } from "./modules/ai-guardrails/ai-guardrails.module.js";
+import { AiConsentsModule } from "./modules/ai-consents/ai-consents.module.js";
+import { AiModule } from "./modules/ai/ai.module.js";
+import { AuthModule } from "./modules/auth/auth.module.js";
+import { ClassAiModule } from "./modules/class-ai/class-ai.module.js";
+import { ClassPostsModule } from "./modules/class-posts/class-posts.module.js";
+import { ClassesModule } from "./modules/classes/classes.module.js";
+import { CurriculumNavigationModule } from "./modules/curriculum-navigation/curriculum-navigation.module.js";
+import { ExternalKnowledgeAiModule } from "./modules/external-knowledge-ai/external-knowledge-ai.module.js";
+import { MaterialsModule } from "./modules/materials/materials.module.js";
+import { Mf2Module } from "./modules/mf2/mf2.module.js";
+import { NotificationPreferencesModule } from "./modules/notification-preferences/notification-preferences.module.js";
+import { OfficialMaterialsModule } from "./modules/official-materials/official-materials.module.js";
+import { SourceGroundedAiModule } from "./modules/source-grounded-ai/source-grounded-ai.module.js";
+import { StudentsModule } from "./modules/students/students.module.js";
+import { StudyAlertsModule } from "./modules/study-alerts/study-alerts.module.js";
+import { StudyAreasModule } from "./modules/study-areas/study-areas.module.js";
+import { StudyGroupAiModule } from "./modules/study-group-ai/study-group-ai.module.js";
+import { StudyGroupMessagesModule } from "./modules/study-group-messages/study-group-messages.module.js";
+import { StudyGroupSessionsModule } from "./modules/study-group-sessions/study-group-sessions.module.js";
+import { StudyGroupsModule } from "./modules/study-groups/study-groups.module.js";
+import { StudyModule } from "./modules/study/study.module.js";
+import { StudyRoomsModule } from "./modules/study-rooms/study-rooms.module.js";
+import { SubjectsModule } from "./modules/subjects/subjects.module.js";
+import { TeacherAiModule } from "./modules/teacher-ai/teacher-ai.module.js";
+import { UnifiedSearchModule } from "./modules/unified-search/unified-search.module.js";
+
+@Module({
+    imports: [
+        MongooseModule.forRoot(
+            process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017/studyflow",
+        ),
+        AuthModule,
+        StudentsModule,
+        StudyModule,
+        StudyAreasModule,
+        MaterialsModule,
+        AiModule,
+        StudyRoomsModule,
+        ClassesModule,
+        SubjectsModule,
+        OfficialMaterialsModule,
+        TeacherAiModule,
+        ClassAiModule,
+        ClassPostsModule,
+        Mf2Module,
+        AiGuardrailsModule,
+        SourceGroundedAiModule,
+        ExternalKnowledgeAiModule,
+        AdaptiveExplanationsModule,
+        StudyGroupsModule,
+        StudyGroupMessagesModule,
+        StudyGroupSessionsModule,
+        StudyGroupAiModule,
+        UnifiedSearchModule,
+        CurriculumNavigationModule,
+        NotificationPreferencesModule,
+        StudyAlertsModule,
+        AiConsentsModule,
+    ],
+})
+export class AppModule {}
+```
+
 5. Explicação do código.
-   O módulo exporta o service para os módulos IA. O controller mantém a API simples e centrada no utilizador autenticado.
+   O controller cria a fronteira HTTP do módulo de consentimentos. Todas as rotas estão protegidas por `SessionGuard`, por isso a identidade vem de `request.user` e nunca de um `userId` enviado pelo frontend. Isto é essencial: consentimento é uma decisão pessoal e não pode ser alterado escolhendo outro utilizador no payload.
+
+   `GET /api/ai-consents` devolve o histórico do actor autenticado. `PUT /api/ai-consents/:purpose` cria uma decisão `GRANTED` para a finalidade indicada no URL. `DELETE /api/ai-consents/:purpose` cria uma decisão `REVOKED` para a mesma finalidade. `ParseEnumPipe` valida o parâmetro `purpose` antes de chegar ao service, evitando finalidades inventadas como `"ALL_AI"`. O body continua a transportar `policyVersion`, mas o `purpose` efectivo vem do URL para não haver conflito entre rota e payload.
+
+   `AiConsentsModule` regista o schema Mongoose, controller e service. O `exports: [AiConsentsService]` é indispensável porque os módulos de IA precisam de injetar `AiConsentsService`. No `AppModule`, o novo módulo fica junto dos restantes módulos de domínio da API para tornar as rotas disponíveis na aplicação principal.
 6. Validação do passo.
-   `GET /api/ai-consents` deve listar só decisões do actor.
+   `GET /api/ai-consents` deve listar só decisões do actor autenticado. `PUT /api/ai-consents/PRIVATE_AREA_AI` deve criar uma decisão concedida com a versão enviada no body. `DELETE /api/ai-consents/PRIVATE_AREA_AI` deve criar uma decisão revogada. Um `purpose` inválido no URL deve ser rejeitado antes de criar documento.
 7. Cenário negativo/erro esperado.
-   Pedido sem sessão deve falhar antes de tocar na base de dados.
+   Pedido sem sessão deve falhar antes de tocar na base de dados. Pedido com `purpose` fora de `AiConsentPurpose` deve falhar na validação de rota, porque aceitar finalidades livres quebraria o contrato usado por modelos, quotas e services IA.
 
 ### Passo 4 - Integrar nos services IA
 
 1. Objetivo funcional do passo no contexto da app.
-   Bloquear chamadas a IA sem consentimento activo.
+   Bloquear chamadas a IA sem consentimento activo antes de qualquer prompt, leitura de fontes sensíveis ou chamada ao provider.
 2. Ficheiros envolvidos:
-   - EDITAR: `apps/api/src/modules/private-area-ai/private-area-ai.service.ts`
-   - EDITAR: `apps/api/src/modules/study-group-ai/study-group-ai.service.ts`
-   - EDITAR: `apps/api/src/modules/class-ai/class-ai.service.ts`
-   - EDITAR: `apps/api/src/modules/project-ai/project-ai.service.ts`
+    - EDITAR: `apps/api/src/modules/private-area-ai/private-area-ai.service.ts`
+    - EDITAR: `apps/api/src/modules/private-area-ai/private-area-ai.module.ts`
+    - EDITAR: `apps/api/src/modules/study-group-ai/study-group-ai.service.ts`
+    - EDITAR: `apps/api/src/modules/study-group-ai/study-group-ai.module.ts`
+    - EDITAR: `apps/api/src/modules/class-ai/class-ai.service.ts`
+    - EDITAR: `apps/api/src/modules/class-ai/class-ai.module.ts`
+    - EDITAR: `apps/api/src/modules/project-ai/project-ai.service.ts`
+    - EDITAR: `apps/api/src/modules/project-ai/project-ai.module.ts`
 3. Instruções do que fazer.
-   Injeta `AiConsentsService` e chama `assertGranted` antes de preparar prompt.
+   Importa `AiConsentsModule` nos módulos IA, injeta `AiConsentsService` nos services e chama `assertGranted` no método público que inicia cada operação IA. A validação deve ficar depois das validações mínimas de acesso ao contexto e antes de ler fontes para o prompt, construir o prompt ou contactar `AI_PROVIDER`.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// Trecho final a inserir em private-area-ai.service.ts
-import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
+// Imports a acrescentar nos quatro services IA.
 import { AiConsentsService } from "../ai-consents/ai-consents.service.js";
 import { AiConsentPurpose } from "../ai-consents/dto/upsert-ai-consent.dto.js";
+```
 
+O código não deve ser colado no fim do ficheiro. Em cada service há quatro zonas a alterar: imports, `constructor`, método privado de validação e chamada no método público.
+
+Em `apps/api/src/modules/private-area-ai/private-area-ai.service.ts`, o service já recebe `answerModel`, `aiProvider`, `studyAreasService` e `materialsService`. Acrescenta `aiConsentsService` no fim do `constructor`:
+
+```ts
+constructor(
+    @InjectModel(PrivateAreaAiAnswer.name)
+    private readonly answerModel: Model<PrivateAreaAiAnswerDocument>,
+    @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
+    private readonly studyAreasService: StudyAreasService,
+    private readonly materialsService: MaterialsService,
+    private readonly aiConsentsService: AiConsentsService,
+) {}
+```
+
+Ainda dentro da classe `PrivateAreaAiService`, coloca este método privado a seguir ao `constructor`:
+
+```ts
 /**
  * Valida consentimento antes de ler fontes privadas ou chamar `AI_PROVIDER`.
  */
 private async assertPrivateAreaAiConsent(actor: AuthenticatedUser): Promise<void> {
-    await this.aiConsentsService.assertGranted(actor.id, AiConsentPurpose.PRIVATE_AREA_AI);
+    await this.aiConsentsService.assertGranted(
+        actor.id,
+        AiConsentPurpose.PRIVATE_AREA_AI,
+    );
 }
 ```
 
+No método `ask`, a chamada entra depois da validação de role e antes de `getMyStudyArea` e `listReadyTextSources`, porque estes dois métodos já entram no contexto privado do aluno:
+
+```ts
+if (actor.role !== "STUDENT") {
+    throw new ForbiddenException({
+        code: "STUDENT_ROLE_REQUIRED",
+        message: "Esta funcionalidade é exclusiva de alunos.",
+    });
+}
+
+await this.assertPrivateAreaAiConsent(actor);
+
+// Só depois do consentimento activo se leem a área e os materiais privados.
+const area = await this.studyAreasService.getMyStudyArea(actor.id, studyAreaId);
+const materials = await this.materialsService.listReadyTextSources(
+    actor.id,
+    studyAreaId,
+);
+```
+
+Em `apps/api/src/modules/private-area-ai/private-area-ai.module.ts`, importa `AiConsentsModule` e adiciona-o ao array `imports`. Este passo é obrigatório para o Nest conseguir injetar `AiConsentsService`:
+
+```ts
+import { AiConsentsModule } from "../ai-consents/ai-consents.module.js";
+
+@Module({
+    imports: [
+        AuthModule,
+        AiModule,
+        AiConsentsModule,
+        StudyAreasModule,
+        MaterialsModule,
+        MongooseModule.forFeature([
+            {
+                name: PrivateAreaAiAnswer.name,
+                schema: PrivateAreaAiAnswerSchema,
+            },
+        ]),
+    ],
+    controllers: [PrivateAreaAiController],
+    providers: [PrivateAreaAiService],
+})
+export class PrivateAreaAiModule {}
+```
+
+Em `apps/api/src/modules/study-group-ai/study-group-ai.service.ts`, acrescenta `aiConsentsService` ao `constructor` de `StudyGroupAiService`:
+
+```ts
+constructor(
+    @InjectModel(StudyGroupAiAnswer.name)
+    private readonly answerModel: Model<StudyGroupAiAnswerDocument>,
+    private readonly studyGroupsService: StudyGroupsService,
+    private readonly roomSharesService: RoomSharesService,
+    @Inject(AI_PROVIDER)
+    private readonly aiProvider: AiProvider,
+    private readonly aiConsentsService: AiConsentsService,
+) {}
+```
+
+Cria o método privado a seguir ao `constructor`:
+
+```ts
+/**
+ * Valida consentimento antes de usar fontes partilhadas do grupo com IA.
+ */
+private async assertStudyGroupAiConsent(actor: AuthenticatedUser): Promise<void> {
+    await this.aiConsentsService.assertGranted(
+        actor.id,
+        AiConsentPurpose.STUDY_GROUP_AI,
+    );
+}
+```
+
+No método `ask`, a ordem deve ficar: validar membership, validar consentimento, ler partilhas. Assim, a app não prepara prompt com fontes partilhadas sem consentimento:
+
+```ts
+// A membership é validada antes de ler partilhas para evitar fuga de notas de outros grupos.
+await this.studyGroupsService.ensureMember(actor.id, groupId);
+
+await this.assertStudyGroupAiConsent(actor);
+
+const sources = await this.roomSharesService.findUsableSharesForRoom(
+    actor.id,
+    groupId,
+    input.sourceShareIds,
+);
+```
+
+Em `apps/api/src/modules/study-group-ai/study-group-ai.module.ts`, importa o módulo de consentimentos:
+
+```ts
+import { AiConsentsModule } from "../ai-consents/ai-consents.module.js";
+
+@Module({
+    imports: [
+        AuthModule,
+        AiModule,
+        AiConsentsModule,
+        StudyGroupsModule,
+        StudyRoomsModule,
+        MongooseModule.forFeature([
+            { name: StudyGroupAiAnswer.name, schema: StudyGroupAiAnswerSchema },
+        ]),
+    ],
+    controllers: [StudyGroupAiController],
+    providers: [StudyGroupAiService],
+})
+export class StudyGroupAiModule {}
+```
+
+Em `apps/api/src/modules/class-ai/class-ai.service.ts`, acrescenta `aiConsentsService` ao `constructor` de `ClassAiService`:
+
+```ts
+constructor(
+    @InjectModel(ClassAiInteraction.name)
+    private readonly interactionModel: Model<ClassAiInteractionDocument>,
+    @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
+    private readonly subjectsService: SubjectsService,
+    private readonly materialsService: OfficialMaterialsService,
+    private readonly voiceService: TeacherAiVoiceService,
+    private readonly aiConsentsService: AiConsentsService,
+) {}
+```
+
+Cria o método privado a seguir ao `constructor`:
+
+```ts
+/**
+ * Valida consentimento antes de usar materiais oficiais da disciplina com IA.
+ */
+private async assertClassAiConsent(actor: AuthenticatedUser): Promise<void> {
+    await this.aiConsentsService.assertGranted(
+        actor.id,
+        AiConsentPurpose.CLASS_AI,
+    );
+}
+```
+
+No método `askClassAi`, a chamada entra depois de confirmar que o actor é aluno e que está inscrito na disciplina, mas antes de `listProcessedForSubject` e antes de `findVoiceForSubject`:
+
+```ts
+if (actor.role !== "STUDENT") {
+    throw new ForbiddenException({
+        code: "STUDENT_ROLE_REQUIRED",
+        message: "Esta funcionalidade é exclusiva de alunos.",
+    });
+}
+
+// A inscrição na disciplina é validada antes de qualquer material oficial ser exposto ao aluno.
+const { subject, schoolClass } =
+    await this.subjectsService.findSubjectForStudent(actor.id, subjectId);
+
+await this.assertClassAiConsent(actor);
+
+const materials = await this.materialsService.listProcessedForSubject(
+    subject._id,
+);
+```
+
+Em `apps/api/src/modules/class-ai/class-ai.module.ts`, importa o módulo de consentimentos:
+
+```ts
+import { AiConsentsModule } from "../ai-consents/ai-consents.module.js";
+
+@Module({
+    imports: [
+        AuthModule,
+        AiModule,
+        AiConsentsModule,
+        SubjectsModule,
+        OfficialMaterialsModule,
+        TeacherAiModule,
+        MongooseModule.forFeature([
+            { name: ClassAiInteraction.name, schema: ClassAiInteractionSchema },
+        ]),
+    ],
+    controllers: [ClassAiController],
+    providers: [ClassAiService],
+})
+export class ClassAiModule {}
+```
+
+Em `apps/api/src/modules/project-ai/project-ai.service.ts`, acrescenta `aiConsentsService` ao `constructor` de `ProjectAiService`:
+
+```ts
+constructor(
+    @InjectModel(ProjectAiPlan.name)
+    private readonly planModel: Model<ProjectAiPlanDocument>,
+    @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
+    private readonly projectsService: ClassProjectsService,
+    private readonly aiConsentsService: AiConsentsService,
+) {}
+```
+
+Cria o método privado a seguir ao `constructor`:
+
+```ts
+/**
+ * Valida consentimento antes de gerar um plano de projecto com IA.
+ */
+private async assertProjectAiConsent(actor: AuthenticatedUser): Promise<void> {
+    await this.aiConsentsService.assertGranted(
+        actor.id,
+        AiConsentPurpose.PROJECT_AI,
+    );
+}
+```
+
+No método `createPlan`, a chamada entra depois de confirmar que o projecto está publicado e disponível para o aluno, mas antes de normalizar dados que entram no prompt e antes de chamar `generateProjectPlan`:
+
+```ts
+const project = await this.projectsService.findPublishedForStudent(
+    actor.id,
+    projectId,
+);
+
+await this.assertProjectAiConsent(actor);
+
+const knownDifficulties = (input.knownDifficulties ?? [])
+    .map((difficulty) => difficulty.trim())
+    .filter(Boolean);
+```
+
+Em `apps/api/src/modules/project-ai/project-ai.module.ts`, importa o módulo de consentimentos:
+
+```ts
+import { AiConsentsModule } from "../ai-consents/ai-consents.module.js";
+
+@Module({
+    imports: [
+        AuthModule,
+        AiModule,
+        AiConsentsModule,
+        ClassProjectsModule,
+        MongooseModule.forFeature([
+            { name: ProjectAiPlan.name, schema: ProjectAiPlanSchema },
+        ]),
+    ],
+    controllers: [ProjectAiController],
+    providers: [ProjectAiService],
+})
+export class ProjectAiModule {}
+```
+
 5. Explicação do código.
-   A chamada fica antes da leitura de fontes e antes do provider. Assim, a app não trata material privado com IA se o consentimento não existir.
+   `AiConsentsService.assertGranted` é o ponto central de bloqueio. Os services IA continuam a validar role, ownership, membership e acesso ao contexto com os services que já existem na aplicação. Depois disso, antes de recolher fontes para o prompt ou chamar `AI_PROVIDER`, validam a finalidade IA correspondente. Isto evita transformar um consentimento geral numa permissão global e impede que a app trate dados com IA quando o último registo da finalidade não está `GRANTED`.
 6. Validação do passo.
-   Teste do service IA deve esperar `AI_CONSENT_REQUIRED` sem consentimento.
+   Cada teste de service IA deve receber um dobro de teste de `AiConsentsService`. Quando `assertGranted` rejeita com `AI_CONSENT_REQUIRED`, o teste deve confirmar duas coisas: o método público falha com esse erro e o método do provider não é chamado.
+
+```ts
+aiConsentsService.assertGranted.mockRejectedValueOnce(
+    new ForbiddenException({
+        code: "AI_CONSENT_REQUIRED",
+        message:
+            "É necessário consentimento activo para usar esta funcionalidade de IA.",
+    }),
+);
+
+await expect(service.ask(actor, id, input)).rejects.toMatchObject({
+    response: expect.objectContaining({ code: "AI_CONSENT_REQUIRED" }),
+});
+
+expect(aiProvider.generatePrivateAreaAnswer).not.toHaveBeenCalled();
+```
+
+O método muda conforme o service testado: `ask` em `PrivateAreaAiService`, `ask` em `StudyGroupAiService`, `askClassAi` em `ClassAiService` e `createPlan` em `ProjectAiService`.
 7. Cenário negativo/erro esperado.
-   Se a chamada ao provider ocorrer antes de `assertGranted`, o teste deve falhar.
+   Se a chamada ao provider ocorrer antes de `assertGranted`, ou se o service ler fontes para o prompt antes de validar consentimento, o teste deve falhar. O erro esperado sem consentimento é `AI_CONSENT_REQUIRED`, não `AI_PROVIDER_UNAVAILABLE`, `NO_PRIVATE_AI_SOURCES`, `NO_GROUP_AI_SOURCES` ou outro erro posterior.
 
 ### Passo 5 - Criar cliente e painel
 
 1. Objetivo funcional do passo no contexto da app.
    Dar controlo visível ao utilizador.
 2. Ficheiros envolvidos:
-   - CRIAR: `apps/web/src/features/ai-consents/ai-consents-client.ts`
-   - CRIAR: `apps/web/src/features/ai-consents/ai-consents-panel.tsx`
+    - CRIAR: `apps/web/src/features/ai-consents/ai-consents-client.ts`
+    - CRIAR: `apps/web/src/features/ai-consents/ai-consents-panel.tsx`
 3. Instruções do que fazer.
    Usa `requestMf3Json` e expõe conceder/revogar por finalidade.
 4. Código completo, correto e integrado com a app final.
@@ -395,58 +882,143 @@ private async assertPrivateAreaAiConsent(actor: AuthenticatedUser): Promise<void
 // apps/web/src/features/ai-consents/ai-consents-client.ts
 import { requestMf3Json } from "../mf3/request-mf3-json.js";
 
-export type AiConsentPurpose = "PRIVATE_AREA_AI" | "STUDY_GROUP_AI" | "CLASS_AI" | "PROJECT_AI";
-export type AiConsent = { purpose: AiConsentPurpose; policyVersion: string; status: string; decidedAt: string };
+/**
+ * Finalidades de IA expostas ao frontend.
+ */
+export type AiConsentPurpose =
+    | "PRIVATE_AREA_AI"
+    | "STUDY_GROUP_AI"
+    | "CLASS_AI"
+    | "PROJECT_AI";
+
+/**
+ * Decisão pública de consentimento recebida da API.
+ */
+export type AiConsent = {
+    purpose: AiConsentPurpose;
+    policyVersion: string;
+    status: string;
+    decidedAt: string;
+};
+
 export const CURRENT_AI_CONSENT_VERSION = "2026-06-16";
 
-export function loadAiConsents() {
+/**
+ * Carrega o histórico de consentimentos do utilizador autenticado.
+ */
+export function loadAiConsents(): Promise<AiConsent[]> {
     return requestMf3Json<AiConsent[]>("/api/ai-consents");
 }
 
-export function grantAiConsent(purpose: AiConsentPurpose) {
+/**
+ * Concede consentimento para uma finalidade IA.
+ */
+export function grantAiConsent(purpose: AiConsentPurpose): Promise<AiConsent> {
     return requestMf3Json<AiConsent>(`/api/ai-consents/${purpose}`, {
         method: "PUT",
-        body: JSON.stringify({ purpose, policyVersion: CURRENT_AI_CONSENT_VERSION }),
+        body: JSON.stringify({
+            purpose,
+            policyVersion: CURRENT_AI_CONSENT_VERSION,
+        }),
     });
 }
 
-export function revokeAiConsent(purpose: AiConsentPurpose) {
-    return requestMf3Json<AiConsent>(`/api/ai-consents/${purpose}`, { method: "DELETE" });
+/**
+ * Revoga consentimento para uma finalidade IA.
+ */
+export function revokeAiConsent(purpose: AiConsentPurpose): Promise<AiConsent> {
+    return requestMf3Json<AiConsent>(`/api/ai-consents/${purpose}`, {
+        method: "DELETE",
+    });
 }
 ```
 
 ```tsx
 // apps/web/src/features/ai-consents/ai-consents-panel.tsx
 import { useEffect, useState } from "react";
-import { AiConsent, AiConsentPurpose, grantAiConsent, loadAiConsents, revokeAiConsent } from "./ai-consents-client.js";
+import {
+    grantAiConsent,
+    loadAiConsents,
+    revokeAiConsent,
+} from "./ai-consents-client.js";
+import type { AiConsent, AiConsentPurpose } from "./ai-consents-client.js";
 
-const PURPOSES: AiConsentPurpose[] = ["PRIVATE_AREA_AI", "STUDY_GROUP_AI", "CLASS_AI", "PROJECT_AI"];
+const PURPOSES: AiConsentPurpose[] = [
+    "PRIVATE_AREA_AI",
+    "STUDY_GROUP_AI",
+    "CLASS_AI",
+    "PROJECT_AI",
+];
 
 /**
  * Painel de consentimentos IA por finalidade.
  */
 export function AiConsentsPanel() {
     const [items, setItems] = useState<AiConsent[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [pendingPurpose, setPendingPurpose] =
+        useState<AiConsentPurpose | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        loadAiConsents().then(setItems).catch((err: Error) => setError(err.message));
+        loadAiConsents()
+            .then(setItems)
+            .catch((caught: unknown) =>
+                setError(
+                    caught instanceof Error
+                        ? caught.message
+                        : "Não foi possível carregar consentimentos.",
+                ),
+            )
+            .finally(() => setLoading(false));
     }, []);
 
-    async function toggle(purpose: AiConsentPurpose, granted: boolean) {
-        const saved = granted ? await revokeAiConsent(purpose) : await grantAiConsent(purpose);
-        // Mantém o histórico visível colocando a decisão mais recente no topo.
-        setItems((current) => [saved, ...current]);
+    /**
+     * Alterna a decisão de uma finalidade e mantém feedback visível ao utilizador.
+     */
+    async function toggle(
+        purpose: AiConsentPurpose,
+        granted: boolean,
+    ): Promise<void> {
+        setError(null);
+        setPendingPurpose(purpose);
+        try {
+            const saved = granted
+                ? await revokeAiConsent(purpose)
+                : await grantAiConsent(purpose);
+            // Mantém o histórico visível colocando a decisão mais recente no topo.
+            setItems((current) => [saved, ...current]);
+        } catch (caught) {
+            setError(
+                caught instanceof Error
+                    ? caught.message
+                    : "Não foi possível guardar a decisão.",
+            );
+        } finally {
+            setPendingPurpose(null);
+        }
     }
 
     return (
         <section aria-labelledby="ai-consents-title">
             <h2 id="ai-consents-title">Consentimentos de IA</h2>
             {error ? <p role="alert">{error}</p> : null}
+            {loading ? <p>A carregar consentimentos...</p> : null}
             {PURPOSES.map((purpose) => {
                 const latest = items.find((item) => item.purpose === purpose);
                 const granted = latest?.status === "GRANTED";
-                return <button key={purpose} type="button" onClick={() => toggle(purpose, granted)}>{purpose}: {granted ? "revogar" : "conceder"}</button>;
+                const pending = pendingPurpose === purpose;
+                return (
+                    <button
+                        key={purpose}
+                        type="button"
+                        disabled={pending}
+                        onClick={() => toggle(purpose, granted)}
+                    >
+                        {purpose}:{" "}
+                        {pending ? "a guardar" : granted ? "revogar" : "conceder"}
+                    </button>
+                );
             })}
         </section>
     );
@@ -454,18 +1026,20 @@ export function AiConsentsPanel() {
 ```
 
 5. Explicação do código.
-   O painel reflecte a decisão mais recente por finalidade e não guarda estado em storage. O histórico continua disponível pela lista completa recebida.
+   O cliente frontend concentra as chamadas HTTP para a API de consentimentos e reutiliza `requestMf3Json`, mantendo cookies HttpOnly, CSRF e tratamento de erro alinhados com os BKs anteriores. O painel não guarda permissões em storage do browser; usa sempre a API para carregar e alterar decisões.
+
+   `items` mantém o histórico recebido, `loading` mostra o carregamento inicial, `pendingPurpose` bloqueia cliques duplicados na finalidade que está a ser guardada e `error` mostra falhas em `role="alert"`. A decisão apresentada em cada botão vem do registo mais recente encontrado para aquela finalidade. Quando o utilizador concede ou revoga, a decisão devolvida pela API é colocada no topo para que a UI reflita imediatamente o novo estado.
 6. Validação do passo.
-   Conceder e revogar a mesma finalidade deve criar duas decisões ordenadas.
+   Ao abrir o painel, deve existir uma chamada `GET /api/ai-consents`. Ao conceder `PRIVATE_AREA_AI`, deve existir `PUT /api/ai-consents/PRIVATE_AREA_AI` com `policyVersion`. Ao revogar a mesma finalidade, deve existir `DELETE /api/ai-consents/PRIVATE_AREA_AI`. Em ambos os casos, o botão deve ficar temporariamente desativado e a decisão mais recente deve aparecer como estado efectivo.
 7. Cenário negativo/erro esperado.
-   Falha da API deve aparecer em `role="alert"` após adicionar tratamento `try/catch` se a equipa quiser feedback por botão.
+   Falha da API ao carregar, conceder ou revogar deve aparecer em `role="alert"`. Se o `try/catch` for removido do `toggle`, a rejeição da chamada pode ficar sem feedback visível e o aluno pode pensar que a decisão foi guardada quando não foi.
 
 ### Passo 6 - Testar bloqueio sem consentimento
 
 1. Objetivo funcional do passo no contexto da app.
    Garantir que IA fica bloqueada até haver consentimento.
 2. Ficheiros envolvidos:
-   - CRIAR: `apps/api/src/modules/ai-consents/ai-consents.service.spec.ts`
+    - CRIAR: `apps/api/src/modules/ai-consents/ai-consents.service.spec.ts`
 3. Instruções do que fazer.
    Testa ausência, concessão e revogação.
 4. Código completo, correto e integrado com a app final.
@@ -475,32 +1049,137 @@ export function AiConsentsPanel() {
 import { ForbiddenException } from "@nestjs/common";
 import { AiConsentsService } from "./ai-consents.service.js";
 import { AiConsentPurpose } from "./dto/upsert-ai-consent.dto.js";
+import type { Model } from "mongoose";
+import type { AuthenticatedUser } from "../../common/types/authenticated-request.js";
+import type { AiConsentDocument } from "./schemas/ai-consent.schema.js";
 
 describe("AiConsentsService", () => {
+    const actor: AuthenticatedUser = {
+        id: "507f1f77bcf86cd799439010",
+        email: "aluno@studyflow.local",
+        role: "STUDENT",
+    };
+
     it("bloqueia IA sem consentimento activo", async () => {
-        const consentModel = { findOne: jest.fn(() => ({ sort: () => ({ lean: async () => null }) })) };
-        const service = new AiConsentsService(consentModel as never);
+        const { service } = makeService(null);
 
         await expect(
-            service.assertGranted("507f1f77bcf86cd799439010", AiConsentPurpose.PRIVATE_AREA_AI),
+            service.assertGranted(
+                actor.id,
+                AiConsentPurpose.PRIVATE_AREA_AI,
+            ),
         ).rejects.toBeInstanceOf(ForbiddenException);
     });
+
+    it("permite IA quando o último consentimento está concedido", async () => {
+        const { service } = makeService({
+            purpose: AiConsentPurpose.PRIVATE_AREA_AI,
+            policyVersion: "2026-06-16",
+            status: "GRANTED",
+            decidedAt: new Date("2026-06-16T10:00:00.000Z"),
+        });
+
+        await expect(
+            service.assertGranted(
+                actor.id,
+                AiConsentPurpose.PRIVATE_AREA_AI,
+            ),
+        ).resolves.toBeUndefined();
+    });
+
+    it("bloqueia IA quando o último consentimento está revogado", async () => {
+        const { service } = makeService({
+            purpose: AiConsentPurpose.PRIVATE_AREA_AI,
+            policyVersion: "revoked",
+            status: "REVOKED",
+            decidedAt: new Date("2026-06-17T10:00:00.000Z"),
+        });
+
+        await expect(
+            service.assertGranted(
+                actor.id,
+                AiConsentPurpose.PRIVATE_AREA_AI,
+            ),
+        ).rejects.toMatchObject({
+            response: expect.objectContaining({ code: "AI_CONSENT_REQUIRED" }),
+        });
+    });
+
+    it("regista concessão e revogação como decisões novas", async () => {
+        const createdRows = [
+            {
+                toObject: () => ({
+                    purpose: AiConsentPurpose.PROJECT_AI,
+                    policyVersion: "2026-06-16",
+                    status: "GRANTED",
+                    decidedAt: new Date("2026-06-16T10:00:00.000Z"),
+                }),
+            },
+            {
+                toObject: () => ({
+                    purpose: AiConsentPurpose.PROJECT_AI,
+                    policyVersion: "revoked",
+                    status: "REVOKED",
+                    decidedAt: new Date("2026-06-17T10:00:00.000Z"),
+                }),
+            },
+        ];
+        const { consentModel, service } = makeService(null);
+        consentModel.create
+            .mockResolvedValueOnce(createdRows[0])
+            .mockResolvedValueOnce(createdRows[1]);
+
+        await expect(
+            service.grant(actor, {
+                purpose: AiConsentPurpose.PROJECT_AI,
+                policyVersion: "2026-06-16",
+            }),
+        ).resolves.toMatchObject({ status: "GRANTED" });
+
+        await expect(
+            service.revoke(actor, AiConsentPurpose.PROJECT_AI),
+        ).resolves.toMatchObject({ status: "REVOKED" });
+
+        expect(consentModel.create).toHaveBeenCalledTimes(2);
+    });
 });
+
+type ConsentModelDouble = {
+    create: jest.Mock;
+    findOne: jest.Mock;
+};
+
+function makeService(latestConsent: unknown) {
+    const consentModel: ConsentModelDouble = {
+        create: jest.fn(),
+        findOne: jest.fn(() => ({
+            sort: jest.fn(() => ({
+                lean: jest.fn().mockResolvedValue(latestConsent),
+            })),
+        })),
+    };
+    const service = new AiConsentsService(
+        consentModel as unknown as Model<AiConsentDocument>,
+    );
+    return { consentModel, service };
+}
 ```
 
 5. Explicação do código.
-   O teste cobre o default seguro: sem decisão, a IA não pode correr.
+   O teste cobre o default seguro e os dois estados relevantes depois da primeira decisão. Sem documento, `assertGranted` bloqueia. Com último documento `GRANTED`, a Promise resolve e o service IA pode continuar. Com último documento `REVOKED`, o erro volta a ser `AI_CONSENT_REQUIRED`. O último teste confirma que conceder e revogar criam decisões novas, em vez de apagar ou sobrescrever o histórico.
+
+   O dobro de teste de Mongoose implementa apenas os métodos usados pelo service: `findOne`, `sort`, `lean` e `create`. Isto mantém o teste focado na regra de negócio, sem abrir ligação real a MongoDB. A conversão para `Model<AiConsentDocument>` fica isolada no helper `makeService`, deixando os cenários legíveis.
 6. Validação do passo.
-   `npm run test:unit -- ai-consents`
+   `npm run test:unit -- ai-consents` deve mostrar os quatro cenários a passar: ausência bloqueia, concessão permite, revogação bloqueia e histórico append-only é preservado.
 7. Cenário negativo/erro esperado.
-   Se `assertGranted` aceitar ausência de registo, o teste falha.
+   Se `assertGranted` aceitar ausência de registo ou último estado `REVOKED`, o teste falha. Se `grant` ou `revoke` deixarem de criar documentos novos, o teste de histórico falha e evita perder rastreabilidade.
 
 ### Passo 7 - Validar contrato final
 
 1. Objetivo funcional do passo no contexto da app.
    Fechar RF54 e preparar políticas/quotas IA.
 2. Ficheiros envolvidos:
-   - REVER: todos os ficheiros deste BK e services IA editados
+    - REVER: todos os ficheiros deste BK e services IA editados
 3. Instruções do que fazer.
    Confirma que todas as chamadas a `AI_PROVIDER` passam por consentimento.
 4. Código completo, correto e integrado com a app final.
@@ -520,13 +1199,15 @@ Sem código neste passo.
 - Revogação bloqueia chamadas futuras.
 - Nenhum endpoint recebe `targetUserId`.
 - Services IA chamam `assertGranted`.
-- Teste cobre ausência de consentimento.
+- Frontend mostra loading e erro em `role="alert"` sem guardar decisão em storage.
+- Teste cobre ausência, concessão e revogação.
 
 #### Validação final
 
 - `npm run test:unit -- ai-consents`
 - `npm run test:integration`
-- Pesquisa por `AI_PROVIDER` e `assertGranted`.
+- `rg -n "AI_PROVIDER|assertGranted" apps/api/src/modules`
+- Confirmar que cada chamada a provider IA tem uma validação de consentimento antes de preparar prompt.
 
 #### Evidence para PR/defesa
 
@@ -534,6 +1215,7 @@ Sem código neste passo.
 - Payload de consentimento concedido e revogado.
 - Erro `AI_CONSENT_REQUIRED`.
 - Lista dos services IA integrados.
+- Captura ou registo de falha frontend apresentada em `role="alert"`.
 
 #### Handoff
 
@@ -541,4 +1223,5 @@ BK-MF4-07 continua a administração de utilizadores; BK-MF4-09 deve configurar 
 
 #### Changelog
 
+- `2026-06-18`: guia reforçado com teoria, controller validado por enum, frontend com loading/erro, testes de concessão/revogação e estrutura canónica do Passo 4 corrigida.
 - `2026-06-16`: guia corrigido com consentimento IA versionado e enforcement nos services IA.
