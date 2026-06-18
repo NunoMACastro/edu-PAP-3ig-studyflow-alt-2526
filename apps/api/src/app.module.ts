@@ -73,10 +73,11 @@ import { NotificationPoliciesModule } from "./modules/notification-policies/noti
         CurriculumNavigationModule,
         NotificationPreferencesModule,
         StudyAlertsModule,
-        PrivacyDataExportsModule ,
+        PrivacyDataExportsModule,
         ContextNotificationsModule,
         FollowUpAlertsModule,
         NotificationPoliciesModule,
+        AccountDeletionModule,
     ],
 })
 export class AppModule {}
