@@ -14,6 +14,7 @@ import { StudyRoomsModule } from "./modules/study-rooms/study-rooms.module.js";
 import { ClassesModule } from "./modules/classes/classes.module.js";
 import { SubjectsModule } from "./modules/subjects/subjects.module.js";
 import { OfficialMaterialsModule } from "./modules/official-materials/official-materials.module.js";
+import { ExternalMaterialImportsModule } from "./modules/external-material-imports/external-material-imports.module.js";
 import { TeacherAiModule } from "./modules/teacher-ai/teacher-ai.module.js";
 import { ClassAiModule } from "./modules/class-ai/class-ai.module.js";
 import { ClassPostsModule } from "./modules/class-posts/class-posts.module.js";
@@ -63,6 +64,7 @@ import { PrivacyDataExportsModule } from "./modules/privacy-data-exports/privacy
         ClassesModule,
         SubjectsModule,
         OfficialMaterialsModule,
+        ExternalMaterialImportsModule,
         TeacherAiModule,
         ClassAiModule,
         ClassPostsModule,
