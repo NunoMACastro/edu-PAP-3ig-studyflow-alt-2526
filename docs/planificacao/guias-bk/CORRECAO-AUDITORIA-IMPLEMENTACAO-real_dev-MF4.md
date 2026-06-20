@@ -15,7 +15,7 @@
 - Estado do relatorio: `AUDITORIA_CORRIGIDA_COM_VALIDACAO`
 - Commits: nenhum, conforme prompt.
 
-A execucao corrigiu os findings P1/P2 encontrados na auditoria MF4 anterior. A implementacao passou a restringir alertas de acompanhamento aos alunos elegiveis, auditar materiais e chamadas IA runtime, aplicar politicas IA nas chamadas reais ao provider, reservar quotas IA de forma atomica, calcular quotas de notificacao por destinatario, disponibilizar formularios admin para politicas/quotas e reforcar a cobertura automatica dos modulos MF4.
+A execucao corrigiu os findings P1/P2 encontrados nas auditorias MF4. A implementacao passou a restringir alertas de acompanhamento aos alunos elegiveis, auditar materiais e chamadas IA runtime, aplicar politicas IA nas chamadas reais ao provider, reservar quotas IA de forma atomica, calcular quotas de notificacao por destinatario, disponibilizar formularios admin para politicas/quotas, reforcar a cobertura automatica dos modulos MF4 e aplicar `maxPromptChars` antes da reserva de quota e da chamada ao provider IA.
 
 ## Ambito
 
@@ -42,6 +42,7 @@ A execucao corrigiu os findings P1/P2 encontrados na auditoria MF4 anterior. A i
 | `AUD-MF4-005` | `P2` | `CORRIGIDO` | A quota diaria de notificacoes passou a ser calculada por destinatario, com agregacao por `recipientIds`, em vez de contar documentos agregados. |
 | `AUD-MF4-006` | `P2` | `CORRIGIDO` | O painel admin MF4 passou a disponibilizar formularios para editar politicas de notificacao, politicas de modelos IA e quota IA. |
 | `AUD-MF4-007` | `P2` | `CORRIGIDO` | Foram adicionados/actualizados testes unitarios dedicados para os modulos MF4 que estavam sem cobertura directa. |
+| `AUD-MF4-008` | `P2` | `CORRIGIDO` | `maxPromptChars` foi adicionado ao DTO/schema/UI de politicas IA e `assertPromptWithinLimit` passou a bloquear prompts acima do limite antes de reservar quota ou chamar o provider. |
 
 ## Findings por severidade
 
@@ -49,7 +50,7 @@ A execucao corrigiu os findings P1/P2 encontrados na auditoria MF4 anterior. A i
 | --- | ---: | ---: |
 | `P0` | 0 | 0 |
 | `P1` | 4 | 0 |
-| `P2` | 3 | 0 |
+| `P2` | 4 | 0 |
 | `P3` | 0 | 0 |
 
 ## Estado por BK apos correcao
@@ -64,7 +65,7 @@ A execucao corrigiu os findings P1/P2 encontrados na auditoria MF4 anterior. A i
 | `BK-MF4-06` | `RF54` | `PASS` | Consentimentos IA continuam a ser exigidos antes dos fluxos IA principais. |
 | `BK-MF4-07` | `RF55` | `PASS` | Gestao admin de utilizadores e proteccao do ultimo admin cobertas por spec dedicada. |
 | `BK-MF4-08` | `RF56`, `RNF23` | `PASS` | Auditoria cobre materiais privados/oficiais e chamadas IA runtime com metadata redigida. |
-| `BK-MF4-09` | `RF57` | `PASS` | Politicas de modelos IA passam a controlar modelo/timeout e limites aplicaveis nas chamadas reais. |
+| `BK-MF4-09` | `RF57` | `PASS` | Politicas de modelos IA passam a controlar modelo, timeout, limite de fontes e limite global de prompt nas chamadas reais. |
 | `BK-MF4-10` | `RF58` | `PASS` | Quotas IA usam reserva atomica condicionada ao limite mensal e painel admin editavel. |
 
 ## Ficheiros alterados
@@ -74,6 +75,9 @@ A execucao corrigiu os findings P1/P2 encontrados na auditoria MF4 anterior. A i
 - `real_dev/api/src/modules/context-notifications/context-notifications.service.ts`
 - `real_dev/api/src/modules/follow-up-alerts/follow-up-alerts.service.ts`
 - `real_dev/api/src/modules/notification-policies/notification-policies.service.ts`
+- `real_dev/api/src/modules/ai-model-policies/dto/upsert-ai-model-policy.dto.ts`
+- `real_dev/api/src/modules/ai-model-policies/schemas/ai-model-policy.schema.ts`
+- `real_dev/api/src/modules/ai-model-policies/ai-model-policies.service.ts`
 - `real_dev/api/src/modules/ai-quotas/ai-quotas.service.ts`
 - `real_dev/api/src/modules/ai/providers/ai-provider.ts`
 - `real_dev/api/src/modules/private-area-ai/private-area-ai.service.ts`
@@ -122,7 +126,8 @@ Nota operacional: `real_dev/` esta ignorado por `.gitignore`, por isso `git stat
 
 | Comando | Directoria | Resultado | Observacoes |
 | --- | --- | --- | --- |
-| `npm run test:unit` | `real_dev/api` | `PASS` | 64 suites, 222 testes. |
+| `npm run test:unit -- ai-model-policies private-area-ai class-ai study-group-ai project-ai` | `real_dev/api` | `PASS` | 5 suites, 17 testes focados. |
+| `npm run test:unit` | `real_dev/api` | `PASS` | 64 suites, 223 testes. |
 | `npm run build` | `real_dev/api` | `PASS` | `nest build` concluiu. |
 | `npm run build` | `real_dev/web` | `PASS` | `tsc --noEmit && vite build` concluiu. |
 | `git diff --check` | repo | `PASS` | Sem whitespace errors nos diffs versionados. |
