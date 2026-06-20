@@ -29,10 +29,10 @@ Neste BK vais implementar um tray de notificações in-app discreto e contextual
 
 #### Scope-in
 
-- Criar `real_dev/web/src/features/mf5/notification-tray.tsx`.
-- Consumir `listContextNotifications()` de `real_dev/web/src/features/mf4/mf4-client.ts`.
+- Criar `apps/web/src/features/mf5/notification-tray.tsx`.
+- Consumir `listContextNotifications()` de `apps/web/src/features/mf4/mf4-client.ts`.
 - Usar o tipo real `ContextNotification`.
-- Integrar `NotificationTray` em `real_dev/web/src/components/layout/AppShell.tsx`.
+- Integrar `NotificationTray` em `apps/web/src/components/layout/AppShell.tsx`.
 - Mostrar estados `loading`, `error`, `empty` e lista.
 - Criar smoke Playwright para lista e erro.
 
@@ -58,9 +58,9 @@ Neste BK vais implementar um tray de notificações in-app discreto e contextual
 - Rever `docs/planificacao/backlogs/BACKLOG-MVP.md`.
 - Rever `docs/planificacao/backlogs/CONTRATO-CAMPOS-BK.md`.
 - Rever `docs/planificacao/backlogs/MF-VIEWS.md`.
-- Rever `real_dev/web/src/features/mf4/mf4-client.ts`.
-- Rever `real_dev/web/src/components/layout/AppShell.tsx`.
-- Rever `real_dev/web/tests/e2e/README.md`.
+- Rever `apps/web/src/features/mf4/mf4-client.ts`.
+- Rever `apps/web/src/components/layout/AppShell.tsx`.
+- Rever `apps/web/tests/e2e/README.md`.
 
 #### Glossário
 
@@ -84,16 +84,16 @@ Neste BK vais implementar um tray de notificações in-app discreto e contextual
 
 #### Arquitetura do BK
 
-`NotificationTray` fica em `real_dev/web/src/features/mf5` porque pertence à UX transversal da MF5. O componente consome `listContextNotifications()` da MF4, mas não altera esse cliente. `AppShell.tsx` importa o tray e coloca-o junto ao email e logout do utilizador autenticado. O teste `mf5-notification-tray.spec.ts` valida lista, vazio funcional e erro.
+`NotificationTray` fica em `apps/web/src/features/mf5` porque pertence à UX transversal da MF5. O componente consome `listContextNotifications()` da MF4, mas não altera esse cliente. `AppShell.tsx` importa o tray e coloca-o junto ao email e logout do utilizador autenticado. O teste `mf5-notification-tray.spec.ts` valida lista, vazio funcional e erro.
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/web/src/features/mf5/notification-tray.tsx`
-- EDITAR: `real_dev/web/src/components/layout/AppShell.tsx`
-- CRIAR: `real_dev/web/tests/e2e/mf5-notification-tray.spec.ts`
-- REVER: `real_dev/web/src/features/mf4/mf4-client.ts`
-- REVER: `real_dev/web/playwright.config.ts`
-- REVER: `real_dev/web/tests/e2e/README.md`
+- CRIAR: `apps/web/src/features/mf5/notification-tray.tsx`
+- EDITAR: `apps/web/src/components/layout/AppShell.tsx`
+- CRIAR: `apps/web/tests/e2e/mf5-notification-tray.spec.ts`
+- REVER: `apps/web/src/features/mf4/mf4-client.ts`
+- REVER: `apps/web/playwright.config.ts`
+- REVER: `apps/web/tests/e2e/README.md`
 
 #### Tutorial técnico linear
 
@@ -109,7 +109,7 @@ Confirmar que o BK usa `RNF07` e o cliente real da MF4 sem inventar outro contra
     - REVER: `docs/planificacao/backlogs/BACKLOG-MVP.md`
     - REVER: `docs/planificacao/backlogs/CONTRATO-CAMPOS-BK.md`
     - REVER: `docs/planificacao/backlogs/MF-VIEWS.md`
-    - REVER: `real_dev/web/src/features/mf4/mf4-client.ts`
+    - REVER: `apps/web/src/features/mf4/mf4-client.ts`
     - LOCALIZAÇÃO: `RNF07`, linha canónica de `BK-MF5-09`, tipo `ContextNotification` e função `listContextNotifications`.
 
 3. Instruções do que fazer.
@@ -139,8 +139,8 @@ Se usares `message` em vez de `body`, o componente fica incompatível com o cont
 Mostrar notificações in-app com carregamento, erro, vazio e lista contextual.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/src/features/mf5/notification-tray.tsx`
-    - REVER: `real_dev/web/src/features/mf4/mf4-client.ts`
+    - CRIAR: `apps/web/src/features/mf5/notification-tray.tsx`
+    - REVER: `apps/web/src/features/mf4/mf4-client.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -150,7 +150,7 @@ Cria o componente com `useEffect`, estado local e consumo de `listContextNotific
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/features/mf5/notification-tray.tsx
+// apps/web/src/features/mf5/notification-tray.tsx
 import { useEffect, useState } from "react";
 import {
     ContextNotification,
@@ -273,8 +273,8 @@ Se a API devolver erro, a shell deve continuar navegável e mostrar `Não foi po
 Mostrar notificações no topo das páginas protegidas, sem duplicar navegação ou mexer nas rotas.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/components/layout/AppShell.tsx`
-    - REVER: `real_dev/web/src/features/mf5/notification-tray.tsx`
+    - EDITAR: `apps/web/src/components/layout/AppShell.tsx`
+    - REVER: `apps/web/src/features/mf5/notification-tray.tsx`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -284,7 +284,7 @@ Importa `NotificationTray` e renderiza-o junto do email e botão `Sair`. Mantém
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/components/layout/AppShell.tsx
+// apps/web/src/components/layout/AppShell.tsx
 import type { ReactNode } from "react";
 import { NotificationTray } from "../../features/mf5/notification-tray.js";
 import { User } from "../../lib/apiClient.js";
@@ -385,9 +385,9 @@ Se uma falha no carregamento das notificações impedir logout ou navegação, o
 Confirmar que notificações são úteis, discretas e não expõem dados sensíveis.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/features/mf5/notification-tray.tsx`
-    - REVER: `real_dev/web/src/features/mf4/mf4-client.ts`
-    - REVER: `real_dev/web/src/components/layout/AppShell.tsx`
+    - REVER: `apps/web/src/features/mf5/notification-tray.tsx`
+    - REVER: `apps/web/src/features/mf4/mf4-client.ts`
+    - REVER: `apps/web/src/components/layout/AppShell.tsx`
     - LOCALIZAÇÃO: estado `items`, mensagens visíveis e tratamento de erro.
 
 3. Instruções do que fazer.
@@ -417,9 +417,9 @@ Se o painel expuser `recipientIds` ou `contextId`, remove esses campos da interf
 Provar que o tray apresenta `body` corretamente e falha de forma controlada quando a API falha.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/tests/e2e/mf5-notification-tray.spec.ts`
-    - REVER: `real_dev/web/playwright.config.ts`
-    - REVER: `real_dev/web/tests/e2e/README.md`
+    - CRIAR: `apps/web/tests/e2e/mf5-notification-tray.spec.ts`
+    - REVER: `apps/web/playwright.config.ts`
+    - REVER: `apps/web/tests/e2e/README.md`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -429,7 +429,7 @@ Cria dois testes: um com resposta de lista e outro com resposta de erro. Usa log
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/tests/e2e/mf5-notification-tray.spec.ts
+// apps/web/tests/e2e/mf5-notification-tray.spec.ts
 import { expect, test, type Page } from "@playwright/test";
 
 const teacher = {
@@ -504,7 +504,7 @@ O primeiro teste responde ao endpoint de notificações com um item que usa `bod
 
 6. Validação do passo.
 
-Executa `npm --prefix real_dev/web run test:e2e -- mf5-notification-tray.spec.ts` e confirma os dois testes a passar.
+Executa `npm --prefix apps/web run test:e2e -- mf5-notification-tray.spec.ts` e confirma os dois testes a passar.
 
 7. Cenário negativo/erro esperado.
 
@@ -517,8 +517,8 @@ Se o teste não encontrar o texto vindo de `body`, o componente voltou a usar um
 Confirmar que o tray não tapa a navegação principal nem impede ações comuns.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/features/mf5/notification-tray.tsx`
-    - REVER: `real_dev/web/src/components/layout/AppShell.tsx`
+    - REVER: `apps/web/src/features/mf5/notification-tray.tsx`
+    - REVER: `apps/web/src/components/layout/AppShell.tsx`
     - LOCALIZAÇÃO: header, botão, painel e estados visíveis.
 
 3. Instruções do que fazer.
@@ -553,9 +553,9 @@ Se o painel cobrir o botão `Sair` ou empurrar toda a navegação, ajusta posiç
 Garantir que `BK-MF5-10` consegue medir performance sem receber uma shell quebrada.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/features/mf5/notification-tray.tsx`
-    - REVER: `real_dev/web/src/components/layout/AppShell.tsx`
-    - REVER: `real_dev/web/tests/e2e/mf5-notification-tray.spec.ts`
+    - REVER: `apps/web/src/features/mf5/notification-tray.tsx`
+    - REVER: `apps/web/src/components/layout/AppShell.tsx`
+    - REVER: `apps/web/tests/e2e/mf5-notification-tray.spec.ts`
     - LOCALIZAÇÃO: secção `Handoff` e evidence.
 
 3. Instruções do que fazer.
@@ -590,8 +590,8 @@ Se o erro de notificações fizer a página protegida falhar inteira, `BK-MF5-10
 
 #### Validação final
 
-- Executar `npm --prefix real_dev/web run build`.
-- Executar `npm --prefix real_dev/web run test:e2e -- mf5-notification-tray.spec.ts`.
+- Executar `npm --prefix apps/web run build`.
+- Executar `npm --prefix apps/web run test:e2e -- mf5-notification-tray.spec.ts`.
 - Confirmar que `Notificações (1)` abre o painel.
 - Confirmar que o texto vindo de `body` aparece.
 - Confirmar que erro HTTP mostra mensagem segura.

@@ -37,10 +37,10 @@ O ponto de segurança importante é simples: a interface pode organizar ações,
 
 #### Scope-in
 
-- Criar `real_dev/web/src/components/PageHeader.tsx`.
-- Editar `real_dev/web/src/pages/student/SoloStudyDashboard.tsx`.
-- Editar `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`.
-- Criar `real_dev/web/tests/e2e/mf5-interface-smoke.spec.ts`.
+- Criar `apps/web/src/components/PageHeader.tsx`.
+- Editar `apps/web/src/pages/student/SoloStudyDashboard.tsx`.
+- Editar `apps/web/src/pages/teacher/TeacherClassesPage.tsx`.
+- Criar `apps/web/tests/e2e/mf5-interface-smoke.spec.ts`.
 - Preservar chamadas existentes a `getSoloStudyState`, `listTeacherClasses`, `createTeacherClass` e `addClassStudent`.
 - Garantir estados `loading`, `error`, `empty` e `success` quando a página os usa.
 - Garantir um único `h1` por página.
@@ -67,9 +67,9 @@ O ponto de segurança importante é simples: a interface pode organizar ações,
 - Confirmar `BK-MF5-03` em `MATRIZ-CANONICA-BK.md`, `BACKLOG-MVP.md`, `CONTRATO-CAMPOS-BK.md`, `MF-VIEWS.md` e `PLANO-SPRINTS.md`.
 - Rever `BK-MF5-01`, porque este BK deve melhorar a clareza visual sem alterar endpoints nem regras de importação de materiais.
 - Rever `BK-MF5-04`, porque o próximo BK recebe uma base visual mais estável.
-- Confirmar que existem `real_dev/web/src/pages/student/SoloStudyDashboard.tsx`, `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx` e `real_dev/web/src/lib/apiClient.ts`.
-- Confirmar que `real_dev/web/src/lib/apiClient.ts` exporta `getSoloStudyState`, `SoloStudyState`, `listTeacherClasses`, `createTeacherClass`, `addClassStudent` e `SchoolClass`.
-- Confirmar que Playwright já existe em `real_dev/web/tests/e2e/`.
+- Confirmar que existem `apps/web/src/pages/student/SoloStudyDashboard.tsx`, `apps/web/src/pages/teacher/TeacherClassesPage.tsx` e `apps/web/src/lib/apiClient.ts`.
+- Confirmar que `apps/web/src/lib/apiClient.ts` exporta `getSoloStudyState`, `SoloStudyState`, `listTeacherClasses`, `createTeacherClass`, `addClassStudent` e `SchoolClass`.
+- Confirmar que Playwright já existe em `apps/web/tests/e2e/`.
 
 #### Glossário
 
@@ -110,13 +110,13 @@ O ponto de segurança importante é simples: a interface pode organizar ações,
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/web/src/components/PageHeader.tsx`
-- EDITAR: `real_dev/web/src/pages/student/SoloStudyDashboard.tsx`
-- EDITAR: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-- CRIAR: `real_dev/web/tests/e2e/mf5-interface-smoke.spec.ts`
-- REVER: `real_dev/web/src/lib/apiClient.ts`
-- REVER: `real_dev/web/src/pages/auth/LoginPage.tsx`
-- REVER: `real_dev/web/src/routes/protectedRoutes.tsx`
+- CRIAR: `apps/web/src/components/PageHeader.tsx`
+- EDITAR: `apps/web/src/pages/student/SoloStudyDashboard.tsx`
+- EDITAR: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+- CRIAR: `apps/web/tests/e2e/mf5-interface-smoke.spec.ts`
+- REVER: `apps/web/src/lib/apiClient.ts`
+- REVER: `apps/web/src/pages/auth/LoginPage.tsx`
+- REVER: `apps/web/src/routes/protectedRoutes.tsx`
 
 #### Tutorial técnico linear
 
@@ -132,9 +132,9 @@ Confirmar que `RNF01` pede interface intuitiva e clara, e que este BK atua apena
     - REVER: `docs/planificacao/backlogs/BACKLOG-MVP.md`
     - REVER: `docs/planificacao/backlogs/CONTRATO-CAMPOS-BK.md`
     - REVER: `docs/planificacao/backlogs/MF-VIEWS.md`
-    - REVER: `real_dev/web/src/pages/student/SoloStudyDashboard.tsx`
-    - REVER: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-    - REVER: `real_dev/web/src/lib/apiClient.ts`
+    - REVER: `apps/web/src/pages/student/SoloStudyDashboard.tsx`
+    - REVER: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - REVER: `apps/web/src/lib/apiClient.ts`
     - LOCALIZAÇÃO: linhas de `RNF01`, linha de `BK-MF5-03` e exports do cliente API.
 
 3. Instruções do que fazer.
@@ -166,17 +166,17 @@ Se encontrares necessidade de criar endpoint backend ou alterar permissões, par
 Criar um componente reutilizável para representar o topo das páginas com título principal, descrição e ação opcional.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/src/components/PageHeader.tsx`
+    - CRIAR: `apps/web/src/components/PageHeader.tsx`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
 
-Cria `PageHeader.tsx` em `real_dev/web/src/components/`. O componente deve ter `title`, `description` e `action`. Não coloques regras de aluno, professor, turma ou permissões neste componente; ele só organiza a interface.
+Cria `PageHeader.tsx` em `apps/web/src/components/`. O componente deve ter `title`, `description` e `action`. Não coloques regras de aluno, professor, turma ou permissões neste componente; ele só organiza a interface.
 
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/components/PageHeader.tsx
+// apps/web/src/components/PageHeader.tsx
 import { ReactNode } from "react";
 
 /**
@@ -240,7 +240,7 @@ Se uma página passar uma ação que só deveria estar disponível para outro pe
 Substituir o topo manual do dashboard do aluno por `PageHeader`, mantendo carregamento, erro, dados agregados e ações principais.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/pages/student/SoloStudyDashboard.tsx`
+    - EDITAR: `apps/web/src/pages/student/SoloStudyDashboard.tsx`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -250,7 +250,7 @@ Substitui o conteúdo do ficheiro pelo código completo abaixo. Mantém `getSolo
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/pages/student/SoloStudyDashboard.tsx
+// apps/web/src/pages/student/SoloStudyDashboard.tsx
 import { useEffect, useState } from "react";
 import { PageHeader } from "../../components/PageHeader.js";
 import {
@@ -389,7 +389,7 @@ A regra de segurança principal é que o frontend não escolhe `userId`. A chama
 
 6. Validação do passo.
 
-Executa `npm run build` em `real_dev/web` depois de aplicar o ficheiro. No browser, confirma que `/app/estudo` tem um único `h1`, mostra `Criar área`, mostra métricas e não perde o estado de erro.
+Executa `npm run build` em `apps/web` depois de aplicar o ficheiro. No browser, confirma que `/app/estudo` tem um único `h1`, mostra `Criar área`, mostra métricas e não perde o estado de erro.
 
 7. Cenário negativo/erro esperado.
 
@@ -402,7 +402,7 @@ Se a API de sessão estiver indisponível, a página deve mostrar `Erro ao carre
 Melhorar a clareza da gestão de turmas do professor, mantendo criação de turmas, associação de alunos, estados de carregamento, erro, vazio e sucesso.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - EDITAR: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -412,7 +412,7 @@ Substitui o conteúdo do ficheiro pelo código completo abaixo. Reutiliza os con
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/pages/teacher/TeacherClassesPage.tsx
+// apps/web/src/pages/teacher/TeacherClassesPage.tsx
 import { FormEvent, useEffect, useState } from "react";
 import { PageHeader } from "../../components/PageHeader.js";
 import {
@@ -677,7 +677,7 @@ Com utilizador sem perfil de professor, a API deve bloquear a operação. A pág
 Criar um teste rápido que valide a hierarquia visual principal de aluno e professor.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/tests/e2e/mf5-interface-smoke.spec.ts`
+    - CRIAR: `apps/web/tests/e2e/mf5-interface-smoke.spec.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -687,7 +687,7 @@ Cria o teste abaixo. Usa variáveis de ambiente para credenciais e não guardes 
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/tests/e2e/mf5-interface-smoke.spec.ts
+// apps/web/tests/e2e/mf5-interface-smoke.spec.ts
 import { expect, Page, test } from "@playwright/test";
 
 /**
@@ -757,7 +757,7 @@ O aluno pode adaptar emails de teste através de variáveis de ambiente, mas nã
 
 6. Validação do passo.
 
-Executa `npx playwright test tests/e2e/mf5-interface-smoke.spec.ts` dentro de `real_dev/web`, com a API e o frontend ativos.
+Executa `npx playwright test tests/e2e/mf5-interface-smoke.spec.ts` dentro de `apps/web`, com a API e o frontend ativos.
 
 7. Cenário negativo/erro esperado.
 
@@ -770,10 +770,10 @@ Sem variáveis `STUDYFLOW_E2E_STUDENT_EMAIL`, `STUDYFLOW_E2E_STUDENT_PASSWORD`, 
 Confirmar que as páginas ficaram claras, navegáveis e sem exposição de dados sensíveis.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/components/PageHeader.tsx`
-    - REVER: `real_dev/web/src/pages/student/SoloStudyDashboard.tsx`
-    - REVER: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-    - REVER: `real_dev/web/tests/e2e/mf5-interface-smoke.spec.ts`
+    - REVER: `apps/web/src/components/PageHeader.tsx`
+    - REVER: `apps/web/src/pages/student/SoloStudyDashboard.tsx`
+    - REVER: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - REVER: `apps/web/tests/e2e/mf5-interface-smoke.spec.ts`
     - LOCALIZAÇÃO: browser, build e smoke test.
 
 3. Instruções do que fazer.
@@ -794,7 +794,7 @@ Este passo evita entregar uma alteração que compila, mas fica confusa para alu
 
 Valida:
 
-- `npm run build` passa em `real_dev/web`;
+- `npm run build` passa em `apps/web`;
 - cada página tem um único `h1`;
 - labels dos formulários são visíveis;
 - erro aparece em `.sf-error`;
@@ -854,7 +854,7 @@ Se faltares a evidence, o PR fica difícil de defender. Se o handoff omitir `Pag
 
 #### Validação final
 
-Executa na raiz `real_dev/web`:
+Executa na raiz `apps/web`:
 
 ```bash
 npm run build

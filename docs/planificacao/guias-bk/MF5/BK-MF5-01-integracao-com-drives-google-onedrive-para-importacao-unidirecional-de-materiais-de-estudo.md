@@ -55,7 +55,7 @@ Neste BK vais implementar a importação unidirecional de materiais de estudo a 
 - Rever a linha `BK-MF5-01` em `MATRIZ-CANONICA-BK.md`, `BACKLOG-MVP.md`, `CONTRATO-CAMPOS-BK.md` e `MF-VIEWS.md`.
 - Confirmar que `MaterialsModule` exporta `MaterialsService`.
 - Confirmar que `OfficialMaterialsModule` exporta `OfficialMaterialsService`.
-- Confirmar que `SessionGuard` fica em `real_dev/api/src/common/guards/session.guard.ts`.
+- Confirmar que `SessionGuard` fica em `apps/api/src/common/guards/session.guard.ts`.
 - Confirmar que `requestMf3Json` já envia cookies com `credentials: "include"`.
 
 #### Glossário
@@ -86,14 +86,14 @@ O frontend envia provider, tipo de destino, ID do destino, título e URL. O cont
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/api/src/modules/external-material-imports/dto/import-external-material.dto.ts` - contrato de entrada RF61.
-- CRIAR: `real_dev/api/src/modules/external-material-imports/external-material-imports.service.ts` - encaminhamento seguro entre materiais privados e oficiais.
-- CRIAR: `real_dev/api/src/modules/external-material-imports/external-material-imports.controller.ts` - endpoint autenticado.
-- CRIAR: `real_dev/api/src/modules/external-material-imports/external-material-imports.module.ts` - módulo NestJS.
-- EDITAR: `real_dev/api/src/app.module.ts` - registo do novo módulo.
-- CRIAR: `real_dev/api/src/modules/external-material-imports/external-material-imports.service.spec.ts` - testes unitários de contrato e segurança.
-- CRIAR: `real_dev/web/src/features/mf5/external-material-imports-client.ts` - cliente API tipado.
-- CRIAR: `real_dev/web/src/features/mf5/external-material-import-panel.tsx` - painel React.
+- CRIAR: `apps/api/src/modules/external-material-imports/dto/import-external-material.dto.ts` - contrato de entrada RF61.
+- CRIAR: `apps/api/src/modules/external-material-imports/external-material-imports.service.ts` - encaminhamento seguro entre materiais privados e oficiais.
+- CRIAR: `apps/api/src/modules/external-material-imports/external-material-imports.controller.ts` - endpoint autenticado.
+- CRIAR: `apps/api/src/modules/external-material-imports/external-material-imports.module.ts` - módulo NestJS.
+- EDITAR: `apps/api/src/app.module.ts` - registo do novo módulo.
+- CRIAR: `apps/api/src/modules/external-material-imports/external-material-imports.service.spec.ts` - testes unitários de contrato e segurança.
+- CRIAR: `apps/web/src/features/mf5/external-material-imports-client.ts` - cliente API tipado.
+- CRIAR: `apps/web/src/features/mf5/external-material-import-panel.tsx` - painel React.
 - REVER: páginas de materiais privados e oficiais onde o painel será colocado.
 
 #### Tutorial técnico linear
@@ -139,10 +139,10 @@ Se encontrares referência a um BK intermédio que não aparece na matriz, não 
 Criar o backend completo de RF61, com validação de input, sessão real, ownership privado e permissão oficial no backend.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/api/src/modules/external-material-imports/dto/import-external-material.dto.ts`
-    - CRIAR: `real_dev/api/src/modules/external-material-imports/external-material-imports.service.ts`
-    - CRIAR: `real_dev/api/src/modules/external-material-imports/external-material-imports.controller.ts`
-    - CRIAR: `real_dev/api/src/modules/external-material-imports/external-material-imports.module.ts`
+    - CRIAR: `apps/api/src/modules/external-material-imports/dto/import-external-material.dto.ts`
+    - CRIAR: `apps/api/src/modules/external-material-imports/external-material-imports.service.ts`
+    - CRIAR: `apps/api/src/modules/external-material-imports/external-material-imports.controller.ts`
+    - CRIAR: `apps/api/src/modules/external-material-imports/external-material-imports.module.ts`
     - LOCALIZAÇÃO: ficheiros completos
 
 3. Instruções do que fazer.
@@ -152,7 +152,7 @@ Cria a pasta `external-material-imports`, cria a subpasta `dto` e adiciona os qu
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/external-material-imports/dto/import-external-material.dto.ts
+// apps/api/src/modules/external-material-imports/dto/import-external-material.dto.ts
 import { IsEnum, IsString, IsUrl, Length } from "class-validator";
 
 /** Origem externa permitida para a importação unidirecional de materiais StudyFlow. */
@@ -199,7 +199,7 @@ export class ImportExternalMaterialDto {
 ```
 
 ```ts
-// real_dev/api/src/modules/external-material-imports/external-material-imports.service.ts
+// apps/api/src/modules/external-material-imports/external-material-imports.service.ts
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { MaterialsService } from "../materials/materials.service.js";
@@ -268,7 +268,7 @@ export class ExternalMaterialImportsService {
 ```
 
 ```ts
-// real_dev/api/src/modules/external-material-imports/external-material-imports.controller.ts
+// apps/api/src/modules/external-material-imports/external-material-imports.controller.ts
 import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
@@ -307,7 +307,7 @@ export class ExternalMaterialImportsController {
 ```
 
 ```ts
-// real_dev/api/src/modules/external-material-imports/external-material-imports.module.ts
+// apps/api/src/modules/external-material-imports/external-material-imports.module.ts
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module.js";
 import { MaterialsModule } from "../materials/materials.module.js";
@@ -336,7 +336,7 @@ O DTO define o contrato público do endpoint e impede campos de identidade vindo
 
 6. Validação do passo.
 
-Depois de criar os ficheiros, executa `npm run build` em `real_dev/api`. O expected result é build sem erro de import, sem erro de role e com rota `POST /api/external-material-imports` registada.
+Depois de criar os ficheiros, executa `npm run build` em `apps/api`. O expected result é build sem erro de import, sem erro de role e com rota `POST /api/external-material-imports` registada.
 
 7. Cenário negativo/erro esperado.
 
@@ -349,7 +349,7 @@ Com sessão de aluno e `targetType: "OFFICIAL_SUBJECT"`, o expected result é `4
 Garantir que o endpoint novo fica montado na API real.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/api/src/app.module.ts`
+    - EDITAR: `apps/api/src/app.module.ts`
     - LOCALIZAÇÃO: imports do topo e array `imports` do `@Module`
 
 3. Instruções do que fazer.
@@ -359,7 +359,7 @@ Adiciona o import de `ExternalMaterialImportsModule` e inclui o módulo no array
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/app.module.ts
+// apps/api/src/app.module.ts
 import "./common/config/load-env.js";
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
@@ -457,7 +457,7 @@ Este ficheiro é o ponto onde a API passa a conhecer o novo módulo. Sem este re
 
 6. Validação do passo.
 
-Executa `npm run build` em `real_dev/api` e confirma que não existe erro de módulo não encontrado.
+Executa `npm run build` em `apps/api` e confirma que não existe erro de módulo não encontrado.
 
 7. Cenário negativo/erro esperado.
 
@@ -470,8 +470,8 @@ Se te esqueceres deste import, um pedido para `POST /api/external-material-impor
 Dar ao aluno ou professor uma interface simples para submeter o link externo sem guardar dados sensíveis no browser.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/src/features/mf5/external-material-imports-client.ts`
-    - CRIAR: `real_dev/web/src/features/mf5/external-material-import-panel.tsx`
+    - CRIAR: `apps/web/src/features/mf5/external-material-imports-client.ts`
+    - CRIAR: `apps/web/src/features/mf5/external-material-import-panel.tsx`
     - EDITAR: página de materiais privados ou oficiais onde o painel deve aparecer
     - LOCALIZAÇÃO: ficheiros completos
 
@@ -482,7 +482,7 @@ Cria primeiro o cliente API tipado. Depois cria o painel e importa-o na página 
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/src/features/mf5/external-material-imports-client.ts
+// apps/web/src/features/mf5/external-material-imports-client.ts
 import { requestMf3Json } from "../mf3/request-mf3-json.js";
 
 /** Provider externo aceite pelo RF61. */
@@ -528,7 +528,7 @@ export function importExternalMaterial(
 ```
 
 ```tsx
-// real_dev/web/src/features/mf5/external-material-import-panel.tsx
+// apps/web/src/features/mf5/external-material-import-panel.tsx
 import { FormEvent, useId, useState } from "react";
 import {
     ExternalMaterialProvider,
@@ -670,7 +670,7 @@ Sem sessão, o backend devolve `401 Unauthorized` e o painel mostra mensagem con
 Provar que o service usa `actor.id` para materiais privados, bloqueia aluno em material oficial e delega material oficial para o service correto.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/api/src/modules/external-material-imports/external-material-imports.service.spec.ts`
+    - CRIAR: `apps/api/src/modules/external-material-imports/external-material-imports.service.spec.ts`
     - LOCALIZAÇÃO: ficheiro completo
 
 3. Instruções do que fazer.
@@ -680,7 +680,7 @@ Cria o teste abaixo e executa Jest para este ficheiro. Os dobros de teste existe
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/external-material-imports/external-material-imports.service.spec.ts
+// apps/api/src/modules/external-material-imports/external-material-imports.service.spec.ts
 import { ForbiddenException } from "@nestjs/common";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { MaterialsService } from "../materials/materials.service.js";
@@ -830,7 +830,7 @@ O primeiro teste garante que o service usa `student.id` da sessão e não aceita
 
 6. Validação do passo.
 
-Executa `npm run test:unit -- external-material-imports` em `real_dev/api`, ou o comando Jest equivalente configurado no projeto. O expected result é três testes a passar.
+Executa `npm run test:unit -- external-material-imports` em `apps/api`, ou o comando Jest equivalente configurado no projeto. O expected result é três testes a passar.
 
 7. Cenário negativo/erro esperado.
 
@@ -843,8 +843,8 @@ Se o teste oficial esperar `{ provider: ... }` dentro do DTO oficial, deve falha
 Confirmar que a funcionalidade é segura, compreensível e não expõe dados sensíveis em fluxos de erro.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/api/src/modules/external-material-imports/*`
-    - REVER: `real_dev/web/src/features/mf5/external-material-import-panel.tsx`
+    - REVER: `apps/api/src/modules/external-material-imports/*`
+    - REVER: `apps/web/src/features/mf5/external-material-import-panel.tsx`
     - LOCALIZAÇÃO: validação manual, terminal e browser
 
 3. Instruções do que fazer.
@@ -864,7 +864,7 @@ O código dos passos anteriores já contém a proteção. Aqui estás a provar c
 Executa:
 
 ```bash
-cd real_dev/api
+cd apps/api
 npm run build
 npm run test:unit -- external-material-imports
 cd ../web
@@ -882,9 +882,9 @@ Se o frontend conseguir criar material oficial apenas alterando `targetType` no 
 Deixar contratos claros para os BKs seguintes de interface, feedback e validação.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/api/src/modules/external-material-imports/*`
-    - REVER: `real_dev/web/src/features/mf5/external-material-imports-client.ts`
-    - REVER: `real_dev/web/src/features/mf5/external-material-import-panel.tsx`
+    - REVER: `apps/api/src/modules/external-material-imports/*`
+    - REVER: `apps/web/src/features/mf5/external-material-imports-client.ts`
+    - REVER: `apps/web/src/features/mf5/external-material-import-panel.tsx`
     - LOCALIZAÇÃO: secções `Critérios de aceite`, `Evidence` e `Handoff`
 
 3. Instruções do que fazer.
@@ -923,7 +923,7 @@ Se aparecer outro endpoint para a mesma acção, por exemplo `POST /api/drive/im
 Executa, depois de aplicares o código:
 
 ```bash
-cd real_dev/api
+cd apps/api
 npm run build
 npm run test:unit -- external-material-imports
 cd ../web
@@ -954,4 +954,4 @@ Expected results:
 
 #### Changelog
 
-- 2026-06-19: Corrigido o guia para alinhar imports ES Modules, rota `/api`, `AuthenticatedUser`, contrato de materiais oficiais, módulo, cliente API e teste unitário com a implementação real `real_dev`.
+- 2026-06-19: Corrigido o guia para alinhar imports ES Modules, rota `/api`, `AuthenticatedUser`, contrato de materiais oficiais, módulo, cliente API e teste unitário com a app dos alunos `apps`.

@@ -29,9 +29,9 @@ Neste BK vais implementar um budget backend de 4 segundos para respostas IA, sem
 
 #### Scope-in
 
-- Criar `real_dev/api/src/modules/ai/utils/with-ai-response-budget.ts`.
-- Aplicar o budget em `real_dev/api/src/modules/private-area-ai/private-area-ai.service.ts`.
-- Aplicar o budget em `real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`.
+- Criar `apps/api/src/modules/ai/utils/with-ai-response-budget.ts`.
+- Aplicar o budget em `apps/api/src/modules/private-area-ai/private-area-ai.service.ts`.
+- Aplicar o budget em `apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`.
 - Usar `GatewayTimeoutException` para preservar resposta HTTP adequada a timeout.
 - Manter a ordem obrigatória: autorização/fontes antes do provider.
 - Criar teste unitário para o helper de budget.
@@ -61,10 +61,10 @@ Neste BK vais implementar um budget backend de 4 segundos para respostas IA, sem
 - Rever `BK-MF4-08`, porque auditoria IA deve ser minimizada.
 - Rever `BK-MF4-09`, porque políticas de modelo já definem `timeoutMs`.
 - Rever `BK-MF4-10`, porque quotas são reservadas antes do provider.
-- Rever `real_dev/api/src/modules/ai/providers/ai-provider.ts`.
-- Rever `real_dev/api/src/modules/private-area-ai/private-area-ai.service.ts`.
-- Rever `real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`.
-- Rever testes existentes em `real_dev/api/src/modules/**/*service.spec.ts`.
+- Rever `apps/api/src/modules/ai/providers/ai-provider.ts`.
+- Rever `apps/api/src/modules/private-area-ai/private-area-ai.service.ts`.
+- Rever `apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`.
+- Rever testes existentes em `apps/api/src/modules/**/*service.spec.ts`.
 
 #### Glossário
 
@@ -90,18 +90,18 @@ Neste BK vais implementar um budget backend de 4 segundos para respostas IA, sem
 
 #### Arquitetura do BK
 
-O helper `with-ai-response-budget.ts` fica em `real_dev/api/src/modules/ai/utils` porque é uma regra técnica comum da camada IA. `PrivateAreaAiService` usa o helper depois de validar aluno, ownership, fontes, consentimento, política e quota. `SourceGroundedAiService` usa o helper depois de validar jobs legíveis e citações. Os testes unitários ficam junto ao helper para provar o contrato do RNF09 sem depender de rede externa.
+O helper `with-ai-response-budget.ts` fica em `apps/api/src/modules/ai/utils` porque é uma regra técnica comum da camada IA. `PrivateAreaAiService` usa o helper depois de validar aluno, ownership, fontes, consentimento, política e quota. `SourceGroundedAiService` usa o helper depois de validar jobs legíveis e citações. Os testes unitários ficam junto ao helper para provar o contrato do RNF09 sem depender de rede externa.
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/api/src/modules/ai/utils/with-ai-response-budget.ts`
-- CRIAR: `real_dev/api/src/modules/ai/utils/with-ai-response-budget.spec.ts`
-- EDITAR: `real_dev/api/src/modules/private-area-ai/private-area-ai.service.ts`
-- EDITAR: `real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`
-- REVER: `real_dev/api/src/modules/ai/providers/ai-provider.ts`
-- REVER: `real_dev/api/src/modules/ai-model-policies/ai-model-policies.service.ts`
-- REVER: `real_dev/api/src/modules/ai-quotas/ai-quotas.service.ts`
-- REVER: `real_dev/api/src/modules/audit-log/audit-log.service.ts`
+- CRIAR: `apps/api/src/modules/ai/utils/with-ai-response-budget.ts`
+- CRIAR: `apps/api/src/modules/ai/utils/with-ai-response-budget.spec.ts`
+- EDITAR: `apps/api/src/modules/private-area-ai/private-area-ai.service.ts`
+- EDITAR: `apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`
+- REVER: `apps/api/src/modules/ai/providers/ai-provider.ts`
+- REVER: `apps/api/src/modules/ai-model-policies/ai-model-policies.service.ts`
+- REVER: `apps/api/src/modules/ai-quotas/ai-quotas.service.ts`
+- REVER: `apps/api/src/modules/audit-log/audit-log.service.ts`
 
 #### Tutorial técnico linear
 
@@ -150,17 +150,17 @@ Se o helper for aplicado antes de validar fontes ou permissões, um utilizador p
 Criar um helper backend comum que limita a espera a 4000 ms e preserva erro HTTP de timeout.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/api/src/modules/ai/utils/with-ai-response-budget.ts`
+    - CRIAR: `apps/api/src/modules/ai/utils/with-ai-response-budget.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
 
-Cria a pasta `real_dev/api/src/modules/ai/utils` se ainda não existir. Depois cria o ficheiro abaixo.
+Cria a pasta `apps/api/src/modules/ai/utils` se ainda não existir. Depois cria o ficheiro abaixo.
 
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/ai/utils/with-ai-response-budget.ts
+// apps/api/src/modules/ai/utils/with-ai-response-budget.ts
 import { GatewayTimeoutException } from "@nestjs/common";
 
 export const AI_RESPONSE_BUDGET_MS = 4000;
@@ -240,10 +240,10 @@ Se o helper lançar `RequestTimeoutException`, os services atuais podem converte
 Limitar a chamada ao provider na IA privada sem alterar ownership, fontes, consentimento, política, quota ou auditoria.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/api/src/modules/private-area-ai/private-area-ai.service.ts`
-    - REVER: `real_dev/api/src/modules/ai/providers/ai-provider.ts`
-    - REVER: `real_dev/api/src/modules/ai-model-policies/ai-model-policies.service.ts`
-    - REVER: `real_dev/api/src/modules/ai-quotas/ai-quotas.service.ts`
+    - EDITAR: `apps/api/src/modules/private-area-ai/private-area-ai.service.ts`
+    - REVER: `apps/api/src/modules/ai/providers/ai-provider.ts`
+    - REVER: `apps/api/src/modules/ai-model-policies/ai-model-policies.service.ts`
+    - REVER: `apps/api/src/modules/ai-quotas/ai-quotas.service.ts`
     - LOCALIZAÇÃO: imports e método `ask`.
 
 3. Instruções do que fazer.
@@ -253,7 +253,7 @@ Adiciona o import do helper e substitui a chamada direta ao provider por `withAi
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/private-area-ai/private-area-ai.service.ts
+// apps/api/src/modules/private-area-ai/private-area-ai.service.ts
 import {
     resolveAiBudgetMs,
     withAiResponseBudget,
@@ -411,9 +411,9 @@ Se a área não tiver fontes, o service deve devolver `422 NO_PRIVATE_AI_SOURCES
 Limitar a chamada IA que responde com citações, preservando bloqueio sem fontes e validação de resposta.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`
-    - REVER: `real_dev/api/src/modules/material-index/material-index.service.ts`
-    - REVER: `real_dev/api/src/modules/ai/providers/ai-provider.ts`
+    - EDITAR: `apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`
+    - REVER: `apps/api/src/modules/material-index/material-index.service.ts`
+    - REVER: `apps/api/src/modules/ai/providers/ai-provider.ts`
     - LOCALIZAÇÃO: imports e método privado `generateAnswer`.
 
 3. Instruções do que fazer.
@@ -423,7 +423,7 @@ Adiciona `GatewayTimeoutException` ao import existente de `@nestjs/common`, impo
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts
+// apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts
 import { GatewayTimeoutException } from "@nestjs/common";
 import {
     AI_RESPONSE_BUDGET_MS,
@@ -504,7 +504,7 @@ Se o timeout for aplicado antes de `findReadableDoneJob`, o service pode esconde
 Provar que o helper devolve resultado dentro do limite e lança timeout acima do limite.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/api/src/modules/ai/utils/with-ai-response-budget.spec.ts`
+    - CRIAR: `apps/api/src/modules/ai/utils/with-ai-response-budget.spec.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -514,7 +514,7 @@ Cria um teste unitário simples, sem rede externa, para validar `resolveAiBudget
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/ai/utils/with-ai-response-budget.spec.ts
+// apps/api/src/modules/ai/utils/with-ai-response-budget.spec.ts
 import { GatewayTimeoutException } from "@nestjs/common";
 import {
     AI_RESPONSE_BUDGET_MS,
@@ -554,7 +554,7 @@ Os dois primeiros testes provam a regra entre política administrativa e `RNF09`
 
 6. Validação do passo.
 
-Executa `cd real_dev/api && npm run test -- with-ai-response-budget.spec.ts`. Expected result: todos os testes verdes.
+Executa `cd apps/api && npm run test -- with-ai-response-budget.spec.ts`. Expected result: todos os testes verdes.
 
 7. Cenário negativo/erro esperado.
 
@@ -567,10 +567,10 @@ Se o teste esperar `ServiceUnavailableException`, ele deixa de provar o contrato
 Garantir que a nova regra de 4 segundos não muda segurança, fontes ou consumo.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/api/src/modules/private-area-ai/private-area-ai.service.ts`
-    - REVER: `real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`
-    - REVER: `real_dev/api/src/modules/private-area-ai/private-area-ai.service.spec.ts`, se existir
-    - REVER: `real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.service.spec.ts`
+    - REVER: `apps/api/src/modules/private-area-ai/private-area-ai.service.ts`
+    - REVER: `apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`
+    - REVER: `apps/api/src/modules/private-area-ai/private-area-ai.service.spec.ts`, se existir
+    - REVER: `apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.spec.ts`
     - LOCALIZAÇÃO: ordem dos awaits antes de `withAiResponseBudget`.
 
 3. Instruções do que fazer.
@@ -600,8 +600,8 @@ Se uma chamada sem fontes chegar ao provider, a ordem de segurança foi quebrada
 Confirmar que TypeScript/NestJS e Jest aceitam a alteração.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/api/package.json`
-    - REVER: `real_dev/api/jest.config.cjs`
+    - REVER: `apps/api/package.json`
+    - REVER: `apps/api/jest.config.cjs`
     - LOCALIZAÇÃO: terminal.
 
 3. Instruções do que fazer.
@@ -611,7 +611,7 @@ Executa build e teste unitário. Se faltar ambiente local, regista o erro real.
 4. Código completo, correto e integrado com a app final.
 
 ```bash
-cd real_dev/api
+cd apps/api
 npm run build
 npm run test -- with-ai-response-budget.spec.ts
 ```
@@ -626,7 +626,7 @@ Expected result: build sem erros e teste verde. Se Mongo, Redis ou outro serviç
 
 7. Cenário negativo/erro esperado.
 
-Se o build falhar por import de `with-ai-response-budget.js`, confirma que o ficheiro está em `real_dev/api/src/modules/ai/utils`.
+Se o build falhar por import de `with-ai-response-budget.js`, confirma que o ficheiro está em `apps/api/src/modules/ai/utils`.
 
 ### Passo 8 - Preparar handoff para concorrência
 
@@ -636,7 +636,7 @@ Deixar `BK-MF5-12` com um contrato claro: frontend medido no BK anterior e timeo
 
 2. Ficheiros envolvidos:
     - REVER: `docs/planificacao/guias-bk/MF5/BK-MF5-12-suportar-200-utilizadores-simultaneos-por-escola.md`
-    - REVER: `real_dev/api/src/modules/ai/utils/with-ai-response-budget.ts`
+    - REVER: `apps/api/src/modules/ai/utils/with-ai-response-budget.ts`
     - LOCALIZAÇÃO: secção Handoff e evidence.
 
 3. Instruções do que fazer.
@@ -673,8 +673,8 @@ Se o próximo BK criar novo timeout paralelo, a equipa passa a ter dois contrato
 
 #### Validação final
 
-- Executar `cd real_dev/api && npm run build`.
-- Executar `cd real_dev/api && npm run test -- with-ai-response-budget.spec.ts`.
+- Executar `cd apps/api && npm run build`.
+- Executar `cd apps/api && npm run test -- with-ai-response-budget.spec.ts`.
 - Executar testes existentes de `private-area-ai` e `source-grounded-ai` quando o ambiente permitir.
 - Confirmar cenário negativo: sem fontes não chama provider; provider lento devolve `GatewayTimeoutException`; provider inválido continua `ServiceUnavailableException`.
 - Erros comuns a evitar: aplicar timeout antes de validar fontes, usar `RequestTimeoutException`, ignorar `policy.timeoutMs`, guardar prompt em auditoria e esconder timeout como erro genérico.

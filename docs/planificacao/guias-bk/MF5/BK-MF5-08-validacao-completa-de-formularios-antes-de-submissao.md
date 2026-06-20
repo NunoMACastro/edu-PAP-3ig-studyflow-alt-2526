@@ -29,10 +29,10 @@ Neste BK vais implementar validação completa no frontend antes de submeter for
 
 #### Scope-in
 
-- Criar `real_dev/web/src/features/mf5/form-validation.ts`.
+- Criar `apps/web/src/features/mf5/form-validation.ts`.
 - Reutilizar `FormField` de `BK-MF5-07`.
-- Aplicar validação por campo em `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`.
-- Aplicar validação por campo em `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`.
+- Aplicar validação por campo em `apps/web/src/pages/teacher/TeacherClassesPage.tsx`.
+- Aplicar validação por campo em `apps/web/src/components/materials/MaterialSubmitForm.tsx`.
 - Bloquear submit inválido antes de chamar `createTeacherClass`, `addClassStudent`, `submitTextMaterial` ou `submitFileMaterial`.
 - Criar smoke Playwright para provar que formulários inválidos não disparam pedidos de criação.
 
@@ -51,16 +51,16 @@ Neste BK vais implementar validação completa no frontend antes de submeter for
 
 #### Pre-requisitos
 
-- Ter concluído `BK-MF5-07`, especialmente `real_dev/web/src/components/forms/FormField.tsx`.
+- Ter concluído `BK-MF5-07`, especialmente `apps/web/src/components/forms/FormField.tsx`.
 - Ler `RNF06` em `docs/RNF.md`.
 - Rever a linha de `BK-MF5-08` em `docs/planificacao/backlogs/MATRIZ-CANONICA-BK.md`.
 - Rever `docs/planificacao/backlogs/BACKLOG-MVP.md`.
 - Rever `docs/planificacao/backlogs/CONTRATO-CAMPOS-BK.md`.
 - Rever `docs/planificacao/backlogs/MF-VIEWS.md`.
-- Rever `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`.
-- Rever `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`.
-- Rever `real_dev/web/src/lib/apiClient.ts`.
-- Rever `real_dev/web/tests/e2e/README.md`.
+- Rever `apps/web/src/pages/teacher/TeacherClassesPage.tsx`.
+- Rever `apps/web/src/components/materials/MaterialSubmitForm.tsx`.
+- Rever `apps/web/src/lib/apiClient.ts`.
+- Rever `apps/web/tests/e2e/README.md`.
 
 #### Glossário
 
@@ -85,17 +85,17 @@ Neste BK vais implementar validação completa no frontend antes de submeter for
 
 #### Arquitetura do BK
 
-`form-validation.ts` fica em `real_dev/web/src/features/mf5` porque é uma regra transversal da macrofase. `TeacherClassesPage.tsx` usa esse utilitário para criação de turmas e adição de alunos. `MaterialSubmitForm.tsx` usa o mesmo utilitário para validar título, texto/URL ou ficheiro. O smoke `mf5-form-validation.spec.ts` prova o comportamento no browser com sessão real.
+`form-validation.ts` fica em `apps/web/src/features/mf5` porque é uma regra transversal da macrofase. `TeacherClassesPage.tsx` usa esse utilitário para criação de turmas e adição de alunos. `MaterialSubmitForm.tsx` usa o mesmo utilitário para validar título, texto/URL ou ficheiro. O smoke `mf5-form-validation.spec.ts` prova o comportamento no browser com sessão real.
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/web/src/features/mf5/form-validation.ts`
-- EDITAR: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-- EDITAR: `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`
-- CRIAR: `real_dev/web/tests/e2e/mf5-form-validation.spec.ts`
-- REVER: `real_dev/web/src/components/forms/FormField.tsx`
-- REVER: `real_dev/web/src/lib/apiClient.ts`
-- REVER: `real_dev/web/playwright.config.ts`
+- CRIAR: `apps/web/src/features/mf5/form-validation.ts`
+- EDITAR: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+- EDITAR: `apps/web/src/components/materials/MaterialSubmitForm.tsx`
+- CRIAR: `apps/web/tests/e2e/mf5-form-validation.spec.ts`
+- REVER: `apps/web/src/components/forms/FormField.tsx`
+- REVER: `apps/web/src/lib/apiClient.ts`
+- REVER: `apps/web/playwright.config.ts`
 
 #### Tutorial técnico linear
 
@@ -141,7 +141,7 @@ Se alterares endpoint, role ou regra de ownership neste BK, estás a misturar UX
 Criar uma função pequena e tipada para validar campos obrigatórios antes de qualquer pedido HTTP.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/src/features/mf5/form-validation.ts`
+    - CRIAR: `apps/web/src/features/mf5/form-validation.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -151,7 +151,7 @@ Cria a pasta `features/mf5` se ainda não existir. Depois cria `form-validation.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/src/features/mf5/form-validation.ts
+// apps/web/src/features/mf5/form-validation.ts
 export type FieldErrors<TField extends string> = Partial<Record<TField, string>>;
 
 export type RequiredField<TField extends string> = {
@@ -211,9 +211,9 @@ Se a função aceitar valores só com espaços, o utilizador consegue submeter u
 Aplicar erros por campo na página real de turmas do professor, antes de chamar os clientes API.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-    - REVER: `real_dev/web/src/components/forms/FormField.tsx`
-    - REVER: `real_dev/web/src/lib/apiClient.ts`
+    - EDITAR: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - REVER: `apps/web/src/components/forms/FormField.tsx`
+    - REVER: `apps/web/src/lib/apiClient.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -223,7 +223,7 @@ Importa `FormField`, `requireFields` e `hasFieldErrors`. Guarda erros separados 
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/pages/teacher/TeacherClassesPage.tsx
+// apps/web/src/pages/teacher/TeacherClassesPage.tsx
 import { FormEvent, useEffect, useState } from "react";
 import { FormField } from "../../components/forms/FormField.js";
 import {
@@ -481,8 +481,8 @@ Se o handler chamar a API antes de validar os campos, a página volta a depender
 Impedir que o aluno submeta material privado sem título, sem texto/URL ou sem ficheiro, mantendo a validação backend ativa.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`
-    - REVER: `real_dev/web/src/lib/apiClient.ts`
+    - EDITAR: `apps/web/src/components/materials/MaterialSubmitForm.tsx`
+    - REVER: `apps/web/src/lib/apiClient.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -492,7 +492,7 @@ Importa `FormField`, `FieldErrors`, `RequiredField`, `hasFieldErrors` e `require
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/components/materials/MaterialSubmitForm.tsx
+// apps/web/src/components/materials/MaterialSubmitForm.tsx
 import { FormEvent, useState } from "react";
 import { FormField } from "../forms/FormField.js";
 import { submitFileMaterial, submitTextMaterial } from "../../lib/apiClient.js";
@@ -693,9 +693,9 @@ Se o modo `FILE` tentar chamar `submitFileMaterial` sem ficheiro, o frontend fic
 Provar que campos vazios mostram erro no browser e não disparam pedidos de criação.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/tests/e2e/mf5-form-validation.spec.ts`
-    - REVER: `real_dev/web/playwright.config.ts`
-    - REVER: `real_dev/web/tests/e2e/README.md`
+    - CRIAR: `apps/web/tests/e2e/mf5-form-validation.spec.ts`
+    - REVER: `apps/web/playwright.config.ts`
+    - REVER: `apps/web/tests/e2e/README.md`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -705,7 +705,7 @@ Cria um smoke Playwright com sessão real. Conta pedidos `POST` relevantes e con
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/tests/e2e/mf5-form-validation.spec.ts
+// apps/web/tests/e2e/mf5-form-validation.spec.ts
 import { expect, test, type Page } from "@playwright/test";
 
 const teacher = {
@@ -809,7 +809,7 @@ O smoke entra pela UI para manter o fluxo de sessão real. No primeiro teste, a 
 
 6. Validação do passo.
 
-Executa `npm --prefix real_dev/web run test:e2e -- mf5-form-validation.spec.ts` e confirma os dois testes a passar.
+Executa `npm --prefix apps/web run test:e2e -- mf5-form-validation.spec.ts` e confirma os dois testes a passar.
 
 7. Cenário negativo/erro esperado.
 
@@ -822,10 +822,10 @@ Se o contador ficar maior que `0`, o submit inválido chegou à API e o BK não 
 Confirmar que a validação frontend ajuda sem expor dados sensíveis nem substituir a API.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/features/mf5/form-validation.ts`
-    - REVER: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-    - REVER: `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`
-    - REVER: `real_dev/web/tests/e2e/mf5-form-validation.spec.ts`
+    - REVER: `apps/web/src/features/mf5/form-validation.ts`
+    - REVER: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - REVER: `apps/web/src/components/materials/MaterialSubmitForm.tsx`
+    - REVER: `apps/web/tests/e2e/mf5-form-validation.spec.ts`
     - LOCALIZAÇÃO: mensagens visíveis, handlers `async` e expected results.
 
 3. Instruções do que fazer.
@@ -845,8 +845,8 @@ A revisão garante que o frontend apenas evita pedidos inválidos óbvios. A API
 Executa:
 
 ```bash
-npm --prefix real_dev/web run build
-npm --prefix real_dev/web run test:e2e -- mf5-form-validation.spec.ts
+npm --prefix apps/web run build
+npm --prefix apps/web run test:e2e -- mf5-form-validation.spec.ts
 ```
 
 Expected result:
@@ -867,8 +867,8 @@ Se a UI mostrar uma mensagem como erro técnico bruto da API, troca por texto vi
 Registar o que `BK-MF5-09` pode reutilizar sem criar contratos paralelos.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/features/mf5/form-validation.ts`
-    - REVER: `real_dev/web/tests/e2e/mf5-form-validation.spec.ts`
+    - REVER: `apps/web/src/features/mf5/form-validation.ts`
+    - REVER: `apps/web/tests/e2e/mf5-form-validation.spec.ts`
     - REVER: `proximo_bk` no header
     - LOCALIZAÇÃO: secção `Handoff` e evidence.
 
@@ -904,8 +904,8 @@ Se o próximo BK tentar resolver erros de formulário dentro do tray de notifica
 
 #### Validação final
 
-- Executar `npm --prefix real_dev/web run build`.
-- Executar `npm --prefix real_dev/web run test:e2e -- mf5-form-validation.spec.ts`.
+- Executar `npm --prefix apps/web run build`.
+- Executar `npm --prefix apps/web run test:e2e -- mf5-form-validation.spec.ts`.
 - Confirmar que `getByText("Nome é obrigatório.")`, `getByText("Código é obrigatório.")`, `getByText("Título é obrigatório.")` e `getByText("Texto é obrigatório.")` aparecem nos cenários negativos.
 - Confirmar que os contadores de pedidos `POST` ficam em `0` nos submits inválidos.
 - Confirmar que nenhuma validação de ownership, membership, role ou sessão foi movida para o frontend.

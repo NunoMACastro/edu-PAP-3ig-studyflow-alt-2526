@@ -29,8 +29,8 @@ Neste BK vais criar um smoke test de concorrência para provar que a API do Stud
 
 #### Scope-in
 
-- Criar `real_dev/api/src/scripts/smoke-200-users.mjs`.
-- Editar `real_dev/api/package.json` para expor `npm run smoke:200-users`.
+- Criar `apps/api/src/scripts/smoke-200-users.mjs`.
+- Editar `apps/api/package.json` para expor `npm run smoke:200-users`.
 - Usar `fetch` nativo do Node.js, sem dependências novas.
 - Usar `/api/auth/me` como endpoint barato e real, protegido por sessão.
 - Exigir cookie de teste em `STUDYFLOW_SMOKE_COOKIE`.
@@ -63,10 +63,10 @@ Neste BK vais criar um smoke test de concorrência para provar que a API do Stud
 - Rever a sequência MF5 em `docs/planificacao/backlogs/MF-VIEWS.md`.
 - Rever `BK-MF5-11`, porque este BK vem depois do budget de respostas IA.
 - Rever `BK-MF6-01`, porque o handoff vai para qualidade, segurança e performance.
-- Rever `real_dev/api/src/modules/auth/auth.controller.ts`.
-- Rever `real_dev/api/src/common/guards/session.guard.ts`.
-- Rever `real_dev/api/src/modules/auth/session.service.ts`.
-- Rever `real_dev/api/package.json`.
+- Rever `apps/api/src/modules/auth/auth.controller.ts`.
+- Rever `apps/api/src/common/guards/session.guard.ts`.
+- Rever `apps/api/src/modules/auth/session.service.ts`.
+- Rever `apps/api/package.json`.
 - Preparar ambiente local ou staging isolado com dados de teste.
 - Obter um cookie de sessão de teste criado por login de utilizador de desenvolvimento, nunca por conta real.
 
@@ -97,15 +97,15 @@ Neste BK vais criar um smoke test de concorrência para provar que a API do Stud
 
 #### Arquitetura do BK
 
-O script `smoke-200-users.mjs` fica em `real_dev/api/src/scripts` porque é uma validação operacional da API. O comando `smoke:200-users` fica em `real_dev/api/package.json`, junto dos scripts de build, seed e testes já existentes. O endpoint padrão é `GET /api/auth/me`, criado em MF0 e protegido por `SessionGuard`. O script envia 200 pedidos concorrentes com o mesmo cookie de teste, conta os status, calcula métricas e termina com exit code `1` quando a evidence não prova o cenário esperado.
+O script `smoke-200-users.mjs` fica em `apps/api/src/scripts` porque é uma validação operacional da API. O comando `smoke:200-users` fica em `apps/api/package.json`, junto dos scripts de build, seed e testes já existentes. O endpoint padrão é `GET /api/auth/me`, criado em MF0 e protegido por `SessionGuard`. O script envia 200 pedidos concorrentes com o mesmo cookie de teste, conta os status, calcula métricas e termina com exit code `1` quando a evidence não prova o cenário esperado.
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/api/src/scripts/smoke-200-users.mjs`
-- EDITAR: `real_dev/api/package.json`
-- REVER: `real_dev/api/src/modules/auth/auth.controller.ts`
-- REVER: `real_dev/api/src/common/guards/session.guard.ts`
-- REVER: `real_dev/api/src/modules/auth/session.service.ts`
+- CRIAR: `apps/api/src/scripts/smoke-200-users.mjs`
+- EDITAR: `apps/api/package.json`
+- REVER: `apps/api/src/modules/auth/auth.controller.ts`
+- REVER: `apps/api/src/common/guards/session.guard.ts`
+- REVER: `apps/api/src/modules/auth/session.service.ts`
 - REVER: `docs/RNF.md`
 - REVER: `docs/planificacao/backlogs/MATRIZ-CANONICA-BK.md`
 - REVER: `docs/planificacao/backlogs/BACKLOG-MVP.md`
@@ -155,9 +155,9 @@ Se alguém propuser criar `schoolId` só para o smoke, rejeita a alteração nes
 Escolher um endpoint real que valide sessão sem alterar dados, sem executar IA e sem expor conteúdo sensível.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/api/src/modules/auth/auth.controller.ts`
-    - REVER: `real_dev/api/src/common/guards/session.guard.ts`
-    - REVER: `real_dev/api/src/modules/auth/session.service.ts`
+    - REVER: `apps/api/src/modules/auth/auth.controller.ts`
+    - REVER: `apps/api/src/common/guards/session.guard.ts`
+    - REVER: `apps/api/src/modules/auth/session.service.ts`
     - LOCALIZAÇÃO: método `AuthController.me`, `@Get("me")` e `@UseGuards(SessionGuard)`.
 
 3. Instruções do que fazer.
@@ -187,7 +187,7 @@ Se `/api/auth/me` devolver `401` com cookie válido, corrige a sessão ou o ambi
 Criar um script Node que envie 200 pedidos concorrentes, falhe em status inesperado e nunca imprima dados sensíveis.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/api/src/scripts/smoke-200-users.mjs`
+    - CRIAR: `apps/api/src/scripts/smoke-200-users.mjs`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -197,7 +197,7 @@ Cria o ficheiro abaixo. Mantém o endpoint padrão `/api/auth/me`, exige `STUDYF
 4. Código completo, correto e integrado com a app final.
 
 ```js
-// real_dev/api/src/scripts/smoke-200-users.mjs
+// apps/api/src/scripts/smoke-200-users.mjs
 import { performance } from "node:perf_hooks";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
@@ -352,7 +352,7 @@ Executa sem `STUDYFLOW_SMOKE_COOKIE`. O script deve falhar antes de enviar pedid
 Tornar o smoke repetível por comando npm, preservando scripts já existentes.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/api/package.json`
+    - EDITAR: `apps/api/package.json`
     - LOCALIZAÇÃO: propriedade `scripts`.
 
 3. Instruções do que fazer.
@@ -382,11 +382,11 @@ O comando fica junto dos scripts de build, seed e testes para que qualquer aluno
 
 6. Validação do passo.
 
-Dentro de `real_dev/api`, executa `npm run smoke:200-users` com as variáveis de ambiente necessárias. O comando deve chamar o ficheiro criado no passo anterior.
+Dentro de `apps/api`, executa `npm run smoke:200-users` com as variáveis de ambiente necessárias. O comando deve chamar o ficheiro criado no passo anterior.
 
 7. Cenário negativo/erro esperado.
 
-Se o comando falhar com `Cannot find module`, confirma o caminho `real_dev/api/src/scripts/smoke-200-users.mjs` e o nome exato `smoke:200-users`.
+Se o comando falhar com `Cannot find module`, confirma o caminho `apps/api/src/scripts/smoke-200-users.mjs` e o nome exato `smoke:200-users`.
 
 ### Passo 5 - Preparar ambiente e executar caminho principal
 
@@ -395,7 +395,7 @@ Se o comando falhar com `Cannot find module`, confirma o caminho `real_dev/api/s
 Executar o smoke em ambiente isolado com sessão de teste e recolher evidence sem dados pessoais.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/api/src/scripts/seed-development-users.ts`
+    - REVER: `apps/api/src/scripts/seed-development-users.ts`
     - REVER: terminal do ambiente local ou staging.
     - LOCALIZAÇÃO: comando de execução e output JSON.
 
@@ -406,7 +406,7 @@ Arranca a API num ambiente de teste. Faz login com uma conta de desenvolvimento 
 4. Código completo, correto e integrado com a app final.
 
 ```bash
-cd real_dev/api
+cd apps/api
 
 STUDYFLOW_BASE_URL="http://127.0.0.1:3000" \
 STUDYFLOW_SMOKE_PATH="/api/auth/me" \
@@ -459,7 +459,7 @@ Se o output mostrar `statusCounts` com `401`, `unexpectedStatusCount` maior que 
 Provar que o smoke falha quando a evidence não demonstra utilizadores autenticados e que não expõe dados sensíveis.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/api/src/scripts/smoke-200-users.mjs`
+    - REVER: `apps/api/src/scripts/smoke-200-users.mjs`
     - REVER: terminal de execução.
     - LOCALIZAÇÃO: cenários negativos e output observado.
 
@@ -470,7 +470,7 @@ Executa três negativos: sem cookie, com status esperado errado e com API deslig
 4. Código completo, correto e integrado com a app final.
 
 ```bash
-cd real_dev/api
+cd apps/api
 
 STUDYFLOW_SMOKE_USERS="200" npm run smoke:200-users
 
@@ -504,8 +504,8 @@ Se algum negativo terminar com exit code `0`, volta ao script e confirma as cond
 Registar uma evidence curta e reutilizável para PR, defesa e continuação da MF6.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/api/src/scripts/smoke-200-users.mjs`
-    - REVER: `real_dev/api/package.json`
+    - REVER: `apps/api/src/scripts/smoke-200-users.mjs`
+    - REVER: `apps/api/package.json`
     - REVER: `docs/planificacao/guias-bk/MF6/BK-MF6-01-indexacao-de-documentos-deve-ser-assincrona-e-nao-bloquear-ui.md`
     - LOCALIZAÇÃO: secções `Evidence para PR/defesa` e `Handoff`.
 
@@ -531,8 +531,8 @@ Se a evidence mostrar cookie, body de sessão, email, nome real ou outro dado pe
 
 #### Critérios de aceite
 
-- `real_dev/api/src/scripts/smoke-200-users.mjs` existe e usa apenas APIs nativas do Node.js.
-- `real_dev/api/package.json` tem `smoke:200-users` sem remover scripts existentes.
+- `apps/api/src/scripts/smoke-200-users.mjs` existe e usa apenas APIs nativas do Node.js.
+- `apps/api/package.json` tem `smoke:200-users` sem remover scripts existentes.
 - O smoke exige `STUDYFLOW_SMOKE_COOKIE` para o cenário autenticado.
 - 200 pedidos concorrentes a `/api/auth/me` devolvem todos o status esperado `200`.
 - `unexpectedStatusCount`, `serverErrorCount` e `networkErrorCount` ficam em `0` no caminho principal.

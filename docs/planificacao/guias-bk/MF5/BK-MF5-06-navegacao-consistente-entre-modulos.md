@@ -29,10 +29,10 @@ Neste BK vais implementar uma navegação principal consistente para as páginas
 
 #### Scope-in
 
-- Criar `real_dev/web/src/components/layout/navigation.ts`.
-- Atualizar `real_dev/web/src/components/layout/AppShell.tsx`.
+- Criar `apps/web/src/components/layout/navigation.ts`.
+- Atualizar `apps/web/src/components/layout/AppShell.tsx`.
 - Usar os roles reais de `User.role`: `STUDENT`, `TEACHER`, `ADMIN`.
-- Usar apenas rotas já existentes em `real_dev/web/src/routes/protectedRoutes.tsx`.
+- Usar apenas rotas já existentes em `apps/web/src/routes/protectedRoutes.tsx`.
 - Marcar o link ativo com `aria-current="page"`.
 - Criar smoke Playwright focado em navegação por role e link ativo.
 
@@ -57,9 +57,9 @@ Neste BK vais implementar uma navegação principal consistente para as páginas
 - Rever `docs/planificacao/backlogs/BACKLOG-MVP.md`.
 - Rever `docs/planificacao/backlogs/CONTRATO-CAMPOS-BK.md`.
 - Rever `docs/planificacao/backlogs/MF-VIEWS.md`.
-- Rever `real_dev/web/src/lib/apiClient.ts`.
-- Rever `real_dev/web/src/components/layout/AppShell.tsx`.
-- Rever `real_dev/web/src/routes/protectedRoutes.tsx`.
+- Rever `apps/web/src/lib/apiClient.ts`.
+- Rever `apps/web/src/components/layout/AppShell.tsx`.
+- Rever `apps/web/src/routes/protectedRoutes.tsx`.
 
 #### Glossário
 
@@ -86,12 +86,12 @@ Neste BK vais implementar uma navegação principal consistente para as páginas
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/web/src/components/layout/navigation.ts`
-- EDITAR: `real_dev/web/src/components/layout/AppShell.tsx`
-- CRIAR: `real_dev/web/tests/e2e/mf5-navigation.spec.ts`
-- REVER: `real_dev/web/src/lib/apiClient.ts`
-- REVER: `real_dev/web/src/routes/protectedRoutes.tsx`
-- REVER: `real_dev/web/playwright.config.ts`
+- CRIAR: `apps/web/src/components/layout/navigation.ts`
+- EDITAR: `apps/web/src/components/layout/AppShell.tsx`
+- CRIAR: `apps/web/tests/e2e/mf5-navigation.spec.ts`
+- REVER: `apps/web/src/lib/apiClient.ts`
+- REVER: `apps/web/src/routes/protectedRoutes.tsx`
+- REVER: `apps/web/playwright.config.ts`
 
 #### Tutorial técnico linear
 
@@ -107,8 +107,8 @@ Confirmar que `BK-MF5-06` implementa `RNF04` sem inventar roles, rotas ou regras
     - REVER: `docs/planificacao/backlogs/BACKLOG-MVP.md`
     - REVER: `docs/planificacao/backlogs/CONTRATO-CAMPOS-BK.md`
     - REVER: `docs/planificacao/backlogs/MF-VIEWS.md`
-    - REVER: `real_dev/web/src/lib/apiClient.ts`
-    - REVER: `real_dev/web/src/routes/protectedRoutes.tsx`
+    - REVER: `apps/web/src/lib/apiClient.ts`
+    - REVER: `apps/web/src/routes/protectedRoutes.tsx`
     - LOCALIZAÇÃO: `RNF04`, linha de `BK-MF5-06` e tipo `User`.
 
 3. Instruções do que fazer.
@@ -138,8 +138,8 @@ Se adicionares um caminho sem rota correspondente, o link leva o utilizador para
 Criar um ficheiro central que associa cada link aos roles que o podem ver.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/src/components/layout/navigation.ts`
-    - REVER: `real_dev/web/src/lib/apiClient.ts`
+    - CRIAR: `apps/web/src/components/layout/navigation.ts`
+    - REVER: `apps/web/src/lib/apiClient.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -149,7 +149,7 @@ Cria `navigation.ts` e importa apenas o tipo `User`. Usa os roles reais, conserv
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/src/components/layout/navigation.ts
+// apps/web/src/components/layout/navigation.ts
 import type { User } from "../../lib/apiClient.js";
 
 export type NavigationItem = {
@@ -219,8 +219,8 @@ Se escreveres um role que não exista no tipo `User["role"]`, TypeScript deve re
 Fazer a shell autenticada renderizar a fonte única de navegação e marcar o link ativo.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/components/layout/AppShell.tsx`
-    - REVER: `real_dev/web/src/components/layout/navigation.ts`
+    - EDITAR: `apps/web/src/components/layout/AppShell.tsx`
+    - REVER: `apps/web/src/components/layout/navigation.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -230,7 +230,7 @@ Remove os arrays locais de `AppShell.tsx`, importa `getNavigationForRole` e `isN
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/components/layout/AppShell.tsx
+// apps/web/src/components/layout/AppShell.tsx
 import { ReactNode } from "react";
 import { User } from "../../lib/apiClient.js";
 import {
@@ -314,8 +314,8 @@ Se `AppShell` continuar a ter arrays locais, o próximo ajuste de navegação po
 Garantir que todos os links renderizados apontam para rotas existentes.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/routes/protectedRoutes.tsx`
-    - REVER: `real_dev/web/src/components/layout/navigation.ts`
+    - REVER: `apps/web/src/routes/protectedRoutes.tsx`
+    - REVER: `apps/web/src/components/layout/navigation.ts`
     - LOCALIZAÇÃO: função `resolveProtectedPage` e lista `navigationItems`.
 
 3. Instruções do que fazer.
@@ -345,8 +345,8 @@ Se adicionares um link sem rota, o utilizador pode clicar e cair no dashboard de
 Provar que a navegação muda por role e que o link ativo é anunciado.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/tests/e2e/mf5-navigation.spec.ts`
-    - REVER: `real_dev/web/playwright.config.ts`
+    - CRIAR: `apps/web/tests/e2e/mf5-navigation.spec.ts`
+    - REVER: `apps/web/playwright.config.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -356,7 +356,7 @@ Cria um teste Playwright que entra como aluno e professor usando a UI de login. 
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/tests/e2e/mf5-navigation.spec.ts
+// apps/web/tests/e2e/mf5-navigation.spec.ts
 import { expect, test, type Page } from "@playwright/test";
 
 const student = {
@@ -424,7 +424,7 @@ O teste usa login real pela UI para manter o contrato de sessão por cookies Htt
 
 6. Validação do passo.
 
-Executa `npm --prefix real_dev/web run test:e2e -- mf5-navigation.spec.ts`. Expected result: o teste passa em Chromium e mostra aluno/professor com menus diferentes.
+Executa `npm --prefix apps/web run test:e2e -- mf5-navigation.spec.ts`. Expected result: o teste passa em Chromium e mostra aluno/professor com menus diferentes.
 
 7. Cenário negativo/erro esperado.
 
@@ -437,9 +437,9 @@ Se o link ativo não receber `aria-current`, o teste falha em `toHaveAttribute("
 Confirmar que a navegação fica previsível para aluno e professor em páginas principais e páginas filhas.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/components/layout/navigation.ts`
-    - REVER: `real_dev/web/src/components/layout/AppShell.tsx`
-    - REVER: `real_dev/web/tests/e2e/mf5-navigation.spec.ts`
+    - REVER: `apps/web/src/components/layout/navigation.ts`
+    - REVER: `apps/web/src/components/layout/AppShell.tsx`
+    - REVER: `apps/web/tests/e2e/mf5-navigation.spec.ts`
     - LOCALIZAÇÃO: browser e terminal de validação.
 
 3. Instruções do que fazer.
@@ -469,9 +469,9 @@ Se o foco visual desaparecer ou o link ativo não for distinguível, ajusta as c
 Deixar claro o que `BK-MF5-07` deve reutilizar.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/components/layout/navigation.ts`
-    - REVER: `real_dev/web/src/components/layout/AppShell.tsx`
-    - REVER: `real_dev/web/tests/e2e/mf5-navigation.spec.ts`
+    - REVER: `apps/web/src/components/layout/navigation.ts`
+    - REVER: `apps/web/src/components/layout/AppShell.tsx`
+    - REVER: `apps/web/tests/e2e/mf5-navigation.spec.ts`
     - LOCALIZAÇÃO: secções `Handoff` e `Evidence para PR/defesa`.
 
 3. Instruções do que fazer.
@@ -507,8 +507,8 @@ Se o handoff não citar nomes concretos, o BK seguinte pode recriar navegação 
 
 #### Validação final
 
-- Executar `npm --prefix real_dev/web run build`.
-- Executar `npm --prefix real_dev/web run test:e2e -- mf5-navigation.spec.ts`.
+- Executar `npm --prefix apps/web run build`.
+- Executar `npm --prefix apps/web run test:e2e -- mf5-navigation.spec.ts`.
 - Confirmar manualmente `/app/areas` como aluno e `/app/professor/turmas` como professor.
 - Confirmar ausência de links para rotas inexistentes.
 - Confirmar que o smoke falha se `aria-current` for removido.
@@ -527,4 +527,4 @@ Se o handoff não citar nomes concretos, o BK seguinte pode recriar navegação 
 
 #### Changelog
 
-- 2026-06-19: Guia alinhado com roles e rotas reais de `real_dev`, com código completo para `navigation.ts`, `AppShell.tsx` e smoke E2E de navegação.
+- 2026-06-19: Guia alinhado com roles e rotas reais de `apps`, com código completo para `navigation.ts`, `AppShell.tsx` e smoke E2E de navegação.

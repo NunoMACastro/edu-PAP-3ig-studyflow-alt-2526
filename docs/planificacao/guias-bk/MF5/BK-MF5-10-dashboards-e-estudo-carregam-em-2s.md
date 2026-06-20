@@ -29,9 +29,9 @@ Neste BK vais implementar medição de performance para o dashboard de estudo in
 
 #### Scope-in
 
-- Criar `real_dev/web/src/features/mf5/performance-budget.ts`.
-- Instrumentar `real_dev/web/src/pages/student/SoloStudyDashboard.tsx`.
-- Instrumentar `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`.
+- Criar `apps/web/src/features/mf5/performance-budget.ts`.
+- Instrumentar `apps/web/src/pages/student/SoloStudyDashboard.tsx`.
+- Instrumentar `apps/web/src/pages/teacher/TeacherClassesPage.tsx`.
 - Reutilizar o padrão de validação entregue em `BK-MF5-08` na página de turmas.
 - Medir duração local sem guardar dados pessoais, tokens, cookies, prompts ou respostas IA.
 - Criar smoke Playwright para provar o aviso de performance e a ausência de bloqueio total da página.
@@ -59,10 +59,10 @@ Neste BK vais implementar medição de performance para o dashboard de estudo in
 - Rever `docs/planificacao/backlogs/MF-VIEWS.md`.
 - Rever `BK-MF5-08`, porque a página de turmas já deve usar validação de formulário.
 - Rever `BK-MF5-09`, porque a shell autenticada não deve bloquear as páginas medidas.
-- Rever `real_dev/web/src/pages/student/SoloStudyDashboard.tsx`.
-- Rever `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`.
-- Rever `real_dev/web/src/lib/apiClient.ts`.
-- Rever `real_dev/web/tests/e2e/README.md`.
+- Rever `apps/web/src/pages/student/SoloStudyDashboard.tsx`.
+- Rever `apps/web/src/pages/teacher/TeacherClassesPage.tsx`.
+- Rever `apps/web/src/lib/apiClient.ts`.
+- Rever `apps/web/tests/e2e/README.md`.
 
 #### Glossário
 
@@ -88,18 +88,18 @@ Neste BK vais implementar medição de performance para o dashboard de estudo in
 
 #### Arquitetura do BK
 
-`performance-budget.ts` fica em `real_dev/web/src/features/mf5` porque é uma regra transversal da MF5. `SoloStudyDashboard.tsx` mede o carregamento de `/api/study/solo` via `getSoloStudyState()`. `TeacherClassesPage.tsx` mede o carregamento de `listTeacherClasses()` e preserva a validação por campo do `BK-MF5-08`. O smoke `mf5-performance-budget.spec.ts` força respostas lentas controladas e confirma o aviso visível.
+`performance-budget.ts` fica em `apps/web/src/features/mf5` porque é uma regra transversal da MF5. `SoloStudyDashboard.tsx` mede o carregamento de `/api/study/solo` via `getSoloStudyState()`. `TeacherClassesPage.tsx` mede o carregamento de `listTeacherClasses()` e preserva a validação por campo do `BK-MF5-08`. O smoke `mf5-performance-budget.spec.ts` força respostas lentas controladas e confirma o aviso visível.
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/web/src/features/mf5/performance-budget.ts`
-- EDITAR: `real_dev/web/src/pages/student/SoloStudyDashboard.tsx`
-- EDITAR: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-- CRIAR: `real_dev/web/tests/e2e/mf5-performance-budget.spec.ts`
-- REVER: `real_dev/web/src/features/mf5/form-validation.ts`
-- REVER: `real_dev/web/src/components/forms/FormField.tsx`
-- REVER: `real_dev/web/src/lib/apiClient.ts`
-- REVER: `real_dev/web/playwright.config.ts`
+- CRIAR: `apps/web/src/features/mf5/performance-budget.ts`
+- EDITAR: `apps/web/src/pages/student/SoloStudyDashboard.tsx`
+- EDITAR: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+- CRIAR: `apps/web/tests/e2e/mf5-performance-budget.spec.ts`
+- REVER: `apps/web/src/features/mf5/form-validation.ts`
+- REVER: `apps/web/src/components/forms/FormField.tsx`
+- REVER: `apps/web/src/lib/apiClient.ts`
+- REVER: `apps/web/playwright.config.ts`
 
 #### Tutorial técnico linear
 
@@ -145,7 +145,7 @@ Se mudares endpoints ou roles neste BK, estás a misturar requisito de UX/perfor
 Criar uma função comum para medir duração e decidir se a página excedeu os 2000 ms.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/src/features/mf5/performance-budget.ts`
+    - CRIAR: `apps/web/src/features/mf5/performance-budget.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -155,7 +155,7 @@ Cria `startPerformanceBudget`, `finishPerformanceBudget` e `formatPerformanceBud
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/src/features/mf5/performance-budget.ts
+// apps/web/src/features/mf5/performance-budget.ts
 export type PerformanceBudgetResult = {
     name: string;
     durationMs: number;
@@ -240,8 +240,8 @@ Se a mensagem de performance incluir dados pessoais ou conteúdo de estudo, a m�
 Medir o carregamento inicial do modo de estudo individual, mostrar estados claros e avisar quando o budget de 2 segundos é excedido.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/pages/student/SoloStudyDashboard.tsx`
-    - REVER: `real_dev/web/src/lib/apiClient.ts`
+    - EDITAR: `apps/web/src/pages/student/SoloStudyDashboard.tsx`
+    - REVER: `apps/web/src/lib/apiClient.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -251,7 +251,7 @@ Substitui o conteúdo de `SoloStudyDashboard.tsx` pela versão completa abaixo. 
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/pages/student/SoloStudyDashboard.tsx
+// apps/web/src/pages/student/SoloStudyDashboard.tsx
 import { useEffect, useState } from "react";
 import { getSoloStudyState, SoloStudyState } from "../../lib/apiClient.js";
 import {
@@ -383,10 +383,10 @@ Se a API devolver erro, a página deve mostrar `Não foi possível abrir o estud
 Medir o carregamento inicial das turmas do professor sem perder a validação por campo entregue em `BK-MF5-08`.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-    - REVER: `real_dev/web/src/components/forms/FormField.tsx`
-    - REVER: `real_dev/web/src/features/mf5/form-validation.ts`
-    - REVER: `real_dev/web/src/lib/apiClient.ts`
+    - EDITAR: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - REVER: `apps/web/src/components/forms/FormField.tsx`
+    - REVER: `apps/web/src/features/mf5/form-validation.ts`
+    - REVER: `apps/web/src/lib/apiClient.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -396,7 +396,7 @@ Substitui `TeacherClassesPage.tsx` pela versão completa abaixo. A medição dev
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/pages/teacher/TeacherClassesPage.tsx
+// apps/web/src/pages/teacher/TeacherClassesPage.tsx
 import { FormEvent, useEffect, useState } from "react";
 import { FormField } from "../../components/forms/FormField.js";
 import {
@@ -654,8 +654,8 @@ Se o aviso de performance substituir a lista de turmas ou bloquear a navegação
 Provar que uma resposta lenta gera aviso visível sem guardar dados privados.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/tests/e2e/mf5-performance-budget.spec.ts`
-    - REVER: `real_dev/web/tests/e2e/README.md`
+    - CRIAR: `apps/web/tests/e2e/mf5-performance-budget.spec.ts`
+    - REVER: `apps/web/tests/e2e/README.md`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -665,7 +665,7 @@ Cria um smoke Playwright que autentica o aluno, atrasa `/api/study/solo` e confi
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/tests/e2e/mf5-performance-budget.spec.ts
+// apps/web/tests/e2e/mf5-performance-budget.spec.ts
 import { expect, test, type Page } from "@playwright/test";
 
 const student = {
@@ -717,7 +717,7 @@ O teste usa credenciais de desenvolvimento, tal como os smokes anteriores. `page
 
 6. Validação do passo.
 
-Executa `cd real_dev/web && npm run test:e2e -- mf5-performance-budget.spec.ts`. Esperado: teste verde e aviso visível quando a resposta demora mais de 2000 ms.
+Executa `cd apps/web && npm run test:e2e -- mf5-performance-budget.spec.ts`. Esperado: teste verde e aviso visível quando a resposta demora mais de 2000 ms.
 
 7. Cenário negativo/erro esperado.
 
@@ -730,9 +730,9 @@ Se o teste precisar de dados de produção ou mostrar dados reais de alunos, sub
 Garantir que a evidence de performance não expõe conteúdo privado.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/features/mf5/performance-budget.ts`
-    - REVER: `real_dev/web/src/pages/student/SoloStudyDashboard.tsx`
-    - REVER: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - REVER: `apps/web/src/features/mf5/performance-budget.ts`
+    - REVER: `apps/web/src/pages/student/SoloStudyDashboard.tsx`
+    - REVER: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
     - LOCALIZAÇÃO: mensagens visíveis e estados `performanceResult`.
 
 3. Instruções do que fazer.
@@ -762,8 +762,8 @@ Se a mensagem incluir `studentName`, `email`, `classId` ou conteúdo de material
 Confirmar que TypeScript, Vite e Playwright aceitam a alteração.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/package.json`
-    - REVER: `real_dev/web/tests/e2e/mf5-performance-budget.spec.ts`
+    - REVER: `apps/web/package.json`
+    - REVER: `apps/web/tests/e2e/mf5-performance-budget.spec.ts`
     - LOCALIZAÇÃO: terminal.
 
 3. Instruções do que fazer.
@@ -773,7 +773,7 @@ Executa build web e smoke E2E específico. Se o ambiente local não tiver API/se
 4. Código completo, correto e integrado com a app final.
 
 ```bash
-cd real_dev/web
+cd apps/web
 npm run build
 npm run test:e2e -- mf5-performance-budget.spec.ts
 ```
@@ -797,7 +797,7 @@ Se o build falhar por import inexistente, corrige o path antes de avançar para 
 Deixar claro que este BK entrega medição de UI e que o próximo BK mede resposta IA.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/features/mf5/performance-budget.ts`
+    - REVER: `apps/web/src/features/mf5/performance-budget.ts`
     - REVER: `docs/planificacao/guias-bk/MF5/BK-MF5-11-respostas-da-ia-devem-surgir-em-4s.md`
     - LOCALIZAÇÃO: secção Handoff e evidence.
 
@@ -815,11 +815,11 @@ A separação evita usar API do browser no backend e evita medir provider IA com
 
 6. Validação do passo.
 
-Confirma que `performance-budget.ts` só é importado por ficheiros web e não por `real_dev/api`.
+Confirma que `performance-budget.ts` só é importado por ficheiros web e não por `apps/api`.
 
 7. Cenário negativo/erro esperado.
 
-Se `real_dev/api` importar `performance-budget.ts`, o projeto mistura runtimes browser e Node.js.
+Se `apps/api` importar `performance-budget.ts`, o projeto mistura runtimes browser e Node.js.
 
 #### Critérios de aceite
 
@@ -833,9 +833,9 @@ Se `real_dev/api` importar `performance-budget.ts`, o projeto mistura runtimes b
 
 #### Validação final
 
-- Executar `cd real_dev/web && npm run build`.
-- Executar `cd real_dev/web && npm run test:e2e -- mf5-performance-budget.spec.ts`.
-- Confirmar que `rg -n "performance-budget" real_dev/api/src` não devolve resultados.
+- Executar `cd apps/web && npm run build`.
+- Executar `cd apps/web && npm run test:e2e -- mf5-performance-budget.spec.ts`.
+- Confirmar que `rg -n "performance-budget" apps/api/src` não devolve resultados.
 - Confirmar cenário negativo: resposta lenta mostra aviso; erro da API mostra mensagem segura; página não expõe dados sensíveis.
 - Erros comuns a evitar: medir no backend uma regra de UI, guardar conteúdo privado em evidence, esquecer estados de erro e desfazer validação de `BK-MF5-08`.
 

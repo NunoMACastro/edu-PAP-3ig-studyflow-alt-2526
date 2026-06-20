@@ -29,7 +29,7 @@ Neste BK vais implementar um frame responsivo reutilizável e aplicá-lo em pág
 
 #### Scope-in
 
-- Criar `real_dev/web/src/components/layout/ResponsivePageFrame.tsx`.
+- Criar `apps/web/src/components/layout/ResponsivePageFrame.tsx`.
 - Reutilizar `PageHeader` criado em `BK-MF5-03`.
 - Editar `StudyAreaMaterialsPage.tsx` para usar frame responsivo.
 - Editar `TeacherClassesPage.tsx` para usar frame responsivo.
@@ -49,11 +49,11 @@ Neste BK vais implementar um frame responsivo reutilizável e aplicá-lo em pág
 
 #### Pre-requisitos
 
-- Ter concluído `BK-MF5-03`, incluindo `real_dev/web/src/components/PageHeader.tsx`.
+- Ter concluído `BK-MF5-03`, incluindo `apps/web/src/components/PageHeader.tsx`.
 - Ler `RNF02` em `docs/RNF.md`.
 - Confirmar `BK-MF5-04` em `MATRIZ-CANONICA-BK.md`, `BACKLOG-MVP.md`, `CONTRATO-CAMPOS-BK.md` e `MF-VIEWS.md`.
-- Rever `real_dev/web/src/pages/student/StudyAreaMaterialsPage.tsx`.
-- Rever `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`.
+- Rever `apps/web/src/pages/student/StudyAreaMaterialsPage.tsx`.
+- Rever `apps/web/src/pages/teacher/TeacherClassesPage.tsx`.
 
 #### Glossário
 
@@ -79,12 +79,12 @@ O BK cria um componente visual em `components/layout`, sem chamadas HTTP. As pá
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/web/src/components/layout/ResponsivePageFrame.tsx`
-- EDITAR: `real_dev/web/src/pages/student/StudyAreaMaterialsPage.tsx`
-- EDITAR: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-- CRIAR: `real_dev/web/tests/e2e/mf5-responsive-layout.spec.ts`
-- REVER: `real_dev/web/src/components/PageHeader.tsx`
-- REVER: `real_dev/web/src/lib/apiClient.ts`
+- CRIAR: `apps/web/src/components/layout/ResponsivePageFrame.tsx`
+- EDITAR: `apps/web/src/pages/student/StudyAreaMaterialsPage.tsx`
+- EDITAR: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+- CRIAR: `apps/web/tests/e2e/mf5-responsive-layout.spec.ts`
+- REVER: `apps/web/src/components/PageHeader.tsx`
+- REVER: `apps/web/src/lib/apiClient.ts`
 
 #### Tutorial técnico linear
 
@@ -129,7 +129,7 @@ Se encontrares uma decisão visual que exige novo campo ou novo endpoint, não a
 Criar um componente de layout reutilizável, capaz de organizar conteúdo principal e painel secundário sem scroll horizontal.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/src/components/layout/ResponsivePageFrame.tsx`
+    - CRIAR: `apps/web/src/components/layout/ResponsivePageFrame.tsx`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -139,7 +139,7 @@ Cria o ficheiro abaixo. O componente deve receber `main`, `aside` opcional e `as
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/components/layout/ResponsivePageFrame.tsx
+// apps/web/src/components/layout/ResponsivePageFrame.tsx
 import { ReactNode } from "react";
 
 /**
@@ -194,7 +194,7 @@ O contrato de `RNF02` é cumprido pela grid: em mobile a estrutura fica numa col
 
 6. Validação do passo.
 
-Confirma que o ficheiro exporta `ResponsivePageFrame` e que o import funciona a partir de páginas em `real_dev/web/src/pages/*`.
+Confirma que o ficheiro exporta `ResponsivePageFrame` e que o import funciona a partir de páginas em `apps/web/src/pages/*`.
 
 7. Cenário negativo/erro esperado.
 
@@ -207,9 +207,9 @@ Se removeres `min-w-0`, uma URL longa ou email longo pode rebentar a coluna em m
 Organizar a página de materiais privados para que a lista seja o conteúdo principal e o formulário fique numa zona secundária responsiva.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/pages/student/StudyAreaMaterialsPage.tsx`
-    - REVER: `real_dev/web/src/components/materials/MaterialList.tsx`
-    - REVER: `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`
+    - EDITAR: `apps/web/src/pages/student/StudyAreaMaterialsPage.tsx`
+    - REVER: `apps/web/src/components/materials/MaterialList.tsx`
+    - REVER: `apps/web/src/components/materials/MaterialSubmitForm.tsx`
     - LOCALIZAÇÃO: componente completo `StudyAreaMaterialsPage`.
 
 3. Instruções do que fazer.
@@ -219,7 +219,7 @@ Substitui o conteúdo completo de `StudyAreaMaterialsPage.tsx` pelo código abai
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/pages/student/StudyAreaMaterialsPage.tsx
+// apps/web/src/pages/student/StudyAreaMaterialsPage.tsx
 import { useEffect, useState } from "react";
 import { PageHeader } from "../../components/PageHeader.js";
 import { ResponsivePageFrame } from "../../components/layout/ResponsivePageFrame.js";
@@ -329,8 +329,8 @@ Se `listMaterials` devolver erro, a página deve mostrar "Não foi possível car
 Organizar a página de turmas para que a lista de turmas seja o conteúdo principal e o formulário de criação fique num painel lateral.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-    - REVER: `real_dev/web/src/lib/apiClient.ts`
+    - EDITAR: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - REVER: `apps/web/src/lib/apiClient.ts`
     - LOCALIZAÇÃO: componente completo `TeacherClassesPage`.
 
 3. Instruções do que fazer.
@@ -340,7 +340,7 @@ Substitui o conteúdo completo de `TeacherClassesPage.tsx` pelo código abaixo. 
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/pages/teacher/TeacherClassesPage.tsx
+// apps/web/src/pages/teacher/TeacherClassesPage.tsx
 import { FormEvent, useEffect, useState } from "react";
 import { PageHeader } from "../../components/PageHeader.js";
 import { ResponsivePageFrame } from "../../components/layout/ResponsivePageFrame.js";
@@ -565,8 +565,8 @@ Se tentares adicionar aluno sem email, a página deve mostrar "Indica o email do
 Criar evidence automatizada para provar que as páginas críticas não criam scroll horizontal nas larguras exigidas.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/tests/e2e/mf5-responsive-layout.spec.ts`
-    - REVER: `real_dev/web/playwright.config.ts`
+    - CRIAR: `apps/web/tests/e2e/mf5-responsive-layout.spec.ts`
+    - REVER: `apps/web/playwright.config.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -576,7 +576,7 @@ Cria o teste abaixo. Usa login real pela UI, como nos smokes anteriores, para ma
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/tests/e2e/mf5-responsive-layout.spec.ts
+// apps/web/tests/e2e/mf5-responsive-layout.spec.ts
 import { expect, test, type Page } from "@playwright/test";
 
 const student = {
@@ -661,7 +661,7 @@ O teste usa as mesmas credenciais E2E por variáveis de ambiente já usadas pelo
 
 6. Validação do passo.
 
-Executa `npm --prefix real_dev/web run test:e2e -- mf5-responsive-layout.spec.ts` depois de ter API/web E2E configurados.
+Executa `npm --prefix apps/web run test:e2e -- mf5-responsive-layout.spec.ts` depois de ter API/web E2E configurados.
 
 7. Cenário negativo/erro esperado.
 
@@ -674,9 +674,9 @@ Se aparecer scroll horizontal, procura primeiro elementos com largura fixa, URLs
 Confirmar que o resultado é utilizável por aluno e professor, não apenas que compila.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/pages/student/StudyAreaMaterialsPage.tsx`
-    - REVER: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-    - REVER: `real_dev/web/tests/e2e/mf5-responsive-layout.spec.ts`
+    - REVER: `apps/web/src/pages/student/StudyAreaMaterialsPage.tsx`
+    - REVER: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - REVER: `apps/web/tests/e2e/mf5-responsive-layout.spec.ts`
     - LOCALIZAÇÃO: browser em 390px, 768px e 1440px.
 
 3. Instruções do que fazer.
@@ -706,9 +706,9 @@ Se o utilizador precisar de zoom ou scroll lateral para submeter material ou cri
 Deixar claro o que `BK-MF5-05` deve reutilizar para implementar feedback imediato sem refazer layout.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/components/layout/ResponsivePageFrame.tsx`
-    - REVER: `real_dev/web/src/pages/student/StudyAreaMaterialsPage.tsx`
-    - REVER: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - REVER: `apps/web/src/components/layout/ResponsivePageFrame.tsx`
+    - REVER: `apps/web/src/pages/student/StudyAreaMaterialsPage.tsx`
+    - REVER: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
     - LOCALIZAÇÃO: secções `Evidence para PR/defesa` e `Handoff`.
 
 3. Instruções do que fazer.
@@ -742,8 +742,8 @@ Se `BK-MF5-05` criar outro componente de layout para resolver feedback, está a 
 
 #### Validação final
 
-- Executar `npm --prefix real_dev/web run build`.
-- Executar `npm --prefix real_dev/web run test:e2e -- mf5-responsive-layout.spec.ts`.
+- Executar `npm --prefix apps/web run build`.
+- Executar `npm --prefix apps/web run test:e2e -- mf5-responsive-layout.spec.ts`.
 - Confirmar manualmente as páginas em mobile, tablet e desktop.
 - Confirmar que não há tokens, cookies, prompts privados ou dados sensíveis em logs ou storage.
 

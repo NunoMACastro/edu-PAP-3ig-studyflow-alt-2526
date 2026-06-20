@@ -29,9 +29,9 @@ Neste BK vais implementar um componente `FormField` para garantir labels, textos
 
 #### Scope-in
 
-- Criar `real_dev/web/src/components/forms/FormField.tsx`.
-- Aplicar `FormField` em `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`.
-- Aplicar `FormField` em `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`.
+- Criar `apps/web/src/components/forms/FormField.tsx`.
+- Aplicar `FormField` em `apps/web/src/pages/teacher/TeacherClassesPage.tsx`.
+- Aplicar `FormField` em `apps/web/src/components/materials/MaterialSubmitForm.tsx`.
 - Associar label, ajuda e erro com IDs estáveis.
 - Garantir contraste com classes Tailwind já usadas no projeto.
 - Criar smoke Playwright focado em labels e atributos acessíveis.
@@ -53,10 +53,10 @@ Neste BK vais implementar um componente `FormField` para garantir labels, textos
 
 - Ter concluído `BK-MF5-06`, para manter navegação e shell autenticada estáveis.
 - Ler `RNF05` em `docs/RNF.md`.
-- Rever `real_dev/web/src/styles.css`.
-- Rever `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`.
-- Rever `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`.
-- Rever `real_dev/web/tests/e2e/README.md`.
+- Rever `apps/web/src/styles.css`.
+- Rever `apps/web/src/pages/teacher/TeacherClassesPage.tsx`.
+- Rever `apps/web/src/components/materials/MaterialSubmitForm.tsx`.
+- Rever `apps/web/tests/e2e/README.md`.
 - Rever `BK-MF5-08`, porque a validação antes de submissão vai reutilizar erros por campo.
 
 #### Glossário
@@ -82,16 +82,16 @@ Neste BK vais implementar um componente `FormField` para garantir labels, textos
 
 #### Arquitetura do BK
 
-`FormField.tsx` fica em `real_dev/web/src/components/forms`. Os formulários importam esse componente e passam o controlo real como filho. `TeacherClassesPage.tsx` aplica-o nos campos de criação de turma e no email de aluno. `MaterialSubmitForm.tsx` aplica-o no tipo, título, ficheiro e texto/URL do material. O teste `mf5-accessibility.spec.ts` valida labels, ajuda associada e ausência de links com nomes inacessíveis.
+`FormField.tsx` fica em `apps/web/src/components/forms`. Os formulários importam esse componente e passam o controlo real como filho. `TeacherClassesPage.tsx` aplica-o nos campos de criação de turma e no email de aluno. `MaterialSubmitForm.tsx` aplica-o no tipo, título, ficheiro e texto/URL do material. O teste `mf5-accessibility.spec.ts` valida labels, ajuda associada e ausência de links com nomes inacessíveis.
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/web/src/components/forms/FormField.tsx`
-- EDITAR: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-- EDITAR: `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`
-- CRIAR: `real_dev/web/tests/e2e/mf5-accessibility.spec.ts`
-- REVER: `real_dev/web/src/styles.css`
-- REVER: `real_dev/web/playwright.config.ts`
+- CRIAR: `apps/web/src/components/forms/FormField.tsx`
+- EDITAR: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+- EDITAR: `apps/web/src/components/materials/MaterialSubmitForm.tsx`
+- CRIAR: `apps/web/tests/e2e/mf5-accessibility.spec.ts`
+- REVER: `apps/web/src/styles.css`
+- REVER: `apps/web/playwright.config.ts`
 
 #### Tutorial técnico linear
 
@@ -107,7 +107,7 @@ Confirmar que `BK-MF5-07` implementa `RNF05` sem mudar regras de dados ou permis
     - REVER: `docs/planificacao/backlogs/BACKLOG-MVP.md`
     - REVER: `docs/planificacao/backlogs/CONTRATO-CAMPOS-BK.md`
     - REVER: `docs/planificacao/backlogs/MF-VIEWS.md`
-    - REVER: `real_dev/web/src/styles.css`
+    - REVER: `apps/web/src/styles.css`
     - LOCALIZAÇÃO: `RNF05`, linha de `BK-MF5-07` e classes base de formulário.
 
 3. Instruções do que fazer.
@@ -137,7 +137,7 @@ Se tratares `RNF05` como apenas cor ou espaçamento, o formulário continua dif�
 Criar um componente reutilizável que associa label, ajuda, erro e campo real.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/src/components/forms/FormField.tsx`
+    - CRIAR: `apps/web/src/components/forms/FormField.tsx`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -147,7 +147,7 @@ Cria a pasta `components/forms` se ainda não existir. Depois cria `FormField.ts
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/components/forms/FormField.tsx
+// apps/web/src/components/forms/FormField.tsx
 import { cloneElement, type ReactElement, type ReactNode } from "react";
 
 type FormControlElement = ReactElement<{
@@ -220,8 +220,8 @@ Se dois campos usarem o mesmo `id`, `aria-describedby` e `htmlFor` passam a apon
 Garantir que criação de turmas e adição de alunos têm labels explícitas, ajuda associada e mensagens seguras.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-    - REVER: `real_dev/web/src/lib/apiClient.ts`
+    - EDITAR: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - REVER: `apps/web/src/lib/apiClient.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -231,7 +231,7 @@ Importa `FormField`, substitui labels envolventes por labels explícitas e adici
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/pages/teacher/TeacherClassesPage.tsx
+// apps/web/src/pages/teacher/TeacherClassesPage.tsx
 import { FormEvent, useEffect, useState } from "react";
 import { FormField } from "../../components/forms/FormField.js";
 import {
@@ -405,8 +405,8 @@ Se o email do aluno não tiver label real, `getByLabel(/Email do aluno/)` falha 
 Garantir que o aluno submete materiais com labels, ajuda e erro seguro.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`
-    - REVER: `real_dev/web/src/lib/apiClient.ts`
+    - EDITAR: `apps/web/src/components/materials/MaterialSubmitForm.tsx`
+    - REVER: `apps/web/src/lib/apiClient.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -416,7 +416,7 @@ Importa `FormField`, mantém os clientes `submitTextMaterial` e `submitFileMater
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/components/materials/MaterialSubmitForm.tsx
+// apps/web/src/components/materials/MaterialSubmitForm.tsx
 import { FormEvent, useState } from "react";
 import { FormField } from "../forms/FormField.js";
 import { submitFileMaterial, submitTextMaterial } from "../../lib/apiClient.js";
@@ -538,8 +538,8 @@ Se removeres o label do ficheiro, o utilizador passa a ouvir apenas "button" ou 
 Provar que os labels e textos associados existem nos formulários críticos.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/tests/e2e/mf5-accessibility.spec.ts`
-    - REVER: `real_dev/web/playwright.config.ts`
+    - CRIAR: `apps/web/tests/e2e/mf5-accessibility.spec.ts`
+    - REVER: `apps/web/playwright.config.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -549,7 +549,7 @@ Cria um teste Playwright que entra como professor, valida o formulário de turma
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/tests/e2e/mf5-accessibility.spec.ts
+// apps/web/tests/e2e/mf5-accessibility.spec.ts
 import { expect, test, type Page } from "@playwright/test";
 
 const teacher = {
@@ -645,7 +645,7 @@ O teste usa sessão real e navegação protegida para validar os formulários qu
 
 6. Validação do passo.
 
-Executa `npm --prefix real_dev/web run test:e2e -- mf5-accessibility.spec.ts`. Expected result: o teste passa e falha se removeres `htmlFor`, `id` ou `aria-describedby`.
+Executa `npm --prefix apps/web run test:e2e -- mf5-accessibility.spec.ts`. Expected result: o teste passa e falha se removeres `htmlFor`, `id` ou `aria-describedby`.
 
 7. Cenário negativo/erro esperado.
 
@@ -658,10 +658,10 @@ Se o campo de email do aluno voltar a ter apenas texto dentro do campo, `getByLa
 Confirmar que o formulário fica legível, navegável por teclado e com mensagens compreensíveis.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/components/forms/FormField.tsx`
-    - REVER: `real_dev/web/src/styles.css`
-    - REVER: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-    - REVER: `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`
+    - REVER: `apps/web/src/components/forms/FormField.tsx`
+    - REVER: `apps/web/src/styles.css`
+    - REVER: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - REVER: `apps/web/src/components/materials/MaterialSubmitForm.tsx`
     - LOCALIZAÇÃO: browser e terminal de validação.
 
 3. Instruções do que fazer.
@@ -691,9 +691,9 @@ Se um erro aparecer apenas no topo da página sem ligação ao campo, o utilizad
 Entregar a base que `BK-MF5-08` vai usar para validação antes de submissão.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/components/forms/FormField.tsx`
-    - REVER: `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
-    - REVER: `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`
+    - REVER: `apps/web/src/components/forms/FormField.tsx`
+    - REVER: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
+    - REVER: `apps/web/src/components/materials/MaterialSubmitForm.tsx`
     - REVER: `docs/planificacao/guias-bk/MF5/BK-MF5-08-validacao-completa-de-formularios-antes-de-submissao.md`
     - LOCALIZAÇÃO: secções `Handoff` e `Evidence para PR/defesa`.
 
@@ -729,8 +729,8 @@ Se o próximo BK criar outro componente de campo, os formulários voltam a ficar
 
 #### Validação final
 
-- Executar `npm --prefix real_dev/web run build`.
-- Executar `npm --prefix real_dev/web run test:e2e -- mf5-accessibility.spec.ts`.
+- Executar `npm --prefix apps/web run build`.
+- Executar `npm --prefix apps/web run test:e2e -- mf5-accessibility.spec.ts`.
 - Confirmar manualmente foco visível com teclado.
 - Confirmar que `getByLabel("Nome")`, `getByLabel("Código")`, `getByLabel("Tipo")` e `getByLabel("Título")` encontram os campos.
 - Confirmar que `BK-MF5-08` consegue reutilizar `FormField` sem criar componente paralelo.

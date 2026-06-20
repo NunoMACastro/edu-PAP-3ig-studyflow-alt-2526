@@ -52,9 +52,9 @@ Neste BK vais implementar feedback imediato para ações assíncronas importante
 - Ter concluído `BK-MF5-03`, com estados visíveis e `PageHeader`.
 - Ter concluído `BK-MF5-04`, com páginas organizadas por `ResponsivePageFrame`.
 - Ler `RNF03` em `docs/RNF.md`.
-- Rever `real_dev/web/src/App.tsx`.
-- Rever `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`.
-- Rever `real_dev/web/src/pages/student/PrivateAreaAiPage.tsx`.
+- Rever `apps/web/src/App.tsx`.
+- Rever `apps/web/src/components/materials/MaterialSubmitForm.tsx`.
+- Rever `apps/web/src/pages/student/PrivateAreaAiPage.tsx`.
 
 #### Glossário
 
@@ -76,17 +76,17 @@ Neste BK vais implementar feedback imediato para ações assíncronas importante
 
 #### Arquitetura do BK
 
-O provider vive em `real_dev/web/src/features/mf5/action-feedback.tsx` e envolve apenas rotas protegidas. Componentes com ações assíncronas chamam `notifyLoading`, `notifySuccess`, `notifyError` e `clearFeedback`. O provider mostra uma mensagem visual e uma região `aria-live`.
+O provider vive em `apps/web/src/features/mf5/action-feedback.tsx` e envolve apenas rotas protegidas. Componentes com ações assíncronas chamam `notifyLoading`, `notifySuccess`, `notifyError` e `clearFeedback`. O provider mostra uma mensagem visual e uma região `aria-live`.
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/web/src/features/mf5/action-feedback.tsx`
-- EDITAR: `real_dev/web/src/App.tsx`
-- EDITAR: `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`
-- EDITAR: `real_dev/web/src/pages/student/PrivateAreaAiPage.tsx`
-- CRIAR: `real_dev/web/tests/e2e/mf5-action-feedback.spec.ts`
-- REVER: `real_dev/web/src/lib/apiClient.ts`
-- REVER: `real_dev/web/src/routes/protectedRoutes.tsx`
+- CRIAR: `apps/web/src/features/mf5/action-feedback.tsx`
+- EDITAR: `apps/web/src/App.tsx`
+- EDITAR: `apps/web/src/components/materials/MaterialSubmitForm.tsx`
+- EDITAR: `apps/web/src/pages/student/PrivateAreaAiPage.tsx`
+- CRIAR: `apps/web/tests/e2e/mf5-action-feedback.spec.ts`
+- REVER: `apps/web/src/lib/apiClient.ts`
+- REVER: `apps/web/src/routes/protectedRoutes.tsx`
 
 #### Tutorial técnico linear
 
@@ -100,7 +100,7 @@ Confirmar que `BK-MF5-05` corrige feedback de UX e não altera regras de domíni
     - REVER: `docs/RNF.md`
     - REVER: `docs/planificacao/backlogs/MATRIZ-CANONICA-BK.md`
     - REVER: `docs/planificacao/guias-bk/MF5/BK-MF5-04-layout-responsivo-para-desktop-tablet-mobile.md`
-    - REVER: `real_dev/web/src/App.tsx`
+    - REVER: `apps/web/src/App.tsx`
     - LOCALIZAÇÃO: `RNF03`, header de `BK-MF5-05` e handoff de `BK-MF5-04`.
 
 3. Instruções do que fazer.
@@ -130,7 +130,7 @@ Se tentares usar feedback para esconder uma falha de autorização, o BK fica er
 Criar um provider global para feedback imediato nas rotas autenticadas.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/src/features/mf5/action-feedback.tsx`
+    - CRIAR: `apps/web/src/features/mf5/action-feedback.tsx`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -140,7 +140,7 @@ Cria o ficheiro abaixo. O provider deve guardar apenas `tone` e `text`, sem dado
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/features/mf5/action-feedback.tsx
+// apps/web/src/features/mf5/action-feedback.tsx
 import { createContext, ReactNode, useContext, useMemo, useState } from "react";
 
 type FeedbackTone = "loading" | "success" | "error";
@@ -243,8 +243,8 @@ Se uma mensagem de feedback incluir a pergunta privada do aluno ou uma URL sens�
 Disponibilizar o provider apenas depois de existir sessão autenticada.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/App.tsx`
-    - REVER: `real_dev/web/src/routes/protectedRoutes.tsx`
+    - EDITAR: `apps/web/src/App.tsx`
+    - REVER: `apps/web/src/routes/protectedRoutes.tsx`
     - LOCALIZAÇÃO: componente completo `App`.
 
 3. Instruções do que fazer.
@@ -254,7 +254,7 @@ Substitui o conteúdo completo de `App.tsx` pelo código abaixo. Mantém login, 
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/App.tsx
+// apps/web/src/App.tsx
 import { ActionFeedbackProvider } from "./features/mf5/action-feedback.js";
 import { useSession } from "./hooks/useSession.js";
 import { LoginPage } from "./pages/auth/LoginPage.js";
@@ -314,8 +314,8 @@ Se envolveres também páginas públicas no provider, podes misturar mensagens d
 Mostrar feedback durante submissão de tópico, URL ou ficheiro, incluindo upload.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`
-    - REVER: `real_dev/web/src/lib/apiClient.ts`
+    - EDITAR: `apps/web/src/components/materials/MaterialSubmitForm.tsx`
+    - REVER: `apps/web/src/lib/apiClient.ts`
     - LOCALIZAÇÃO: componente completo `MaterialSubmitForm`.
 
 3. Instruções do que fazer.
@@ -325,7 +325,7 @@ Substitui o conteúdo completo de `MaterialSubmitForm.tsx` pelo código abaixo. 
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/components/materials/MaterialSubmitForm.tsx
+// apps/web/src/components/materials/MaterialSubmitForm.tsx
 import { FormEvent, useState } from "react";
 import { useActionFeedback } from "../../features/mf5/action-feedback.js";
 import { submitFileMaterial, submitTextMaterial } from "../../lib/apiClient.js";
@@ -487,8 +487,8 @@ Se o backend devolver erro, o formulário deve manter o ecrã estável, mostrar 
 Mostrar feedback durante o pedido à IA privada sem expor a pergunta nem a resposta na mensagem global.
 
 2. Ficheiros envolvidos:
-    - EDITAR: `real_dev/web/src/pages/student/PrivateAreaAiPage.tsx`
-    - REVER: `real_dev/web/src/lib/apiClient.ts`
+    - EDITAR: `apps/web/src/pages/student/PrivateAreaAiPage.tsx`
+    - REVER: `apps/web/src/lib/apiClient.ts`
     - LOCALIZAÇÃO: componente completo `PrivateAreaAiPage`.
 
 3. Instruções do que fazer.
@@ -498,7 +498,7 @@ Substitui o conteúdo completo de `PrivateAreaAiPage.tsx` pelo código abaixo. M
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/pages/student/PrivateAreaAiPage.tsx
+// apps/web/src/pages/student/PrivateAreaAiPage.tsx
 import { FormEvent, useState } from "react";
 import { useActionFeedback } from "../../features/mf5/action-feedback.js";
 import { askPrivateAreaAi, PrivateAreaAiAnswer } from "../../lib/apiClient.js";
@@ -612,8 +612,8 @@ Se a mensagem global mostrar a pergunta completa ou a resposta IA, remove esse c
 Provar que o provider existe, que `aria-live` recebe mensagens e que uma ação real mostra feedback.
 
 2. Ficheiros envolvidos:
-    - CRIAR: `real_dev/web/tests/e2e/mf5-action-feedback.spec.ts`
-    - REVER: `real_dev/web/playwright.config.ts`
+    - CRIAR: `apps/web/tests/e2e/mf5-action-feedback.spec.ts`
+    - REVER: `apps/web/playwright.config.ts`
     - LOCALIZAÇÃO: ficheiro completo.
 
 3. Instruções do que fazer.
@@ -623,7 +623,7 @@ Cria o teste abaixo. Ele usa login real, cria uma área de estudo, entra na pág
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/tests/e2e/mf5-action-feedback.spec.ts
+// apps/web/tests/e2e/mf5-action-feedback.spec.ts
 import { expect, test, type Page } from "@playwright/test";
 
 const student = {
@@ -692,7 +692,7 @@ O contrato de `RNF03` fica provado por comportamento observável. As credenciais
 
 6. Validação do passo.
 
-Executa `npm --prefix real_dev/web run test:e2e -- mf5-action-feedback.spec.ts` com API e web E2E disponíveis.
+Executa `npm --prefix apps/web run test:e2e -- mf5-action-feedback.spec.ts` com API e web E2E disponíveis.
 
 7. Cenário negativo/erro esperado.
 
@@ -705,9 +705,9 @@ Se o teste não encontrar `action-feedback-live`, confirma se `App.tsx` envolve 
 Fechar o BK com contratos reutilizáveis para `BK-MF5-06`.
 
 2. Ficheiros envolvidos:
-    - REVER: `real_dev/web/src/features/mf5/action-feedback.tsx`
-    - REVER: `real_dev/web/src/components/materials/MaterialSubmitForm.tsx`
-    - REVER: `real_dev/web/src/pages/student/PrivateAreaAiPage.tsx`
+    - REVER: `apps/web/src/features/mf5/action-feedback.tsx`
+    - REVER: `apps/web/src/components/materials/MaterialSubmitForm.tsx`
+    - REVER: `apps/web/src/pages/student/PrivateAreaAiPage.tsx`
     - LOCALIZAÇÃO: secções `Evidence para PR/defesa` e `Handoff`.
 
 3. Instruções do que fazer.
@@ -741,8 +741,8 @@ Se o próximo BK trocar toda a shell e remover o provider, ações assíncronas 
 
 #### Validação final
 
-- Executar `npm --prefix real_dev/web run build`.
-- Executar `npm --prefix real_dev/web run test:e2e -- mf5-action-feedback.spec.ts`.
+- Executar `npm --prefix apps/web run build`.
+- Executar `npm --prefix apps/web run test:e2e -- mf5-action-feedback.spec.ts`.
 - Validar manualmente submissão de tópico, upload sem ficheiro e pedido à IA privada.
 - Confirmar ausência de tokens, cookies, prompts privados, respostas IA privadas e URLs sensíveis em mensagens globais ou storage.
 
