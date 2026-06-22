@@ -18,13 +18,13 @@ type MaterialMode = "TOPIC" | "URL" | "FILE";
 type MaterialField = "title" | "body" | "fileName";
 
 /**
- * Formulário de submissão de materiais privados.
+ * Formulário de submissão de materiais.
  *
- * @param props Área de estudo alvo e callback de refresh.
- * @returns Controlos com validação frontend antes da submissão.
+ * @param props Área alvo e callback de refresh.
+ * @returns Controlos acessíveis para tópico, URL e ficheiro.
  */
 export function MaterialSubmitForm({ studyAreaId, onSubmitted }: MaterialSubmitFormProps) {
-    const [mode, setMode] = useState<MaterialMode>("TOPIC");
+    const [mode, setMode] = useState<"TOPIC" | "URL" | "FILE">("TOPIC");
     const [title, setTitle] = useState("");
     const [body, setBody] = useState("");
     const [file, setFile] = useState<File | null>(null);
@@ -70,11 +70,17 @@ export function MaterialSubmitForm({ studyAreaId, onSubmitted }: MaterialSubmitF
 
         return requireFields(fields);
     }
+    const bodyLabel = mode === "URL" ? "URL do material" : "Texto ou tópico";
+    const bodyHelpText =
+        mode === "URL"
+            ? "Indica um endereço que o backend possa validar."
+            : "Escreve o tópico ou conteúdo base que será guardado na área.";
 
     /**
      * Submete o material conforme o modo escolhido.
      *
      * @param event Evento de submissão.
+     * @returns Promise resolvida depois de guardar.
      */
     async function handleSubmit(event: FormEvent): Promise<void> {
         event.preventDefault();
@@ -92,7 +98,12 @@ export function MaterialSubmitForm({ studyAreaId, onSubmitted }: MaterialSubmitF
         try {
             if (mode === "FILE") {
                 await submitFileMaterial(studyAreaId, file!, title);
+        try {
+            if (mode === "FILE") {
+                if (!file) throw new Error("Escolhe um ficheiro.");
+                await submitFileMaterial(studyAreaId, file, title);
             } else {
+                // O userId vem da sessão HttpOnly no backend; o frontend envia apenas dados do material.
                 await submitTextMaterial(studyAreaId, {
                     type: mode,
                     title,
@@ -123,6 +134,15 @@ export function MaterialSubmitForm({ studyAreaId, onSubmitted }: MaterialSubmitF
                         setMode(event.target.value as MaterialMode);
                         setFieldErrors({});
                     }}
+            {error ? (
+                <p className="sf-error" role="alert">
+                    {error}
+                </p>
+            ) : null}
+            <FormField id="materialMode" label="Tipo" helpText="Escolhe se vais guardar tópico, URL ou ficheiro.">
+                <select
+                    value={mode}
+                    onChange={(event) => setMode(event.target.value as "TOPIC" | "URL" | "FILE")}
                 >
                     <option value="TOPIC">Tópico</option>
                     <option value="URL">URL</option>
@@ -174,6 +194,25 @@ export function MaterialSubmitForm({ studyAreaId, onSubmitted }: MaterialSubmitF
 
             <button className="sf-button-primary" disabled={submitting} type="submit">
                 {submitting ? "A submeter..." : "Submeter"}
+            <FormField id="materialTitle" label="Título" helpText="Usa um título curto para encontrares o material depois.">
+                <input value={title} onChange={(event) => setTitle(event.target.value)} required />
+            </FormField>
+            {mode === "FILE" ? (
+                <FormField id="materialFile" label="Ficheiro" helpText="Aceita PDF ou DOCX para processamento pela API.">
+                    <input
+                        type="file"
+                        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                        required
+                    />
+                </FormField>
+            ) : (
+                <FormField id="materialBody" label={bodyLabel} helpText={bodyHelpText}>
+                    <textarea rows={4} value={body} onChange={(event) => setBody(event.target.value)} required />
+                </FormField>
+            )}
+            <button className="sf-button-primary" type="submit">
+                Submeter
             </button>
         </form>
     );

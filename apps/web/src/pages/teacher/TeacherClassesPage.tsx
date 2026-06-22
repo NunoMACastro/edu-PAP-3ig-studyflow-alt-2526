@@ -19,7 +19,7 @@ type StudentEmailField = "studentEmail";
 /**
  * Página de turmas oficiais do professor.
  *
- * @returns Formulários com validação frontend antes dos pedidos HTTP.
+ * @returns Formulário acessível para criar turmas e adicionar alunos.
  */
 export function TeacherClassesPage() {
     const [classes, setClasses] = useState<SchoolClass[]>([]);
@@ -73,6 +73,7 @@ export function TeacherClassesPage() {
 
     /**
      * Valida e cria uma turma oficial.
+     * Cria turma oficial usando a API autenticada.
      *
      * @param event Evento de submissão do formulário.
      */
@@ -95,6 +96,8 @@ export function TeacherClassesPage() {
         setClassFieldErrors({});
         setCreating(true);
         try {
+        try {
+            // A API continua a validar professor autenticado, payload e unicidade do código.
             await createTeacherClass({ name, code, schoolYear });
             setName("");
             setCode("");
@@ -129,6 +132,18 @@ export function TeacherClassesPage() {
         setAddingStudentId(classId);
         try {
             await addClassStudent(classId, email);
+        }
+    }
+
+    /**
+     * Adiciona aluno a uma turma gerida pelo professor autenticado.
+     *
+     * @param classId Identificador da turma oficial.
+     */
+    async function handleAddStudent(classId: string): Promise<void> {
+        setError(null);
+        try {
+            await addClassStudent(classId, emails[classId] ?? "");
             setEmails((current) => ({ ...current, [classId]: "" }));
             await refresh();
         } catch (caught) {
@@ -185,6 +200,24 @@ export function TeacherClassesPage() {
                 </button>
             </form>
 
+                {error ? (
+                    <p className="sf-error" role="alert">
+                        {error}
+                    </p>
+                ) : null}
+                <FormField id="teacherClassName" label="Nome" helpText="Nome visível da turma.">
+                    <input value={name} onChange={(event) => setName(event.target.value)} />
+                </FormField>
+                <FormField id="teacherClassCode" label="Código" helpText="Código curto usado para identificar a turma.">
+                    <input value={code} onChange={(event) => setCode(event.target.value)} />
+                </FormField>
+                <FormField id="teacherClassSchoolYear" label="Ano letivo" helpText="Formato esperado: 2025/2026.">
+                    <input value={schoolYear} onChange={(event) => setSchoolYear(event.target.value)} />
+                </FormField>
+                <button className="sf-button-primary" disabled={name.trim().length < 2 || code.trim().length < 2}>
+                    Criar turma
+                </button>
+            </form>
             <div className="grid gap-3">
                 {classes.length === 0 ? (
                     <p className="sf-panel text-sm text-slate-600">Ainda não tens turmas.</p>
@@ -228,6 +261,38 @@ export function TeacherClassesPage() {
                             <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/salas-guiadas`}>Salas guiadas</a>
                             <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/projectos`}>Projectos</a>
                             <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/progresso`}>Progresso</a>
+                                    onChange={(event) =>
+                                        setEmails((current) => ({
+                                            ...current,
+                                            [schoolClass._id]: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </FormField>
+                            <button
+                                className="sf-button-secondary self-end"
+                                onClick={() => void handleAddStudent(schoolClass._id)}
+                                type="button"
+                            >
+                                Adicionar aluno
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/disciplinas`}>
+                                Disciplinas
+                            </a>
+                            <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/publicacoes`}>
+                                Publicações
+                            </a>
+                            <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/salas-guiadas`}>
+                                Salas guiadas
+                            </a>
+                            <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/projectos`}>
+                                Projectos
+                            </a>
+                            <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/progresso`}>
+                                Progresso
+                            </a>
                         </div>
                     </article>
                 ))}
