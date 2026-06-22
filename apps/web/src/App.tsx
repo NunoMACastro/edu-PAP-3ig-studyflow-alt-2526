@@ -1,10 +1,9 @@
-/**
- * Documenta a responsabilidade de app dentro de real_dev.
- */
+// apps/web/src/App.tsx
+import { ActionFeedbackProvider } from "./features/mf5/action-feedback.js";
+import { useSession } from "./hooks/useSession.js";
 import { LoginPage } from "./pages/auth/LoginPage.js";
 import { RegisterPage } from "./pages/auth/RegisterPage.js";
 import { ProtectedRoutes } from "./routes/protectedRoutes.js";
-import { useSession } from "./hooks/useSession.js";
 
 /**
  * Componente raiz da aplicação.
@@ -29,5 +28,10 @@ export function App() {
         return <LoginPage onLoggedIn={session.refresh} />;
     }
 
-    return <ProtectedRoutes user={session.user} onLogout={session.signOut} />;
+    return (
+        <ActionFeedbackProvider>
+            {/* O provider fica dentro da sessão para evitar feedback autenticado em páginas públicas. */}
+            <ProtectedRoutes user={session.user} onLogout={session.signOut} />
+        </ActionFeedbackProvider>
+    );
 }
