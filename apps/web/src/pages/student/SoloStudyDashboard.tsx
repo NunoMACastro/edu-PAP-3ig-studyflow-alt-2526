@@ -1,127 +1,111 @@
 // apps/web/src/pages/student/SoloStudyDashboard.tsx
 import { useEffect, useState } from "react";
-import { PageHeader } from "../../components/PageHeader.js";
+import { getSoloStudyState, SoloStudyState } from "../../lib/apiClient.js";
 import {
-    getSoloStudyState,
-    type SoloStudyState,
-} from "../../lib/apiClient.js";
+    finishPerformanceBudget,
+    formatPerformanceBudgetMessage,
+    PerformanceBudgetResult,
+    startPerformanceBudget,
+} from "../../features/mf5/performance-budget.js";
+
+const SOLO_STUDY_MEASURE = "solo-study-dashboard";
 
 /**
- * Dashboard do modo individual do aluno.
+ * Dashboard do modo individual sem turma obrigatória.
  *
- * @returns Página inicial do aluno com estado, métricas e ações principais.
+ * @returns Painel inicial do aluno com estados de carregamento, erro e performance.
  */
 export function SoloStudyDashboard() {
     const [state, setState] = useState<SoloStudyState | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [performanceResult, setPerformanceResult] =
+        useState<PerformanceBudgetResult | null>(null);
 
     useEffect(() => {
-        let isMounted = true;
+        let active = true;
 
-        /**
-         * Carrega o resumo do aluno autenticado sem aceitar identificadores vindos da UI.
-         */
-        async function loadSoloStudyState(): Promise<void> {
+        startPerformanceBudget(SOLO_STUDY_MEASURE);
+
+        async function loadDashboard(): Promise<void> {
             try {
                 const nextState = await getSoloStudyState();
-
-                if (isMounted) {
-                    setState(nextState);
-                    setError(null);
-                }
-            } catch (caught) {
-                if (isMounted) {
-                    setError(caught instanceof Error ? caught.message : "Erro ao carregar o estudo.");
-                }
+                if (!active) return;
+                // O dashboard só guarda o resumo público devolvido pela API autenticada.
+                setState(nextState);
+                setError(null);
+            } catch (caught: unknown) {
+                if (!active) return;
+                setError(caught instanceof Error ? caught.message : "Não foi possível carregar o estudo.");
             } finally {
-                if (isMounted) {
-                    setLoading(false);
-                }
+                if (!active) return;
+                setPerformanceResult(finishPerformanceBudget(SOLO_STUDY_MEASURE));
+                setLoading(false);
             }
         }
 
-        // A API usa a sessão HttpOnly; a página não escolhe que aluno está a consultar.
-        void loadSoloStudyState();
+        void loadDashboard();
 
         return () => {
-            isMounted = false;
+            active = false;
         };
     }, []);
 
     if (loading) {
-        return <p className="text-sm text-slate-600">A carregar o teu estudo...</p>;
+        return <p className="text-sm text-slate-600">A carregar estudo...</p>;
     }
 
     if (error) {
         return (
-            <section className="space-y-4">
-                <PageHeader
-                    title="Estudo"
-                    description="Não foi possível carregar o resumo do teu estudo."
-                />
-                <p className="sf-error">{error}</p>
+            <section className="sf-panel space-y-2" role="alert">
+                <h1 className="text-xl font-bold">Não foi possível abrir o estudo</h1>
+                <p className="text-sm text-red-700">{error}</p>
             </section>
         );
     }
 
     if (!state) {
         return (
-            <section className="space-y-4">
-                <PageHeader
-                    title="Estudo"
-                    description="Ainda não há dados de estudo para apresentar."
-                />
-                <p className="sf-panel text-sm text-slate-600">
-                    Cria a primeira área de estudo para começares a organizar materiais e rotinas.
-                </p>
+            <section className="sf-panel" role="status">
+                <p className="text-sm text-slate-600">Ainda não existem dados de estudo para apresentar.</p>
             </section>
         );
     }
 
     return (
         <section className="space-y-6">
-            <PageHeader
-                title={`Olá, ${state.studentName}`}
-                description={
-                    state.hasClass && state.className
-                        ? `Estás a estudar em modo individual e também associado à turma ${state.className}.`
-                        : "Estás em modo individual, sem turma obrigatória."
-                }
-                action={
-                    <a className="sf-button-primary" href="/app/areas">
-                        Criar área
-                    </a>
-                }
-            />
+            <div>
+                <h1 className="text-2xl font-bold">Olá, {state.studentName}</h1>
+                <p className="mt-1 text-sm text-slate-600">
+                    {state.hasClass ? `Turma: ${state.className}` : "Modo individual ativo"}
+                </p>
+            </div>
+
+            {performanceResult?.exceeded ? (
+                <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="status">
+                    {formatPerformanceBudgetMessage(performanceResult)}
+                </p>
+            ) : null}
 
             <div className="grid gap-4 md:grid-cols-3">
                 <article className="sf-panel">
-                    <p className="text-sm text-slate-500">Áreas de estudo</p>
+                    <p className="text-sm text-slate-500">Áreas</p>
                     <p className="mt-2 text-3xl font-bold">{state.studyAreasCount}</p>
                 </article>
                 <article className="sf-panel">
-                    <p className="text-sm text-slate-500">Rotinas ativas</p>
+                    <p className="text-sm text-slate-500">Rotinas</p>
                     <p className="mt-2 text-3xl font-bold">{state.routinesCount}</p>
                 </article>
                 <article className="sf-panel">
-                    <p className="text-sm text-slate-500">Materiais submetidos</p>
+                    <p className="text-sm text-slate-500">Materiais</p>
                     <p className="mt-2 text-3xl font-bold">{state.materialsCount}</p>
                 </article>
             </div>
 
-            <article className="sf-panel flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h2 className="font-semibold text-slate-950">Próxima ação sugerida</h2>
-                    <p className="mt-1 text-sm text-slate-600">
-                        Revê as tuas rotinas para manter continuidade no estudo.
-                    </p>
-                </div>
-                {/* A ligação aponta para rota existente e não transporta dados sensíveis no URL. */}
-                <a className="sf-button-secondary" href="/app/rotinas">
-                    Rever rotinas
-                </a>
-            </article>
+            <div className="flex flex-wrap gap-3">
+                <a className="sf-button-primary" href="/app/areas">Criar área</a>
+                <a className="sf-button-secondary" href="/app/rotinas">Organizar rotinas</a>
+            </div>
         </section>
     );
 }
