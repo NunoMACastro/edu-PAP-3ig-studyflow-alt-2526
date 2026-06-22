@@ -1,12 +1,8 @@
-/**
- * Implementa um componente React reutilizavel para materials.
- */
+// apps/web/src/components/materials/MaterialSubmitForm.tsx
 import { FormEvent, useState } from "react";
+import { FormField } from "../forms/FormField.js";
 import { submitFileMaterial, submitTextMaterial } from "../../lib/apiClient.js";
 
-/**
- * Props do componente React de materiais privados; mantêm explícitas as dependências vindas da página.
- */
 type MaterialSubmitFormProps = {
     studyAreaId: string;
     onSubmitted: () => Promise<void>;
@@ -16,7 +12,7 @@ type MaterialSubmitFormProps = {
  * Formulário de submissão de materiais.
  *
  * @param props Área alvo e callback de refresh.
- * @returns Controlos para tópico, URL e ficheiro.
+ * @returns Controlos acessíveis para tópico, URL e ficheiro.
  */
 export function MaterialSubmitForm({ studyAreaId, onSubmitted }: MaterialSubmitFormProps) {
     const [mode, setMode] = useState<"TOPIC" | "URL" | "FILE">("TOPIC");
@@ -24,6 +20,12 @@ export function MaterialSubmitForm({ studyAreaId, onSubmitted }: MaterialSubmitF
     const [body, setBody] = useState("");
     const [file, setFile] = useState<File | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    const bodyLabel = mode === "URL" ? "URL do material" : "Texto ou tópico";
+    const bodyHelpText =
+        mode === "URL"
+            ? "Indica um endereço que o backend possa validar."
+            : "Escreve o tópico ou conteúdo base que será guardado na área.";
 
     /**
      * Submete o material conforme o modo escolhido.
@@ -39,6 +41,7 @@ export function MaterialSubmitForm({ studyAreaId, onSubmitted }: MaterialSubmitF
                 if (!file) throw new Error("Escolhe um ficheiro.");
                 await submitFileMaterial(studyAreaId, file, title);
             } else {
+                // O userId vem da sessão HttpOnly no backend; o frontend envia apenas dados do material.
                 await submitTextMaterial(studyAreaId, {
                     type: mode,
                     title,
@@ -58,31 +61,41 @@ export function MaterialSubmitForm({ studyAreaId, onSubmitted }: MaterialSubmitF
     return (
         <form className="sf-panel space-y-4" onSubmit={(event) => void handleSubmit(event)}>
             <h2 className="text-lg font-bold">Novo material</h2>
-            {error ? <p className="sf-error">{error}</p> : null}
-            <div className="space-y-2">
-                <label htmlFor="materialMode">Tipo</label>
-                <select id="materialMode" value={mode} onChange={(event) => setMode(event.target.value as "TOPIC" | "URL" | "FILE")}>
+            {error ? (
+                <p className="sf-error" role="alert">
+                    {error}
+                </p>
+            ) : null}
+            <FormField id="materialMode" label="Tipo" helpText="Escolhe se vais guardar tópico, URL ou ficheiro.">
+                <select
+                    value={mode}
+                    onChange={(event) => setMode(event.target.value as "TOPIC" | "URL" | "FILE")}
+                >
                     <option value="TOPIC">Tópico</option>
                     <option value="URL">URL</option>
                     <option value="FILE">PDF/DOCX</option>
                 </select>
-            </div>
-            <div className="space-y-2">
-                <label htmlFor="materialTitle">Título</label>
-                <input id="materialTitle" value={title} onChange={(event) => setTitle(event.target.value)} required />
-            </div>
+            </FormField>
+            <FormField id="materialTitle" label="Título" helpText="Usa um título curto para encontrares o material depois.">
+                <input value={title} onChange={(event) => setTitle(event.target.value)} required />
+            </FormField>
             {mode === "FILE" ? (
-                <div className="space-y-2">
-                    <label htmlFor="materialFile">Ficheiro</label>
-                    <input id="materialFile" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required />
-                </div>
+                <FormField id="materialFile" label="Ficheiro" helpText="Aceita PDF ou DOCX para processamento pela API.">
+                    <input
+                        type="file"
+                        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                        required
+                    />
+                </FormField>
             ) : (
-                <div className="space-y-2">
-                    <label htmlFor="materialBody">{mode === "URL" ? "URL" : "Texto"}</label>
-                    <textarea id="materialBody" rows={4} value={body} onChange={(event) => setBody(event.target.value)} required />
-                </div>
+                <FormField id="materialBody" label={bodyLabel} helpText={bodyHelpText}>
+                    <textarea rows={4} value={body} onChange={(event) => setBody(event.target.value)} required />
+                </FormField>
             )}
-            <button className="sf-button-primary" type="submit">Submeter</button>
+            <button className="sf-button-primary" type="submit">
+                Submeter
+            </button>
         </form>
     );
 }
