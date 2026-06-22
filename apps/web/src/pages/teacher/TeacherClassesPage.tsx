@@ -1,18 +1,25 @@
 // apps/web/src/pages/teacher/TeacherClassesPage.tsx
 import { FormEvent, useEffect, useState } from "react";
-import { PageHeader } from "../../components/PageHeader.js";
-import { ResponsivePageFrame } from "../../components/layout/ResponsivePageFrame.js";
+import { FormField } from "../../components/forms/FormField.js";
 import {
     addClassStudent,
     createTeacherClass,
     listTeacherClasses,
     SchoolClass,
 } from "../../lib/apiClient.js";
+import {
+    FieldErrors,
+    hasFieldErrors,
+    requireFields,
+} from "../../features/mf5/form-validation.js";
+
+type TeacherClassField = "name" | "code" | "schoolYear";
+type StudentEmailField = "studentEmail";
 
 /**
  * Página de turmas oficiais do professor.
  *
- * @returns Gestão responsiva de turmas, alunos e atalhos docentes.
+ * @returns Formulários com validação frontend antes dos pedidos HTTP.
  */
 export function TeacherClassesPage() {
     const [classes, setClasses] = useState<SchoolClass[]>([]);
@@ -20,44 +27,74 @@ export function TeacherClassesPage() {
     const [code, setCode] = useState("");
     const [schoolYear, setSchoolYear] = useState("2025/2026");
     const [emails, setEmails] = useState<Record<string, string>>({});
+    const [classFieldErrors, setClassFieldErrors] = useState<FieldErrors<TeacherClassField>>({});
+    const [studentFieldErrors, setStudentFieldErrors] = useState<Record<string, FieldErrors<StudentEmailField>>>({});
+    const [creating, setCreating] = useState(false);
+    const [addingStudentId, setAddingStudentId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isCreating, setIsCreating] = useState(false);
 
     /**
-     * Recarrega as turmas do professor autenticado.
-     *
-     * @returns Promise resolvida depois de atualizar a lista.
+     * Recarrega dados remotos para manter a interface atualizada.
      */
     async function refresh(): Promise<void> {
-        setIsLoading(true);
-        setError(null);
-        try {
-            // A API só devolve turmas que o professor autenticado pode gerir.
-            setClasses(await listTeacherClasses());
-        } catch (caught) {
-            setError(caught instanceof Error ? caught.message : "Erro ao carregar turmas.");
-        } finally {
-            setIsLoading(false);
-        }
+        setClasses(await listTeacherClasses());
     }
 
     useEffect(() => {
-        void refresh();
+        refresh().catch((caught: unknown) =>
+            setError(caught instanceof Error ? caught.message : "Erro ao carregar turmas."),
+        );
     }, []);
 
     /**
-     * Cria uma turma oficial para o professor autenticado.
+     * Remove o erro de um campo quando o professor começa a corrigir esse valor.
+     *
+     * @param field Campo de criação de turma que mudou.
+     */
+    function clearClassFieldError(field: TeacherClassField): void {
+        setClassFieldErrors((current) => {
+            const next = { ...current };
+            delete next[field];
+            return next;
+        });
+    }
+
+    /**
+     * Remove o erro do email dentro de uma turma específica.
+     *
+     * @param classId Turma onde o professor está a escrever.
+     */
+    function clearStudentFieldError(classId: string): void {
+        setStudentFieldErrors((current) => ({
+            ...current,
+            [classId]: {},
+        }));
+    }
+
+    /**
+     * Valida e cria uma turma oficial.
      *
      * @param event Evento de submissão do formulário.
-     * @returns Promise resolvida depois de criar e recarregar.
      */
     async function handleCreate(event: FormEvent): Promise<void> {
         event.preventDefault();
         setError(null);
-        setIsCreating(true);
+
+        const nextErrors = requireFields<TeacherClassField>([
+            { name: "name", label: "Nome", value: name },
+            { name: "code", label: "Código", value: code },
+            { name: "schoolYear", label: "Ano letivo", value: schoolYear },
+        ]);
+
+        if (hasFieldErrors(nextErrors)) {
+            // Este return é a barreira de UX: sem campos válidos, não há pedido HTTP.
+            setClassFieldErrors(nextErrors);
+            return;
+        }
+
+        setClassFieldErrors({});
+        setCreating(true);
         try {
-            // O backend valida o professor e impede criar turmas em nome de outro utilizador.
             await createTeacherClass({ name, code, schoolYear });
             setName("");
             setCode("");
@@ -65,138 +102,136 @@ export function TeacherClassesPage() {
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : "Erro ao criar turma.");
         } finally {
-            setIsCreating(false);
+            setCreating(false);
         }
     }
 
     /**
-     * Adiciona um aluno a uma turma do professor autenticado.
+     * Valida e adiciona um aluno a uma turma oficial.
      *
-     * @param classId Identificador da turma oficial.
-     * @returns Promise resolvida depois de associar o aluno e recarregar.
+     * @param classId Identificador da turma gerida pelo professor autenticado.
      */
     async function handleAddStudent(classId: string): Promise<void> {
         setError(null);
-        try {
-            const email = emails[classId]?.trim() ?? "";
-            if (email.length < 3) {
-                throw new Error("Indica o email do aluno.");
-            }
+        const email = emails[classId] ?? "";
 
+        const nextErrors = requireFields<StudentEmailField>([
+            { name: "studentEmail", label: "Email do aluno", value: email },
+        ]);
+
+        if (hasFieldErrors(nextErrors)) {
+            // A API continua a validar permissões; aqui só evitamos uma submissão vazia.
+            setStudentFieldErrors((current) => ({ ...current, [classId]: nextErrors }));
+            return;
+        }
+
+        setStudentFieldErrors((current) => ({ ...current, [classId]: {} }));
+        setAddingStudentId(classId);
+        try {
             await addClassStudent(classId, email);
             setEmails((current) => ({ ...current, [classId]: "" }));
             await refresh();
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : "Erro ao adicionar aluno.");
+        } finally {
+            setAddingStudentId(null);
         }
     }
 
-    const createClassForm = (
-        <form className="sf-panel space-y-4" onSubmit={(event) => void handleCreate(event)}>
-            <h2 className="text-lg font-bold">Nova turma</h2>
-            {error ? <p className="sf-error">{error}</p> : null}
-
-            <label className="block" htmlFor="className">
-                Nome
-                <input id="className" value={name} onChange={(event) => setName(event.target.value)} />
-            </label>
-
-            <label className="block" htmlFor="classCode">
-                Código
-                <input id="classCode" value={code} onChange={(event) => setCode(event.target.value)} />
-            </label>
-
-            <label className="block" htmlFor="classSchoolYear">
-                Ano letivo
-                <input
-                    id="classSchoolYear"
-                    value={schoolYear}
-                    onChange={(event) => setSchoolYear(event.target.value)}
-                />
-            </label>
-
-            <button
-                className="sf-button-primary"
-                disabled={isCreating || name.trim().length < 2 || code.trim().length < 2}
-                type="submit"
-            >
-                {isCreating ? "A criar..." : "Criar turma"}
-            </button>
-        </form>
-    );
-
-    const classesList = (
-        <section className="min-w-0 space-y-3">
-            {isLoading ? <p className="sf-panel text-sm text-slate-600">A carregar turmas...</p> : null}
-            {!isLoading && classes.length === 0 ? (
-                <p className="sf-panel text-sm text-slate-600">Ainda não tens turmas.</p>
-            ) : null}
-
-            {classes.map((schoolClass) => (
-                <article className="sf-panel min-w-0 space-y-3" key={schoolClass._id}>
-                    <div>
-                        <h2 className="break-words font-semibold">{schoolClass.name}</h2>
-                        <p className="text-sm text-slate-600">
-                            {schoolClass.code} · {schoolClass.schoolYear} · {schoolClass.studentIds.length} alunos
-                        </p>
-                    </div>
-
-                    <div className="grid min-w-0 gap-2 sm:grid-cols-[1fr_auto]">
-                        <input
-                            aria-label={`Email do aluno para ${schoolClass.name}`}
-                            value={emails[schoolClass._id] ?? ""}
-                            onChange={(event) =>
-                                setEmails((current) => ({
-                                    ...current,
-                                    [schoolClass._id]: event.target.value,
-                                }))
-                            }
-                            placeholder="email do aluno"
-                        />
-                        <button
-                            className="sf-button-secondary"
-                            onClick={() => void handleAddStudent(schoolClass._id)}
-                            type="button"
-                        >
-                            Adicionar aluno
-                        </button>
-                    </div>
-
-                    <div className="flex min-w-0 flex-wrap gap-2">
-                        {/* Estes links mantêm a navegação docente existente sem criar novas regras de permissão. */}
-                        <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/disciplinas`}>
-                            Disciplinas
-                        </a>
-                        <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/publicacoes`}>
-                            Publicações
-                        </a>
-                        <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/salas-guiadas`}>
-                            Salas guiadas
-                        </a>
-                        <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/projectos`}>
-                            Projectos
-                        </a>
-                        <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/progresso`}>
-                            Progresso
-                        </a>
-                    </div>
-                </article>
-            ))}
-        </section>
-    );
-
     return (
-        <section className="space-y-6">
-            <PageHeader
-                title="Turmas"
-                description="Cria turmas, associa alunos e entra nos módulos docentes sem perder contexto."
-            />
+        <section className="grid gap-6 lg:grid-cols-[380px_1fr]">
+            <form className="sf-panel space-y-4" onSubmit={(event) => void handleCreate(event)}>
+                <h1 className="text-xl font-bold">Turmas</h1>
+                {error ? <p className="sf-error">{error}</p> : null}
 
-            <ResponsivePageFrame
-                aside={createClassForm}
-                asideLabel="Criar turma"
-                main={classesList}
-            />
+                <FormField
+                    id="teacherClassName"
+                    label="Nome"
+                    helpText="Nome visível da turma para alunos e professores."
+                    error={classFieldErrors.name}
+                >
+                    <input value={name} onChange={(event) => {
+                        setName(event.target.value);
+                        clearClassFieldError("name");
+                    }} />
+                </FormField>
+
+                <FormField
+                    id="teacherClassCode"
+                    label="Código"
+                    helpText="Código curto usado para identificar a turma."
+                    error={classFieldErrors.code}
+                >
+                    <input value={code} onChange={(event) => {
+                        setCode(event.target.value);
+                        clearClassFieldError("code");
+                    }} />
+                </FormField>
+
+                <FormField
+                    id="teacherClassSchoolYear"
+                    label="Ano letivo"
+                    helpText="Formato recomendado: 2025/2026."
+                    error={classFieldErrors.schoolYear}
+                >
+                    <input value={schoolYear} onChange={(event) => {
+                        setSchoolYear(event.target.value);
+                        clearClassFieldError("schoolYear");
+                    }} />
+                </FormField>
+
+                <button className="sf-button-primary" disabled={creating} type="submit">
+                    {creating ? "A criar..." : "Criar turma"}
+                </button>
+            </form>
+
+            <div className="grid gap-3">
+                {classes.length === 0 ? (
+                    <p className="sf-panel text-sm text-slate-600">Ainda não tens turmas.</p>
+                ) : null}
+                {classes.map((schoolClass) => (
+                    <article className="sf-panel space-y-3" key={schoolClass._id}>
+                        <div>
+                            <h2 className="font-semibold">{schoolClass.name}</h2>
+                            <p className="text-sm text-slate-600">
+                                {schoolClass.code} · {schoolClass.schoolYear} · {schoolClass.studentIds.length} alunos
+                            </p>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                            <FormField
+                                id={`studentEmail-${schoolClass._id}`}
+                                label={`Email do aluno para ${schoolClass.name}`}
+                                helpText="Usa o email da conta StudyFlow do aluno."
+                                error={studentFieldErrors[schoolClass._id]?.studentEmail}
+                            >
+                                <input
+                                    type="email"
+                                    value={emails[schoolClass._id] ?? ""}
+                                    onChange={(event) => {
+                                        setEmails((current) => ({ ...current, [schoolClass._id]: event.target.value }));
+                                        clearStudentFieldError(schoolClass._id);
+                                    }}
+                                />
+                            </FormField>
+                            <button
+                                className="sf-button-secondary"
+                                disabled={addingStudentId === schoolClass._id}
+                                onClick={() => void handleAddStudent(schoolClass._id)}
+                                type="button"
+                            >
+                                {addingStudentId === schoolClass._id ? "A adicionar..." : "Adicionar aluno"}
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/disciplinas`}>Disciplinas</a>
+                            <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/publicacoes`}>Publicações</a>
+                            <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/salas-guiadas`}>Salas guiadas</a>
+                            <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/projectos`}>Projectos</a>
+                            <a className="sf-button-secondary" href={`/app/professor/turmas/${schoolClass._id}/progresso`}>Progresso</a>
+                        </div>
+                    </article>
+                ))}
+            </div>
         </section>
     );
 }

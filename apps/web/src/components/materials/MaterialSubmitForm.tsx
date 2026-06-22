@@ -1,56 +1,97 @@
 // apps/web/src/components/materials/MaterialSubmitForm.tsx
 import { FormEvent, useState } from "react";
-import { useActionFeedback } from "../../features/mf5/action-feedback.js";
+import { FormField } from "../forms/FormField.js";
 import { submitFileMaterial, submitTextMaterial } from "../../lib/apiClient.js";
+import {
+    FieldErrors,
+    RequiredField,
+    hasFieldErrors,
+    requireFields,
+} from "../../features/mf5/form-validation.js";
 
-type MaterialMode = "TOPIC" | "URL" | "FILE";
-
-/**
- * Props do formulário de materiais privados.
- */
 type MaterialSubmitFormProps = {
-    /** Área privada onde o material será submetido. */
     studyAreaId: string;
-    /** Callback para atualizar a página depois de criar o material. */
     onSubmitted: () => Promise<void>;
 };
 
+type MaterialMode = "TOPIC" | "URL" | "FILE";
+type MaterialField = "title" | "body" | "fileName";
+
 /**
- * Formulário de submissão de materiais com feedback imediato.
+ * Formulário de submissão de materiais privados.
  *
- * @param props Área alvo e callback de atualização.
- * @returns Formulário para tópico, URL ou ficheiro.
+ * @param props Área de estudo alvo e callback de refresh.
+ * @returns Controlos com validação frontend antes da submissão.
  */
 export function MaterialSubmitForm({ studyAreaId, onSubmitted }: MaterialSubmitFormProps) {
     const [mode, setMode] = useState<MaterialMode>("TOPIC");
     const [title, setTitle] = useState("");
     const [body, setBody] = useState("");
     const [file, setFile] = useState<File | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<FieldErrors<MaterialField>>({});
+    const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const { clearFeedback, notifyError, notifyLoading, notifySuccess } = useActionFeedback();
+
+    const bodyLabel = mode === "URL" ? "URL" : "Texto";
+    const bodyHelpText =
+        mode === "URL"
+            ? "Indica o endereço do material que queres guardar."
+            : "Escreve o tópico ou apontamento que queres estudar.";
+
+    /**
+     * Remove a mensagem de erro de um campo quando o aluno começa a corrigi-lo.
+     *
+     * @param field Campo alterado pelo utilizador.
+     */
+    function clearFieldError(field: MaterialField): void {
+        setFieldErrors((current) => {
+            const next = { ...current };
+            delete next[field];
+            return next;
+        });
+    }
+
+    /**
+     * Monta os campos obrigatórios conforme o modo escolhido.
+     *
+     * @returns Erros por campo que devem ser mostrados antes da API.
+     */
+    function validateFields(): FieldErrors<MaterialField> {
+        const fields: Array<RequiredField<MaterialField>> = [
+            { name: "title", label: "Título", value: title },
+        ];
+
+        if (mode === "FILE") {
+            // O ficheiro é validado pelo nome aqui; a API continua a validar tipo e tamanho.
+            fields.push({ name: "fileName", label: "Ficheiro", value: file?.name ?? "" });
+        } else {
+            fields.push({ name: "body", label: bodyLabel, value: body });
+        }
+
+        return requireFields(fields);
+    }
 
     /**
      * Submete o material conforme o modo escolhido.
      *
      * @param event Evento de submissão.
-     * @returns Promise resolvida depois de guardar e atualizar a lista.
      */
     async function handleSubmit(event: FormEvent): Promise<void> {
         event.preventDefault();
         setError(null);
-        clearFeedback();
 
+        const nextErrors = validateFields();
+        if (hasFieldErrors(nextErrors)) {
+            // Sem dados mínimos, não chamamos a API e mostramos erros junto aos campos.
+            setFieldErrors(nextErrors);
+            return;
+        }
+
+        setFieldErrors({});
+        setSubmitting(true);
         try {
-            setIsSubmitting(true);
-            notifyLoading(mode === "FILE" ? "A enviar ficheiro..." : "A guardar material...");
-
             if (mode === "FILE") {
-                if (!file) {
-                    throw new Error("Escolhe um ficheiro.");
-                }
-                // O ficheiro segue por multipart com cookies HttpOnly; não guardes ficheiros nem tokens no browser.
-                await submitFileMaterial(studyAreaId, file, title);
+                await submitFileMaterial(studyAreaId, file!, title);
             } else {
                 await submitTextMaterial(studyAreaId, {
                     type: mode,
@@ -59,19 +100,14 @@ export function MaterialSubmitForm({ studyAreaId, onSubmitted }: MaterialSubmitF
                     topicText: mode === "TOPIC" ? body : undefined,
                 });
             }
-
             setTitle("");
             setBody("");
             setFile(null);
             await onSubmitted();
-            notifySuccess("Material submetido com sucesso.");
         } catch (caught) {
-            const message = caught instanceof Error ? caught.message : "Não foi possível submeter.";
-            setError(message);
-            // A mensagem é segura para UI e não expõe storage, cookie, prompt ou conteúdo privado.
-            notifyError(message);
+            setError(caught instanceof Error ? caught.message : "Não foi possível submeter.");
         } finally {
-            setIsSubmitting(false);
+            setSubmitting(false);
         }
     }
 
@@ -80,59 +116,64 @@ export function MaterialSubmitForm({ studyAreaId, onSubmitted }: MaterialSubmitF
             <h2 className="text-lg font-bold">Novo material</h2>
             {error ? <p className="sf-error">{error}</p> : null}
 
-            <div className="space-y-2">
-                <label htmlFor="materialMode">Tipo</label>
+            <FormField id="materialMode" label="Tipo" helpText="Escolhe se vais guardar tópico, URL ou ficheiro.">
                 <select
-                    disabled={isSubmitting}
-                    id="materialMode"
-                    onChange={(event) => setMode(event.target.value as MaterialMode)}
                     value={mode}
+                    onChange={(event) => {
+                        setMode(event.target.value as MaterialMode);
+                        setFieldErrors({});
+                    }}
                 >
                     <option value="TOPIC">Tópico</option>
                     <option value="URL">URL</option>
                     <option value="FILE">PDF/DOCX</option>
                 </select>
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-                <label htmlFor="materialTitle">Título</label>
-                <input
-                    disabled={isSubmitting}
-                    id="materialTitle"
-                    onChange={(event) => setTitle(event.target.value)}
-                    required
-                    value={title}
-                />
-            </div>
+            <FormField
+                id="materialTitle"
+                label="Título"
+                helpText="Usa um título curto para encontrares o material depois."
+                error={fieldErrors.title}
+            >
+                <input value={title} onChange={(event) => {
+                    setTitle(event.target.value);
+                    clearFieldError("title");
+                }} />
+            </FormField>
 
             {mode === "FILE" ? (
-                <div className="space-y-2">
-                    <label htmlFor="materialFile">Ficheiro</label>
+                <FormField
+                    id="materialFile"
+                    label="Ficheiro"
+                    helpText="Escolhe um PDF ou DOCX para a API processar."
+                    error={fieldErrors.fileName}
+                >
                     <input
-                        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        disabled={isSubmitting}
-                        id="materialFile"
-                        onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                        required
                         type="file"
+                        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        onChange={(event) => {
+                            setFile(event.target.files?.[0] ?? null);
+                            clearFieldError("fileName");
+                        }}
                     />
-                </div>
+                </FormField>
             ) : (
-                <div className="space-y-2">
-                    <label htmlFor="materialBody">{mode === "URL" ? "URL" : "Texto"}</label>
-                    <textarea
-                        disabled={isSubmitting}
-                        id="materialBody"
-                        onChange={(event) => setBody(event.target.value)}
-                        required
-                        rows={4}
-                        value={body}
-                    />
-                </div>
+                <FormField
+                    id="materialBody"
+                    label={bodyLabel}
+                    helpText={bodyHelpText}
+                    error={fieldErrors.body}
+                >
+                    <textarea rows={4} value={body} onChange={(event) => {
+                        setBody(event.target.value);
+                        clearFieldError("body");
+                    }} />
+                </FormField>
             )}
 
-            <button className="sf-button-primary" disabled={isSubmitting} type="submit">
-                {isSubmitting ? "A submeter..." : "Submeter"}
+            <button className="sf-button-primary" disabled={submitting} type="submit">
+                {submitting ? "A submeter..." : "Submeter"}
             </button>
         </form>
     );
