@@ -10,7 +10,16 @@
     "start:e2e": "nest build && node dist/scripts/start-e2e-api.js",
     "seed:dev-users": "nest build && node dist/scripts/seed-development-users.js",
     "test": "jest --config ./jest.config.cjs --passWithNoTests",
-    "test:unit": "npm test"
+    "test:unit": "npm test""scripts": {
+  "build": "nest build",
+  "start": "nest start",
+  "start:dev": "nest start --watch",
+  "start:e2e": "nest build && node dist/scripts/start-e2e-api.js",
+  "seed:dev-users": "nest build && node dist/scripts/seed-development-users.js",
+  "smoke:200-users": "node src/scripts/smoke-200-users.mjs",
+  "test": "jest --config ./jest.config.cjs --passWithNoTests",
+  "test:unit": "npm test"
+}
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
