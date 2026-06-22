@@ -78,3 +78,12 @@ main().catch(async (error: unknown) => {
     await mongoose.disconnect().catch(() => undefined);
     process.exitCode = 1;
 });
+cd apps/api
+
+STUDYFLOW_BASE_URL="http://127.0.0.1:3000" \
+STUDYFLOW_SMOKE_PATH="/api/auth/me" \
+STUDYFLOW_SMOKE_USERS="200" \
+STUDYFLOW_SMOKE_EXPECTED_STATUS="200" \
+STUDYFLOW_SMOKE_SCHOOL_CONTEXT="escola-teste-isolada" \
+STUDYFLOW_SMOKE_COOKIE="sf_sid=valor_de_teste_local" \
+npm run smoke:200-users
