@@ -24,11 +24,19 @@ import {
         OfficialMaterialsModule,
         SubjectsModule,
         MongooseModule.forFeature([
+            // O schema do job tem de ficar registado para a fila guardar estado fora da memória local.
             { name: MaterialIndexJob.name, schema: MaterialIndexJobSchema },
         ]),
     ],
     controllers: [MaterialIndexController],
-    providers: [MaterialIndexService],
-    exports: [MaterialIndexService],
+    providers: [
+        MaterialIndexService,
+        // A fila fica separada do service principal para devolver QUEUED sem esperar pela extração.
+        MaterialIndexQueueService,
+    ],
+    exports: [
+        // Só o service canónico é exportado para os BKs seguintes não dependerem da implementação da fila.
+        MaterialIndexService,
+    ],
 })
 export class MaterialIndexModule {}

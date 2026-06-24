@@ -1590,9 +1590,9 @@ export function createClassProgressNote(
 /**
  * Inicia indexação textual de material privado do aluno.
  *
- * @param studyAreaId Identificador da área de estudo; garante que o pedido fica limitado ao espaço privado do aluno.
- * @param materialId Identificador do material; o backend valida ownership ou ligação oficial antes de agir.
- * @returns Job de indexação privado com estado e chunks quando disponíveis.
+ * @param studyAreaId Identificador da área de estudo; o backend valida ownership.
+ * @param materialId Identificador do material; nunca envia `userId` no body.
+ * @returns Job QUEUED/PROCESSING/DONE/FAILED devolvido pela API.
  */
 export function indexPrivateMaterial(
     studyAreaId: string,
@@ -1602,6 +1602,16 @@ export function indexPrivateMaterial(
         `/api/student/study-areas/${studyAreaId}/materials/${materialId}/index-jobs`,
         { method: "POST" },
     );
+}
+
+/**
+ * Consulta o estado de um job de indexação autorizado.
+ *
+ * @param jobId Job devolvido pelo pedido inicial.
+ * @returns Job com estado atualizado para a UI.
+ */
+export function getMaterialIndexJob(jobId: string): Promise<MaterialIndexJob> {
+    return requestJson<MaterialIndexJob>(`/api/material-index-jobs/${jobId}`);
 }
 
 /**
