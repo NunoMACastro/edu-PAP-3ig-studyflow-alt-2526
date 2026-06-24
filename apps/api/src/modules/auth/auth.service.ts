@@ -1,3 +1,4 @@
+// apps/api/src/modules/auth/auth.service.ts
 /**
  * Implementa as regras de negócio de auth e concentra validações do domínio.
  */
@@ -7,10 +8,10 @@ import {
     Injectable,
     UnauthorizedException,
 } from "@nestjs/common";
-import bcrypt from "bcrypt";
 import { isMongoDuplicateKeyError } from "../../common/utils/mongo-error.util.js";
 import { PublicUserDto, UsersService } from "../users/users.service.js";
 import { LoginDto } from "./dto/login.dto.js";
+import { PasswordHashingService } from "./password-hashing.service.js";
 import { RegisterStudentDto } from "./dto/register-student.dto.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -24,9 +25,13 @@ export class AuthService {
     /**
      * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
      *
-     * @param usersService Service injetado para reutilizar regras de users sem duplicar validações.
+     * @param usersService Service de utilizadores usado para ler e criar contas.
+     * @param passwordHashingService Service que aplica a política RNF15 de hashing.
      */
-    constructor(private readonly usersService: UsersService) {}
+    constructor(
+        private readonly usersService: UsersService,
+        private readonly passwordHashingService: PasswordHashingService,
+    ) {}
 
     /**
      * Regista um aluno com email/password.
@@ -48,8 +53,10 @@ export class AuthService {
             });
         }
 
-        // O service nunca guarda passwords em texto claro; só persiste o hash bcrypt.
-        const passwordHash = await bcrypt.hash(input.password, 12);
+        // O hashing fica isolado para garantir que todos os registos usam a mesma política.
+        const passwordHash = await this.passwordHashingService.hash(
+            input.password,
+        );
         try {
             const user = await this.usersService.createStudent(
                 email,
@@ -80,12 +87,12 @@ export class AuthService {
             throw this.invalidCredentials();
         }
 
-        const passwordMatches = await bcrypt.compare(
+        const passwordMatches = await this.passwordHashingService.compare(
             input.password,
             user.passwordHash,
         );
         if (!passwordMatches) {
-            // A mesma exceção é usada para email inexistente e password errada.
+            // O erro continua igual para email inexistente e password errada.
             throw this.invalidCredentials();
         }
 
