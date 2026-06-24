@@ -1,3 +1,4 @@
+// apps/api/src/modules/auth/auth.controller.ts
 /**
  * Expõe os endpoints HTTP de auth e delega regras de negócio para o service.
  */
@@ -19,27 +20,27 @@ import { PublicUserDto } from "../users/users.service.js";
 import { LoginDto } from "./dto/login.dto.js";
 import { RegisterStudentDto } from "./dto/register-student.dto.js";
 import {
-    SESSION_COOKIE_NAME,
-    SESSION_TTL_SECONDS,
-    SessionService,
-} from "./session.service.js";
+    clearSessionCookieOptions,
+    sessionCookieOptions,
+} from "./session-cookie.options.js";
+import { SESSION_COOKIE_NAME, SessionService } from "./session.service.js";
 import { AuthService } from "./auth.service.js";
 import { LoginAttemptsService } from "./login-attempts.service.js";
 
 /**
  * Controller de autenticação da MF0.
  *
- * Expõe os endpoints derivados dos BKs: registo, login, logout e consulta da
- * sessão atual. O cookie de sessão é HttpOnly e não há tokens em localStorage.
+ * Expõe registo, login, logout e consulta da sessão atual. O cookie de sessão
+ * é HttpOnly e não há tokens guardados pelo frontend.
  */
 @Controller("api/auth")
 export class AuthController {
     /**
-     * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
+     * Recebe dependências por injeção para manter a classe testável.
      *
-     * @param authService Service injetado para reutilizar regras de auth sem duplicar validações.
-     * @param sessionService Service injetado para reutilizar regras de session sem duplicar validações.
-     * @param loginAttemptsService Service injetado para reutilizar regras de login attempts sem duplicar validações.
+     * @param authService Service de autenticação local.
+     * @param sessionService Service de sessões opacas.
+     * @param loginAttemptsService Service de controlo de tentativas de login.
      */
     constructor(
         private readonly authService: AuthService,
@@ -91,7 +92,9 @@ export class AuthController {
 
         await this.loginAttemptsService.clearEmailFailures(body.email);
         const sessionId = await this.sessionService.createSession(user);
-        this.setSessionCookie(response, sessionId);
+
+        // Só o identificador opaco vai para o browser; os dados ficam no servidor.
+        response.cookie(SESSION_COOKIE_NAME, sessionId, sessionCookieOptions());
         return user;
     }
 
@@ -122,34 +125,16 @@ export class AuthController {
     ) {
         const sessionId = request.cookies?.[SESSION_COOKIE_NAME];
         if (sessionId) {
+            // Primeiro invalida a sessão no servidor; depois remove o cookie do browser.
             await this.sessionService.destroySession(sessionId);
         }
 
-        response.clearCookie(SESSION_COOKIE_NAME, {
-            httpOnly: true,
-            sameSite: "lax",
-            secure: process.env.NODE_ENV === "production",
-            path: "/",
-        });
+        response.clearCookie(
+            SESSION_COOKIE_NAME,
+            clearSessionCookieOptions(),
+        );
 
         return { ok: true };
-    }
-
-    /**
-     * Aplica o cookie de sessão com flags seguras.
-     *
-     * @param response Resposta Express.
-     * @param sessionId Identificador opaco da sessão.
-     * @returns Nada; apenas modifica os headers da resposta.
-     */
-    private setSessionCookie(response: Response, sessionId: string): void {
-        response.cookie(SESSION_COOKIE_NAME, sessionId, {
-            httpOnly: true,
-            sameSite: "lax",
-            secure: process.env.NODE_ENV === "production",
-            maxAge: SESSION_TTL_SECONDS * 1000,
-            path: "/",
-        });
     }
 
     /**
