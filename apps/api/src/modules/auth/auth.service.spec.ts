@@ -7,10 +7,35 @@ import {
     UnauthorizedException,
     ValidationPipe,
 } from "@nestjs/common";
+import { Test } from "@nestjs/testing";
 import bcrypt from "bcrypt";
 import { AuthService } from "./auth.service.js";
 import { RegisterStudentDto } from "./dto/register-student.dto.js";
+import { UsersService } from "../users/users.service.js";
+import { PasswordHashingService } from "./password-hashing.service.js";
 
+type UsersServiceMock = {
+    findByEmail: jest.Mock;
+    createStudent: jest.Mock;
+    toPublicUser: jest.Mock;
+};
+
+async function createAuthService(
+    usersService: UsersServiceMock,
+): Promise<AuthService> {
+    const moduleRef = await Test.createTestingModule({
+        providers: [
+            AuthService,
+            PasswordHashingService,
+            {
+                provide: UsersService,
+                useValue: usersService,
+            },
+        ],
+    }).compile();
+
+    return moduleRef.get(AuthService);
+}
 /**
  * Teste unitário mínimo previsto pelo BK-MF0-01.
  *

@@ -1,3 +1,4 @@
+// apps/api/src/modules/auth/auth.module.ts
 /**
  * Regista providers, controllers e schemas necessários ao módulo de auth.
  */
@@ -9,6 +10,7 @@ import { UsersService } from "../users/users.service.js";
 import { AuthController } from "./auth.controller.js";
 import { AuthService } from "./auth.service.js";
 import { LoginAttemptsService } from "./login-attempts.service.js";
+import { PasswordHashingService } from "./password-hashing.service.js";
 import { SessionService, SESSION_REDIS } from "./session.service.js";
 import { createInMemorySessionStore } from "./session-store.js";
 import { User, UserSchema } from "./schemas/user.schema.js";
@@ -27,6 +29,7 @@ import { User, UserSchema } from "./schemas/user.schema.js";
     providers: [
         AuthService,
         LoginAttemptsService,
+        PasswordHashingService,
         UsersService,
         SessionService,
         SessionGuard,
@@ -45,12 +48,19 @@ import { User, UserSchema } from "./schemas/user.schema.js";
                     return createInMemorySessionStore();
                 }
 
+                // Redis guarda sessões fora do processo Node, preparando escala horizontal.
                 return new Redis(
                     process.env.REDIS_URL ?? "redis://127.0.0.1:6379",
                 );
             },
         },
     ],
-    exports: [AuthService, UsersService, SessionService, SessionGuard],
+    exports: [
+        AuthService,
+        PasswordHashingService,
+        UsersService,
+        SessionService,
+        SessionGuard,
+    ],
 })
 export class AuthModule {}
