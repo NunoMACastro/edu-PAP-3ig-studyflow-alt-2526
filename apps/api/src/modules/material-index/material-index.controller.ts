@@ -1,9 +1,8 @@
-/**
- * Expõe os endpoints HTTP de indexação textual de materiais e delega regras de negócio para o service.
- */
+// apps/api/src/modules/material-index/material-index.controller.ts
 import { Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
+import { MaterialIndexQueueService } from "./material-index-queue.service.js";
 import { MaterialIndexService } from "./material-index.service.js";
 
 /**
@@ -12,20 +11,18 @@ import { MaterialIndexService } from "./material-index.service.js";
 @Controller("api")
 @UseGuards(SessionGuard)
 export class MaterialIndexController {
-    /**
-     * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
-     *
-     * @param indexService Service injetado para reutilizar regras de index sem duplicar validações.
-     */
-    constructor(private readonly indexService: MaterialIndexService) {}
+    constructor(
+        private readonly indexService: MaterialIndexService,
+        private readonly queueService: MaterialIndexQueueService,
+    ) {}
 
     /**
-     * Executa a operação index private no domínio de indexação textual de materiais com contrato explícito.
+     * Agenda indexação privada e devolve um job consultável sem bloquear a UI.
      *
-     * @param request Pedido HTTP já atravessado pelo guard, incluindo `request.user` quando o endpoint exige sessão.
-     * @param studyAreaId Identificador da área de estudo; mantém materiais e IA dentro do espaço privado do aluno.
-     * @param materialId Identificador do material; confirma ownership ou pertença à disciplina antes da operação.
-     * @returns Valor de indexação textual de materiais no contrato esperado pelo chamador.
+     * @param request Pedido autenticado pelo `SessionGuard`.
+     * @param studyAreaId Área privada do aluno.
+     * @param materialId Material que pertence à área.
+     * @returns Job inicial em estado QUEUED.
      */
     @Post("student/study-areas/:studyAreaId/materials/:materialId/index-jobs")
     indexPrivate(
@@ -33,19 +30,20 @@ export class MaterialIndexController {
         @Param("studyAreaId") studyAreaId: string,
         @Param("materialId") materialId: string,
     ) {
-        return this.indexService.indexPrivateMaterial(
-            request.user!,
+        return this.queueService.enqueuePrivateMaterial({
+            // O userId vem da sessão; o body não participa em decisões de ownership.
+            actor: request.user!,
             studyAreaId,
             materialId,
-        );
+        });
     }
 
     /**
-     * Executa a operação index official no domínio de indexação textual de materiais com contrato explícito.
+     * Mantém a indexação oficial existente para professores.
      *
-     * @param request Pedido HTTP já atravessado pelo guard, incluindo `request.user` quando o endpoint exige sessão.
-     * @param materialId Identificador do material; confirma ownership ou pertença à disciplina antes da operação.
-     * @returns Valor de indexação textual de materiais no contrato esperado pelo chamador.
+     * @param request Pedido autenticado pelo `SessionGuard`.
+     * @param materialId Material oficial da disciplina.
+     * @returns Job de indexação oficial.
      */
     @Post("teacher/official-materials/:materialId/index-jobs")
     indexOfficial(
@@ -56,14 +54,14 @@ export class MaterialIndexController {
     }
 
     /**
-     * Procura indexação textual de materiais com filtros de ownership, membership ou estado para evitar leituras indevidas.
+ * Consulta jobs autorizados em qualquer estado para a UI acompanhar progresso.
      *
-     * @param request Pedido HTTP já atravessado pelo guard, incluindo `request.user` quando o endpoint exige sessão.
-     * @param jobId Identificador do job de indexação; controla que chunks podem ser lidos ou versionados.
-     * @returns Entidade de indexação textual de materiais já filtrada pelo contexto recebido.
-     */
-    @Get("material-index-jobs/:jobId")
-    findDone(@Req() request: AuthenticatedRequest, @Param("jobId") jobId: string) {
-        return this.indexService.findDoneJob(request.user!, jobId);
-    }
+     * @param request Pedido autenticado pelo `SessionGuard`.
+     * @param jobId Job de indexação.
+ * @returns Job autorizado com estado QUEUED, PROCESSING, DONE ou FAILED.
+ */
+@Get("material-index-jobs/:jobId")
+findJob(@Req() request: AuthenticatedRequest, @Param("jobId") jobId: string) {
+    return this.indexService.findOwnedJob(request.user!, jobId);
+}
 }

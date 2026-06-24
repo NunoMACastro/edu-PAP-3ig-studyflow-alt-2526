@@ -198,6 +198,127 @@ export class MaterialIndexService {
         private readonly officialMaterialsService: OfficialMaterialsService,
         private readonly subjectsService: SubjectsService,
     ) {}
+    
+    /**
+     * Cria um job observável antes de iniciar a extração pesada do material privado.
+     *
+     * @param actor Utilizador autenticado vindo da sessão.
+     * @param studyAreaId Área privada do aluno.
+     * @param materialId Material a indexar.
+     * @returns Job persistido em estado QUEUED para a UI poder acompanhar.
+     */
+    async createQueuedPrivateJob(
+        actor: AuthenticatedUser,
+        studyAreaId: string,
+        materialId: string,
+    ): Promise<MaterialIndexJobView> {
+        if (actor.role !== "STUDENT") {
+            throw new ForbiddenException({
+                code: "STUDENT_ROLE_REQUIRED",
+                message: "Esta funcionalidade é exclusiva de alunos.",
+            });
+        }
+
+        const material = (await this.materialsService.findOwnedTextMaterial(
+            actor.id,
+            studyAreaId,
+            materialId,
+        )) as IndexablePrivateMaterial;
+
+        const job = await this.jobModel.create({
+            scope: "PRIVATE_AREA",
+            materialId: new Types.ObjectId(String(material._id)),
+            studyAreaId: new Types.ObjectId(studyAreaId),
+            userId: new Types.ObjectId(actor.id),
+            status: "QUEUED",
+            extractedTextChunks: [],
+        });
+
+        // A resposta fica leve: só expõe metadados do job, nunca o conteúdo privado do material.
+        return this.toView(job.toObject());
+    }
+
+    /**
+     * Consulta um job autorizado em qualquer estado para a UI poder fazer polling.
+     *
+     * @param actor Utilizador autenticado vindo da sessão.
+     * @param jobId Job de indexação a consultar.
+     * @returns Job autorizado, mesmo que ainda esteja QUEUED ou PROCESSING.
+     */
+    async findOwnedJob(
+        actor: AuthenticatedUser,
+        jobId: string,
+    ): Promise<MaterialIndexJobView> {
+        const view = await this.loadJobView(jobId);
+        this.assertOwnedJob(actor, view);
+        return view;
+    }
+
+    /**
+     * Processa um job previamente criado e atualiza o estado persistido.
+     *
+     * @param actor Utilizador autenticado preservado pelo controller.
+     * @param studyAreaId Área privada do aluno.
+     * @param materialId Material a indexar.
+     * @param jobId Job QUEUED criado antes da resposta HTTP.
+     * @returns Job atualizado para DONE ou FAILED.
+     */
+    async processQueuedPrivateJob(
+        actor: AuthenticatedUser,
+        studyAreaId: string,
+        materialId: string,
+        jobId: string,
+    ): Promise<MaterialIndexJobView> {
+        const material = (await this.materialsService.findOwnedTextMaterial(
+            actor.id,
+            studyAreaId,
+            materialId,
+        )) as IndexablePrivateMaterial;
+
+        const job = await this.jobModel.findOne({
+            _id: new Types.ObjectId(jobId),
+            scope: "PRIVATE_AREA",
+            materialId: new Types.ObjectId(materialId),
+            studyAreaId: new Types.ObjectId(studyAreaId),
+            userId: new Types.ObjectId(actor.id),
+        });
+        if (!job) throw this.notFound();
+
+        job.status = "PROCESSING";
+        job.errorMessage = undefined;
+        job.extractedTextChunks = [];
+        await job.save();
+
+        try {
+            const extraction = await this.extractPrivateMaterial(actor.id, material);
+            if (extraction.text) {
+                // O texto extraído fica no material do próprio aluno e prepara os fluxos de IA baseados em fontes.
+                await this.materialsService.markIndexedText(
+                    actor.id,
+                    materialId,
+                    extraction.text,
+                );
+            }
+
+            job.status = extraction.text ? "DONE" : "FAILED";
+            job.extractedTextChunks = this.createChunks(extraction.text, material.title);
+            job.errorMessage =
+                extraction.text
+                    ? undefined
+                    : extraction.errorMessage ?? "O material ainda não tem texto processável disponível.";
+        } catch (error) {
+            // A UI faz polling; por isso qualquer falha técnica depois de PROCESSING precisa de estado terminal.
+            job.status = "FAILED";
+            job.extractedTextChunks = [];
+            job.errorMessage =
+                error instanceof Error && error.message.includes("processável")
+                    ? error.message
+                    : "Não foi possível indexar o material neste momento.";
+        }
+
+        const savedJob = await job.save();
+        return this.toView(savedJob.toObject());
+    }
 
     /**
      * Executa a operação index private material no domínio de indexação textual de materiais com contrato explícito.
