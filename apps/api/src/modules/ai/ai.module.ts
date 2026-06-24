@@ -51,10 +51,9 @@ import { SummariesService } from "./summaries.service.js";
             { name: AiArtifact.name, schema: AiArtifactSchema },
             { name: AiQuizAttempt.name, schema: AiQuizAttemptSchema },
             { name: LearningProfile.name, schema: LearningProfileSchema },
-            {
-                name: AdaptiveExplanation.name,
-                schema: AdaptiveExplanationSchema,
-            },
+            { name: AdaptiveExplanation.name, schema: AdaptiveExplanationSchema },
+            // O job de quiz fica persistido para sobreviver a refresh da UI e a múltiplas instâncias da API.
+            { name: QuizGenerationJob.name, schema: QuizGenerationJobSchema },
         ]),
     ],
     controllers: [
@@ -67,6 +66,8 @@ import { SummariesService } from "./summaries.service.js";
         AiAreaProfileService,
         SummariesService,
         StudyToolsService,
+        // O service de jobs coordena a fila sem guardar estado em memória local do processo.
+        QuizGenerationJobsService,
         AdaptiveLearningService,
         { provide: AI_PROVIDER, useFactory: createAiProvider },
     ],
@@ -75,6 +76,8 @@ import { SummariesService } from "./summaries.service.js";
         AiAreaProfileService,
         SummariesService,
         StudyToolsService,
+        // Exportar este service prepara MF7 para observar jobs sem duplicar a lógica de geração.
+        QuizGenerationJobsService,
         AdaptiveLearningService,
     ],
 })

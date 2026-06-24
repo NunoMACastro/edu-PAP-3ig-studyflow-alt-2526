@@ -1753,3 +1753,50 @@ export function askPrivateAreaAi(
         },
     );
 }
+
+export type QuizGenerationJob = {
+    _id: string;
+    studyAreaId: string;
+    status: "QUEUED" | "PROCESSING" | "DONE" | "FAILED";
+    artifactId?: string;
+    topic?: string;
+    errorMessage?: string;
+    createdAt?: string;
+    updatedAt?: string;
+};
+
+/**
+ * Inicia geração de quiz em background.
+ *
+ * @param studyAreaId Área privada do aluno autenticado.
+ * @param input Tópico opcional; o backend escolhe fontes processáveis da área.
+ * @returns Job inicial para polling.
+ */
+export function createQuizGenerationJob(
+    studyAreaId: string,
+    input: { topic?: string } = {},
+): Promise<QuizGenerationJob> {
+    return requestJson<QuizGenerationJob>(
+        `/api/study-areas/${studyAreaId}/study-tools/quiz-jobs`,
+        {
+            method: "POST",
+            body: JSON.stringify(input),
+        },
+    );
+}
+
+/**
+ * Consulta estado de geração de quiz.
+ *
+ * @param studyAreaId Área privada do aluno autenticado.
+ * @param jobId Job devolvido pela criação.
+ * @returns Estado público do job.
+ */
+export function getQuizGenerationJob(
+    studyAreaId: string,
+    jobId: string,
+): Promise<QuizGenerationJob> {
+    return requestJson<QuizGenerationJob>(
+        `/api/study-areas/${studyAreaId}/study-tools/quiz-jobs/${jobId}`,
+    );
+}

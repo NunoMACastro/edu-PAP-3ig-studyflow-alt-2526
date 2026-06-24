@@ -78,6 +78,32 @@ export class StudyToolsService {
     ) {}
 
     /**
+     * Confirma que a área privada tem condições mínimas para iniciar um job de quiz.
+     *
+     * @param userId Identificador vindo da sessão autenticada.
+     * @param studyAreaId Área privada onde o quiz será gerado.
+     * @throws UnprocessableEntityException quando não existem fontes processáveis.
+     */
+    async assertQuizGenerationReady(
+        userId: string,
+        studyAreaId: string,
+    ): Promise<void> {
+        // A validação reutiliza services reais para bloquear áreas de outro aluno antes de criar job.
+        await this.areasService.getMyStudyArea(userId, studyAreaId);
+        const profile = await this.profileService.prepareProfile(userId, studyAreaId);
+        const sources = await this.getProcessableSources(userId, studyAreaId);
+
+        if (profile.status !== "READY_FOR_GENERATION" || sources.length === 0) {
+            // A rejeição acontece antes do job para a UI não prometer progresso sem fontes reais.
+            throw new UnprocessableEntityException({
+                code: "NO_PROCESSABLE_SOURCES",
+                message:
+                    "Este material ainda não tem texto processável para gerar conteúdo de estudo.",
+            });
+        }
+    }
+
+    /**
      * Lista ferramentas de estudo já geradas.
      *
      * @param userId Identificador vindo da sessão.
