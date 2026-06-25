@@ -8,33 +8,30 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
 import { csrfMiddleware } from "./common/middleware/csrf.middleware.js";
-import { RequireHttpsMiddleware } from "./common/middleware/require-https.middleware.js";
+import { securityHeadersMiddleware } from "./common/middleware/security-headers.middleware.js";
 import { mf0ValidationExceptionFactory } from "./common/validation/mf0-validation-exception.factory.js";
 
 /**
- * Arranca a API StudyFlow com os contratos transversais usados pela MF0 e MF6.
+ * Arranca a API StudyFlow com proteções transversais de sessão e validação.
  *
- * @returns Promise resolvida quando o servidor HTTP estiver a escutar.
+ * @returns Promise resolvida quando o servidor HTTP estiver pronto.
  */
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule);
 
+    // Headers defensivos devem ser globais para cobrir todos os endpoints da API.
+    app.use(securityHeadersMiddleware);
     app.use(cookieParser());
     app.use(csrfMiddleware);
-
-    const requireHttps = new RequireHttpsMiddleware();
-    // O bloqueio HTTPS fica antes das rotas para impedir que controllers processem tráfego inseguro.
-    app.use(requireHttps.use.bind(requireHttps));
-
     app.useGlobalPipes(
         new ValidationPipe({
             whitelist: true,
             forbidNonWhitelisted: true,
             transform: true,
+            // A factory mantém mensagens de validação controladas e sem expor dados sensíveis.
             exceptionFactory: mf0ValidationExceptionFactory,
         }),
     );
-
     app.enableCors({
         origin: process.env.WEB_ORIGIN ?? "http://localhost:5173",
         credentials: true,
