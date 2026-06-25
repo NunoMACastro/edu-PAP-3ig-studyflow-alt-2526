@@ -1,5 +1,6 @@
+// apps/api/src/modules/ai-guardrails/ai-guardrails.service.ts
 /**
- * Implementa as regras de negócio de ai guardrails e concentra validações do domínio.
+ * Implementa as regras de negócio de guardrails de IA e concentra validações do domínio.
  */
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
@@ -18,7 +19,7 @@ import {
 } from "./schemas/ai-guardrail-check.schema.js";
 
 /**
- * Contrato de guardrails de IA que documenta a estrutura esperada em tempo de desenvolvimento.
+ * Decisão pública devolvida ao frontend depois de validar um contexto IA.
  */
 export type AiGuardrailDecision = {
     _id: string;
@@ -31,20 +32,15 @@ export type AiGuardrailDecision = {
 };
 
 /**
- * Serviço de guardrails IA por contexto.
- *
- * A regra central é simples: validar contexto no backend antes de qualquer IA.
- * Cada ramo usa o service de domínio que já conhece ownership ou membership.
+ * Valida se uma chamada IA pode avançar para um contexto StudyFlow.
  */
 @Injectable()
 export class AiGuardrailsService {
     /**
-     * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
-     *
-     * @param checkModel Modelo Mongoose injetado para ler e persistir guardrails de IA.
-     * @param studyAreasService Service injetado para reutilizar regras de áreas de estudo sem duplicar validações.
-     * @param studyRoomsService Service injetado para reutilizar regras de salas de estudo sem duplicar validações.
-     * @param subjectsService Service injetado para reutilizar regras de disciplinas sem duplicar validações.
+     * @param checkModel Modelo de decisões de guardrail.
+     * @param studyAreasService Service que conhece ownership de áreas privadas.
+     * @param studyRoomsService Service que conhece membership de salas.
+     * @param subjectsService Service que conhece inscrição em disciplinas.
      */
     constructor(
         @InjectModel(AiGuardrailCheck.name)
@@ -55,11 +51,11 @@ export class AiGuardrailsService {
     ) {}
 
     /**
-     * Verifica se o pedido IA pode avançar sem misturar contextos.
+     * Decide se o utilizador autenticado pode usar IA no contexto pedido.
      *
-     * @param actor Utilizador autenticado pela sessão.
-     * @param input Payload validado.
-     * @returns Decisão persistida e pronta para o frontend.
+     * @param actor Utilizador autenticado pela sessão HttpOnly.
+     * @param input Contexto, recurso e prompt validados pelo DTO.
+     * @returns Decisão persistida sem guardar o prompt.
      */
     async check(
         actor: AuthenticatedUser,
@@ -70,21 +66,7 @@ export class AiGuardrailsService {
         }
 
         try {
-            if (input.contextType === AiGuardrailContextType.SOLO) {
-                await this.studyAreasService.getMyStudyArea(actor.id, input.resourceId);
-            }
-
-            if (input.contextType === AiGuardrailContextType.STUDY_ROOM) {
-                await this.studyRoomsService.ensureMember(actor.id, input.resourceId);
-            }
-
-            if (input.contextType === AiGuardrailContextType.CLASS_SUBJECT) {
-                await this.subjectsService.findSubjectForStudent(
-                    actor.id,
-                    input.resourceId,
-                );
-            }
-
+            await this.assertContextAllowed(actor, input);
             return this.persistDecision(actor, input, true, "CONTEXT_ALLOWED");
         } catch (error) {
             if (error instanceof ForbiddenException) {
@@ -95,16 +77,39 @@ export class AiGuardrailsService {
     }
 
     /**
-     * Persiste a decisão sem guardar qualquer excerto do prompt.
-     *
-     * O prompt pode conter dados pessoais ou material privado; para auditoria
-     * técnica bastam o contexto validado, a decisão e a razão estável.
+     * Encaminha a validação para o service que conhece a regra de domínio.
      *
      * @param actor Utilizador autenticado.
-     * @param input Pedido original validado.
-     * @param allowed Resultado do guardrail.
+     * @param input Pedido de guardrail.
+     */
+    private async assertContextAllowed(
+        actor: AuthenticatedUser,
+        input: CheckAiGuardrailsDto,
+    ): Promise<void> {
+        if (input.contextType === AiGuardrailContextType.SOLO) {
+            // O ID do aluno vem da sessão para impedir ownership escolhido pelo frontend.
+            await this.studyAreasService.getMyStudyArea(actor.id, input.resourceId);
+            return;
+        }
+
+        if (input.contextType === AiGuardrailContextType.STUDY_ROOM) {
+            // A sala só pode alimentar IA depois de confirmar membership no backend.
+            await this.studyRoomsService.ensureMember(actor.id, input.resourceId);
+            return;
+        }
+
+        // A IA da disciplina só avança se o aluno estiver inscrito na disciplina/turma.
+        await this.subjectsService.findSubjectForStudent(actor.id, input.resourceId);
+    }
+
+    /**
+     * Persiste a decisão sem guardar prompt, resposta IA ou excertos de materiais.
+     *
+     * @param actor Utilizador autenticado.
+     * @param input Pedido validado.
+     * @param allowed Resultado da decisão.
      * @param reasonCode Código estável para UI e testes.
-     * @returns Decisão pública.
+     * @returns Decisão pública sem dados sensíveis.
      */
     private async persistDecision(
         actor: AuthenticatedUser,
@@ -122,6 +127,7 @@ export class AiGuardrailsService {
             reason,
         });
         const created = check.toObject() as { createdAt?: Date };
+
         return {
             _id: String(check._id),
             contextType: check.contextType,

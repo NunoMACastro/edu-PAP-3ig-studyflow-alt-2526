@@ -1,5 +1,6 @@
+// apps/api/src/modules/ai-guardrails/ai-guardrails.module.ts
 /**
- * Regista providers, controllers e schemas necessários ao módulo de ai guardrails.
+ * Regista providers, controllers e schemas necessários ao módulo de guardrails IA.
  */
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
@@ -15,7 +16,7 @@ import {
 } from "./schemas/ai-guardrail-check.schema.js";
 
 /**
- * Módulo MF3 para separar guardrails de IA por contexto.
+ * Módulo que centraliza guardrails IA por contexto.
  */
 @Module({
     imports: [
