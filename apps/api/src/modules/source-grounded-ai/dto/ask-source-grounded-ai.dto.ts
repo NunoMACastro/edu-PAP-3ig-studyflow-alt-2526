@@ -1,32 +1,26 @@
 /**
- * Define contratos de dados usados nas entradas e saídas de IA com fontes obrigatórias.
+ * DTO de pergunta à IA com fontes obrigatórias.
+ *
+ * O cliente escolhe fontes visíveis na UI, mas a autorização final dessas
+ * fontes acontece no service através do utilizador autenticado.
  */
-import {
-    ArrayMinSize,
-    IsArray,
-    IsMongoId,
-    IsString,
-    MaxLength,
-    MinLength,
-} from "class-validator";
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsMongoId, IsString, MaxLength } from "class-validator";
 
-/**
- * Pedido para resposta baseada exclusivamente em jobs de indexação autorizados.
- */
 export class AskSourceGroundedAiDto {
     /**
-     * Jobs `DONE` produzidos pela indexação de materiais.
+     * Jobs de indexação que o aluno pretende usar como fontes.
+     * Cada id será validado no backend antes de entrar no prompt.
      */
     @IsArray()
     @ArrayMinSize(1)
+    @ArrayMaxSize(8)
     @IsMongoId({ each: true })
     sourceJobIds!: string[];
 
     /**
-     * Pergunta do aluno ou professor sobre a fonte indexada.
+     * Pergunta do aluno, limitada para reduzir abuso e prompts demasiado longos.
      */
     @IsString()
-    @MinLength(5)
-    @MaxLength(1200)
+    @MaxLength(800)
     question!: string;
 }

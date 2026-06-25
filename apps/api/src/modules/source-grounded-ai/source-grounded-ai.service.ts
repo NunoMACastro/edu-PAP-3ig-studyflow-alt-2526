@@ -2,7 +2,6 @@
  * Implementa as regras de negócio de IA com fontes obrigatórias e concentra validações do domínio.
  */
 import {
-    GatewayTimeoutException,
     Inject,
     Injectable,
     ServiceUnavailableException,
@@ -12,10 +11,6 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider.js";
-import {
-    AI_RESPONSE_BUDGET_MS,
-    withAiResponseBudget,
-} from "../ai/utils/with-ai-response-budget.js";
 import {
     MaterialIndexJobView,
     MaterialIndexService,
@@ -128,7 +123,7 @@ export class SourceGroundedAiService {
         job: MaterialIndexJobView,
         question: string,
     ): MaterialTextChunk[] {
-        // A seleção lexical é simples de propósito: é explicável para alunos e não introduz RAG externo.
+        // A seleção lexical é simples de propósito: é explicável para alunos e não introduz pesquisa externa.
         const terms = question
             .toLowerCase()
             .split(/\W+/)
@@ -199,17 +194,11 @@ export class SourceGroundedAiService {
         let providerResult: Record<string, unknown>;
         try {
             // Mesmo usando IA, o backend mantém a regra de só responder com excertos citados.
-            providerResult = await withAiResponseBudget(
-                this.aiProvider.generateStudyTool({
-                    prompt,
-                    type: "EXPLANATION",
-                    options: { timeoutMs: AI_RESPONSE_BUDGET_MS },
-                }),
-            );
-        } catch (error) {
-            if (error instanceof GatewayTimeoutException) {
-                throw error;
-            }
+            providerResult = await this.aiProvider.generateStudyTool({
+                prompt,
+                type: "EXPLANATION",
+            });
+        } catch {
             throw new ServiceUnavailableException({
                 code: "AI_PROVIDER_UNAVAILABLE",
                 message: "A IA está temporariamente indisponível.",

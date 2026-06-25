@@ -1,7 +1,7 @@
 /**
  * Testa o comportamento de IA com fontes obrigatórias e documenta os cenários de aceitação automatizados.
  */
-import { UnprocessableEntityException } from "@nestjs/common";
+import { ForbiddenException, UnprocessableEntityException } from "@nestjs/common";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { SourceGroundedAiService } from "./source-grounded-ai.service.js";
 
@@ -49,9 +49,29 @@ describe("SourceGroundedAiService", () => {
             expect.objectContaining({
                 type: "EXPLANATION",
                 prompt: expect.stringContaining("Fontes autorizadas"),
-                options: { timeoutMs: 4000 },
             }),
         );
+    });
+
+    it("bloqueia fonte sem autorização antes de chamar o provider", async () => {
+        const { aiProvider, answerModel, materialIndexService, service } =
+            makeService();
+        materialIndexService.findReadableDoneJob.mockRejectedValueOnce(
+            new ForbiddenException({
+                code: "MATERIAL_INDEX_FORBIDDEN",
+                message: "O utilizador não pode ler esta fonte.",
+            }),
+        );
+
+        await expect(
+            service.ask(student, {
+                sourceJobIds: [jobId],
+                question: "Resume este documento.",
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenException);
+
+        expect(aiProvider.generateStudyTool).not.toHaveBeenCalled();
+        expect(answerModel.create).not.toHaveBeenCalled();
     });
 
     it("bloqueia quando o job não tem chunks citáveis", async () => {
@@ -71,13 +91,21 @@ describe("SourceGroundedAiService", () => {
     });
 });
 
+type PersistedAnswerInput = {
+    sourceJobIds: unknown[];
+    question: string;
+    answer: string;
+    citations: unknown[];
+};
+
 /**
- * Cria fixture ou estrutura auxiliar de IA com fontes obrigatórias para manter testes e prompts legíveis.
- * @returns Valor de IA com fontes obrigatórias no contrato esperado pelo chamador.
+ * Cria estrutura auxiliar de IA com fontes obrigatórias para manter testes e prompts legíveis.
+ *
+ * @returns Dependências simuladas e service pronto a testar.
  */
 function makeService() {
     const answerModel = {
-        create: jest.fn().mockImplementation(async (input) => ({
+        create: jest.fn().mockImplementation(async (input: PersistedAnswerInput) => ({
             _id: "507f1f77bcf86cd799439099",
             ...input,
             toObject: () => ({ createdAt: new Date("2026-06-15T10:00:00Z") }),
