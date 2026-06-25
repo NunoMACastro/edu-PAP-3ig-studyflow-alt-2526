@@ -1,0 +1,99 @@
+// apps/api/src/scripts/backup-database.spec.ts
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+    createDailyBackup,
+    normaliseBackupOptions,
+    type BackupCollectionReader,
+    type BackupConnection,
+} from "./backup-database.js";
+
+function collectionWithDocuments(
+    collectionName: string,
+    documents: Array<Record<string, unknown>>,
+): BackupCollectionReader {
+    return {
+        collectionName,
+        countDocuments: async () => documents.length,
+        find: () => ({
+            // O iterador em memória substitui o cursor MongoDB sem exigir uma base real no teste unitário.
+            async *[Symbol.asyncIterator]() {
+                for (const document of documents) {
+                    yield document;
+                }
+            },
+        }),
+    };
+}
+
+describe("backup diário da StudyFlow", () => {
+    let tempDir: string;
+
+    beforeEach(async () => {
+        tempDir = await mkdtemp(join(tmpdir(), "studyflow-backup-"));
+    });
+
+    afterEach(async () => {
+        await rm(tempDir, { recursive: true, force: true });
+    });
+
+    it("cria manifest seguro com contagem de coleções e documentos", async () => {
+        const close = jest.fn(async () => undefined);
+        const connection: BackupConnection = {
+            db: {
+                collections: async () => [
+                    collectionWithDocuments("materials", [{ title: "Resumo" }]),
+                    collectionWithDocuments("users", [{ email: "aluno@example.test" }]),
+                ],
+            },
+            close,
+        };
+
+        const summary = await createDailyBackup({
+            mongoUri: "mongodb://127.0.0.1:27017/studyflow",
+            backupRoot: tempDir,
+            now: new Date("2026-06-23T02:15:00.000Z"),
+            createConnection: async () => connection,
+        });
+
+        const manifest = await readFile(join(summary.outputDir, "manifest.json"), "utf8");
+
+        // O manifest pode provar contagens, mas nunca deve guardar URI, password ou documentos exportados.
+        expect(summary.collections).toBe(2);
+        expect(summary.documents).toBe(2);
+        expect(manifest).not.toContain("mongodb://");
+        expect(close).toHaveBeenCalledTimes(1);
+    });
+
+    it("falha sem URI no modo real", () => {
+        // Sem URI configurada, o backup real deve falhar cedo para evitar execução contra destino ambíguo.
+        expect(() => normaliseBackupOptions({ backupRoot: tempDir })).toThrow("MONGODB_URI");
+    });
+
+    it("falha com retenção inválida", () => {
+        expect(() =>
+            normaliseBackupOptions({
+                mongoUri: "mongodb://127.0.0.1:27017/studyflow",
+                backupRoot: tempDir,
+                retentionDays: 0,
+            }),
+        ).toThrow("STUDYFLOW_BACKUP_RETENTION_DAYS");
+    });
+
+    it("permite dry run sem abrir ligação MongoDB", async () => {
+        const createConnection = jest.fn(async () => {
+            throw new Error("não deveria abrir MongoDB em dry run");
+        });
+
+        // O dry run valida configuração local sem tocar em dados reais nem abrir ligação externa.
+        const summary = await createDailyBackup({
+            backupRoot: tempDir,
+            dryRun: true,
+            createConnection,
+        });
+
+        expect(summary.dryRun).toBe(true);
+        expect(createConnection).not.toHaveBeenCalled();
+    });
+});
