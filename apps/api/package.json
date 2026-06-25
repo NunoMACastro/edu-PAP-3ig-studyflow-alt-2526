@@ -11,7 +11,9 @@
     "seed:dev-users": "nest build && node dist/scripts/seed-development-users.js",
     "smoke:200-users": "node src/scripts/smoke-200-users.mjs",
     "test": "jest --config ./jest.config.cjs --passWithNoTests",
-    "test:unit": "npm test"
+    "test:unit": "npm test",
+    "backup:daily": "nest build && node dist/scripts/backup-database.js",
+    "backup:daily:dry-run": "nest build && node dist/scripts/backup-database.js --dry-run"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
