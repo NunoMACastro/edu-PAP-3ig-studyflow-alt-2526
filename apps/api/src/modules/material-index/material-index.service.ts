@@ -7,6 +7,10 @@ import {
     NotFoundException,
     UnprocessableEntityException,
 } from "@nestjs/common";
+import {
+    isTransientNetworkError,
+    retryWithRecovery,
+} from "../../common/reliability/retry-with-recovery.js";
 import { DocumentProcessingSafetyService } from "./document-processing-safety.service.js";
 import { InjectModel } from "@nestjs/mongoose";
 import * as dns from "node:dns/promises";
@@ -697,10 +701,26 @@ private async extractPrivateMaterial(
     private async fetchTextFromUrl(value: string | undefined): Promise<string> {
         let url = this.parseSafeHttpUrl(value);
         let response: PinnedTextResponse | undefined;
+
         for (let redirectCount = 0; redirectCount <= MAX_URL_REDIRECTS; redirectCount += 1) {
             // Cada redirect é revalidado para impedir que uma URL pública salte para rede privada.
             const resolvedHost = await this.resolvePublicHost(url);
-            response = await materialIndexUrlSafety.requestText(url, resolvedHost);
+            response = await retryWithRecovery(
+                async () => {
+                    const candidate = await materialIndexUrlSafety.requestText(url, resolvedHost);
+                    if ([502, 503, 504].includes(candidate.status)) {
+                        throw new Error(`TRANSIENT_HTTP_${candidate.status}`);
+                    }
+                    return candidate;
+                },
+                {
+                    attempts: 3,
+                    baseDelayMs: 200,
+                    maxDelayMs: 1_000,
+                    shouldRetry: (error) => this.isRecoverableUrlReadError(error),
+                },
+            );
+
             if (
                 response.remoteAddress &&
                 this.isPrivateIp(response.remoteAddress)
@@ -719,6 +739,7 @@ private async extractPrivateMaterial(
             }
             url = this.parseSafeHttpUrl(new URL(location, url).toString());
         }
+
         if (!response) {
             throw new Error("Não foi possível obter a URL.");
         }
@@ -746,6 +767,10 @@ private async extractPrivateMaterial(
             throw new Error("URL excede o tamanho máximo permitido para indexação.");
         }
         return this.stripHtml(response.body).trim();
+    }
+
+    private isRecoverableUrlReadError(error: unknown): boolean {
+        return isTransientNetworkError(error);
     }
 
     /**
