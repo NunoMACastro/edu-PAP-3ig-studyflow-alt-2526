@@ -1,3 +1,4 @@
+// apps/api/src/modules/auth/login-attempts.service.ts
 /**
  * Implementa as regras de negócio de auth e concentra validações do domínio.
  */
@@ -16,14 +17,14 @@ const MAX_FAILURES_BY_IP = 50;
 @Injectable()
 export class LoginAttemptsService {
     /**
-     * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
+     * Recebe o store de sessão para guardar contadores temporários.
      *
-     * @param redis redis necessário para executar constructor sem depender de estado global.
+     * @param redis Store Redis ou equivalente usado pela app para estado efémero.
      */
     constructor(@Inject(SESSION_REDIS) private readonly redis: SessionStore) {}
 
     /**
-     * Bloqueia novas tentativas quando email ou IP excederam o limite MF0.
+     * Bloqueia novas tentativas quando email ou IP excederam o limite.
      *
      * @param email Email recebido no login.
      * @param ip Endereço IP observado pelo servidor.
@@ -77,7 +78,7 @@ export class LoginAttemptsService {
     /**
      * Obtém o contador atual para uma chave.
      *
-     * @param key Chave Redis interna.
+     * @param key Chave interna sem email ou IP em claro.
      * @returns Número de falhas registadas.
      */
     private async getCount(key: string): Promise<number> {
@@ -88,12 +89,13 @@ export class LoginAttemptsService {
     /**
      * Incrementa um contador e aplica TTL quando a chave é criada.
      *
-     * @param key Chave Redis interna.
+     * @param key Chave interna sem dados pessoais em claro.
      * @returns Promise resolvida depois de atualizar a chave.
      */
     private async incrementWithTtl(key: string): Promise<void> {
         const count = await this.redis.incr(key);
         if (count === 1) {
+            // O TTL impede bloqueios permanentes e reduz retenção de dados técnicos.
             await this.redis.expire(key, LOGIN_ATTEMPT_TTL_SECONDS);
         }
     }

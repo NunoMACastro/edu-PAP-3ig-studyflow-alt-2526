@@ -1,3 +1,4 @@
+// apps/api/src/common/middleware/csrf.middleware.ts
 /**
  * Aplica middleware transversal antes dos controllers processarem pedidos.
  */
@@ -7,11 +8,6 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
  * Aplica uma proteção CSRF mínima compatível com cookies HttpOnly.
- *
- * O BK-MF0-02 pede preparação de CSRF sem transformar este BK num módulo
- * avançado de segurança. Por isso, em métodos de escrita aceitamos pedidos
- * same-origin ou pedidos com cabeçalho `x-studyflow-csrf`, que o frontend pode
- * enviar sem precisar de ler o cookie HttpOnly.
  *
  * @param request Pedido HTTP recebido pelo Nest/Express.
  * @param response Resposta HTTP usada para terminar pedidos bloqueados.
@@ -38,6 +34,7 @@ export function csrfMiddleware(
         return;
     }
 
+    // A mensagem pública explica o bloqueio sem revelar cookies ou identificadores da sessão.
     response.status(403).json({
         code: "CSRF_CHECK_FAILED",
         message: "Pedido bloqueado por proteção CSRF.",
