@@ -7,6 +7,7 @@ import {
     NotFoundException,
     UnprocessableEntityException,
 } from "@nestjs/common";
+import { DocumentProcessingSafetyService } from "./document-processing-safety.service.js";
 import { InjectModel } from "@nestjs/mongoose";
 import * as dns from "node:dns/promises";
 import http from "node:http";
@@ -30,18 +31,17 @@ import {
 /**
  * Vista pública de indexação textual de materiais, sem detalhes internos de Mongoose.
  */
-export type MaterialIndexJobView = {
-    _id: string;
-    scope: MaterialIndexScope;
-    materialId: string;
-    studyAreaId?: string;
-    subjectId?: string;
-    userId?: string;
-    teacherId?: string;
-    status: MaterialIndexStatus;
-    extractedTextChunks: MaterialTextChunk[];
-    errorMessage?: string;
-    createdAt?: Date;
+// apps/api/src/modules/material-index/material-index.service.ts
+type IndexablePrivateMaterial = {
+    _id: unknown;
+    type: "PDF" | "DOCX" | "URL" | "TOPIC";
+    title: string;
+    url?: string;
+    storageKey?: string;
+    contentText?: string;
+    // Estes metadados permitem validar o ficheiro antes de qualquer parser tocar no conteúdo.
+    mimeType?: string;
+    sizeBytes?: number;
 };
 
 /**
@@ -191,13 +191,16 @@ export class MaterialIndexService {
      * @param officialMaterialsService Service injetado para reutilizar regras de materiais oficiais sem duplicar validações.
      * @param subjectsService Service injetado para reutilizar regras de disciplinas sem duplicar validações.
      */
-    constructor(
-        @InjectModel(MaterialIndexJob.name)
-        private readonly jobModel: Model<MaterialIndexJobDocument>,
-        private readonly materialsService: MaterialsService,
-        private readonly officialMaterialsService: OfficialMaterialsService,
-        private readonly subjectsService: SubjectsService,
-    ) {}
+    // apps/api/src/modules/material-index/material-index.service.ts
+constructor(
+    @InjectModel(MaterialIndexJob.name)
+    private readonly jobModel: Model<MaterialIndexJobDocument>,
+    private readonly materialsService: MaterialsService,
+    private readonly officialMaterialsService: OfficialMaterialsService,
+    private readonly subjectsService: SubjectsService,
+    // A proteção de documentos fica injetada para ser testável e reutilizável noutros fluxos de materiais.
+    private readonly documentSafety: DocumentProcessingSafetyService,
+) {}
     
     /**
      * Cria um job observável antes de iniciar a extração pesada do material privado.
@@ -505,14 +508,58 @@ export class MaterialIndexService {
      *
      * @param view Documento ou vista interna que será validada ou convertida para contrato público.
      */
-    private assertDone(view: MaterialIndexJobView): void {
-        if (view.status !== "DONE") {
-            throw new UnprocessableEntityException({
-                code: "MATERIAL_INDEX_NOT_DONE",
-                message: "O material ainda não tem indexação concluída.",
-            });
+    // apps/api/src/modules/material-index/material-index.service.ts
+private async extractPrivateMaterial(
+    userId: string,
+    material: IndexablePrivateMaterial,
+): Promise<{ text?: string; errorMessage?: string }> {
+    try {
+        if (material.type === "TOPIC") {
+            return { text: material.contentText };
         }
+        if (material.type === "URL") {
+            return { text: await this.fetchTextFromUrl(material.url) };
+        }
+        if (!material.storageKey) {
+            return { errorMessage: "O ficheiro do material não está disponível." };
+        }
+
+        // Primeiro lê-se o ficheiro guardado; a validação seguinte decide se é seguro processá-lo.
+        const buffer = await this.materialsService.readStoredFile(
+            material.storageKey,
+        );
+        // A validação acontece antes do parser para bloquear MIME, tamanho e metadados incoerentes.
+        this.documentSafety.assertSafeStoredDocument({
+            type: material.type,
+            mimeType: material.mimeType,
+            byteLength: buffer.byteLength,
+            declaredSizeBytes: material.sizeBytes,
+            title: material.title,
+        });
+
+        if (material.type === "PDF") {
+            return {
+                text: await this.documentSafety.runWithTimeout({
+                    label: material.title,
+                    // O timeout impede que um PDF problemático prenda a fila de indexação indefinidamente.
+                    operation: () => this.extractPdfText(buffer),
+                }),
+            };
+        }
+        if (material.type === "DOCX") {
+            return {
+                text: await this.documentSafety.runWithTimeout({
+                    label: material.title,
+                    // DOCX usa o mesmo limite operacional para manter comportamento previsível entre formatos.
+                    operation: () => this.extractDocxText(buffer),
+                }),
+            };
+        }
+        return { errorMessage: "Tipo de material privado não suportado." };
+    } catch (error) {
+        return { errorMessage: this.toExtractionError(error) };
     }
+}
 
     /**
      * Cria indexação textual de materiais depois de validar permissões, normalizar input e preparar o contrato público.
