@@ -1,5 +1,6 @@
+// apps/api/src/modules/ai-guardrails/ai-guardrails.controller.ts
 /**
- * Expõe os endpoints HTTP de ai guardrails e delega regras de negócio para o service.
+ * Expõe os endpoints HTTP de guardrails IA e delega regras de negócio para o service.
  */
 import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
@@ -14,9 +15,7 @@ import { CheckAiGuardrailsDto } from "./dto/check-ai-guardrails.dto.js";
 @UseGuards(SessionGuard)
 export class AiGuardrailsController {
     /**
-     * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
-     *
-     * @param guardrailsService Service injetado para reutilizar regras de guardrails sem duplicar validações.
+     * @param guardrailsService Service que valida contexto no backend.
      */
     constructor(private readonly guardrailsService: AiGuardrailsService) {}
 
@@ -32,6 +31,7 @@ export class AiGuardrailsController {
         @Req() request: AuthenticatedRequest,
         @Body() body: CheckAiGuardrailsDto,
     ) {
+        // O utilizador vem da sessão; o body nunca decide identidade.
         return this.guardrailsService.check(request.user!, body);
     }
 }
