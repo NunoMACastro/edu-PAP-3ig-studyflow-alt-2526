@@ -1,6 +1,7 @@
 # BK-MF7-04 - Frontend componentizado e reutilizável.
 
 ## Header
+
 - `doc_id`: `GUIA-BK-MF7-04`
 - `bk_id`: `BK-MF7-04`
 - `macro`: `MF7`
@@ -16,109 +17,767 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF7-05`
 - `guia_path`: `docs/planificacao/guias-bk/MF7/BK-MF7-04-frontend-componentizado-e-reutilizavel.md`
-- `last_updated`: `2026-04-19`
+- `last_updated`: `2026-06-26`
 
-## Contexto do BK
-- Entrega alvo: `Frontend componentizado e reutilizável.` com rastreabilidade direta para `RNF26`.
-- Foco da macro `MF7`: Operacao, modularidade e compliance.
-- Dominio semântico aplicado: `quality_architecture`.
+#### Objetivo
 
-## Bloco pedagogico
-### Objetivo
-Consolidar arquitetura e qualidade tecnica com testes e modularidade.
+Neste BK vais extrair um componente reutilizável para estados de página. O resultado observável é uma peça React tipada que apresenta loading, erro, vazio e sucesso de forma consistente em páginas de aluno e professor.
 
-### Pre-requisitos
-- Ler o requisito de origem em `docs/RF.md` ou `docs/RNF.md`.
-- Rever `MATRIZ-CANONICA-BK.md`, `BACKLOG-MVP.md` e `PLANO-SPRINTS.md`.
-- Confirmar dependencias: `-`.
+No fim, a equipa consegue demonstrar `RNF26` com código, validação e evidence, sem depender de decisões escondidas nem de memória oral.
 
-### Erros comuns
-- Testes sem cobrir módulos críticos.
-- Acoplar domínios sem fronteiras claras.
-- Fechar BK sem validar negativos obrigatórios.
+#### Importância
 
-### Check de compreensao
-- [ ] Sei explicar como `RNF26` se traduz em comportamento implementável.
-- [ ] Sei indicar o principal risco técnico deste BK e como o mitigar.
-- [ ] Sei demonstrar evidência objetiva de sucesso e falha controlada.
+`RNF26` reduz duplicação e melhora manutenção. Como a MF5 já definiu responsividade, acessibilidade e feedback, este BK transforma esses padrões em componentes reutilizáveis em vez de repetir blocos visuais em cada página.
 
-### Tempo estimado
-- `Core`: `45-75 min`
-- `Reforco`: `+20-40 min`
+Este BK é incremental: consome contratos já fechados nas MFs anteriores e entrega uma peça pequena, testável e explicável para o próximo BK.
 
-## Bloco operacional
-### Entrada
-- BK: `BK-MF7-04`
-- Requisito: `RNF26`
-- Dependencias: `-`
-- Artefactos obrigatorios: `MATRIZ-CANONICA-BK.md`, `BACKLOG-MVP.md`, `MF-VIEWS.md`, `PLANO-SPRINTS.md`
+#### Scope-in
 
-### Passos
-1. Confirmar no backlog e na matriz o escopo de `BK-MF7-04` e do requisito `RNF26`.
-2. Validar pre-condicoes técnicas e dependencias declaradas: `-`.
-3. Modelar contratos de dados e estados para `fronteiras de domínio + testes críticos`.
-4. Implementar o caminho principal de `fronteiras de domínio + testes críticos`.
-5. Aplicar controlos para `contratos entre módulos e cobertura mínima`.
-6. Preparar evidencia operacional: `suite automatizada em CI local`.
-7. Executar smoke test completo do fluxo principal e registar o resultado.
-8. Executar cenarios negativos obrigatorios (minimo 3) e validar erro controlado.
-9. Adicionar reforço técnico orientado ao maior risco (segurança, performance ou robustez).
-10. Concluir handoff técnico com risco aberto, decisão tomada e próximo BK.
+- Implementar ou documentar o contrato de componentização frontend.
+- Usar caminhos públicos em `apps/api`, `apps/web` e `docs`.
+- Validar pelo menos um caminho principal e um cenário negativo.
+- Preservar autenticação, autorização, ownership, membership, quotas e guardrails já definidos quando o fluxo tocar dados privados ou IA.
+- Produzir evidence com expected/observed.
 
-### Cenarios negativos recomendados
-- entrada obrigatória em falta
-- estado inválido de negócio
-- permissão insuficiente
+#### Scope-out
 
-### Validacao
-- [ ] Smoke: minimo `1` execucao completa do fluxo principal.
-- [ ] Negativos: minimo `3` cenarios com resultado controlado.
-- [ ] Tecnico: metadados alinhados entre matriz/backlog/guia.
-- [ ] Fluxo do requisito cumpre contrato de entrada/saída.
-- [ ] Persistência e leitura dos dados mantêm consistência.
+- Criar requisitos novos fora de `RNF26`.
+- Alterar IDs BK, owner, prioridade, sprint, esforço ou sequência canónica.
+- Criar integrações externas de monitorização, LMS, Drive, OCR, embeddings ou automações avançadas sem contrato documental.
+- Guardar segredos, cookies, prompts privados, respostas IA completas ou materiais privados em logs, screenshots ou documentos de evidence.
+- Mover regras de segurança para o frontend.
 
-### Matriz minima de testes por prioridade
-- `P0`: unit + integration + e2e + 3 negativos.
-- `P1`: unit/integration + 2 negativos.
-- `P2`: teste focal + 1 negativo.
+#### Estado antes e depois
 
-### Handoff
-- Proximo BK recomendado: `BK-MF7-05`
-- Registar bloqueios, decisão técnica e risco residual.
-- Escalar no scorecard se bloqueio >48h.
+- Estado antes: MF6 deixa segurança, recuperação, guardrails e isolamento de IA preparados, e o frontend já tem páginas e clientes API, mas ainda há estados assíncronos repetidos em páginas de aluno/professor.
+- Estado depois: a app passa a ter `AsyncStateBlock` e integração prevista em `StudyToolsPage` e `TeacherOfficialMaterialsPage`, preparando documentação técnica em `BK-MF7-05`.
 
-## Snippet tecnico aplicavel
-**Teste automatizado de módulo crítico**
-- BK vinculado: `BK-MF7-04`.
+#### Pre-requisitos
 
-```ts
-import { describe, it, expect } from 'vitest';
+- `README.md`
+- `docs/RF.md`
+- `docs/RNF.md`
+- `docs/planificacao/README.md`
+- `docs/planificacao/PLANO-IMPLEMENTACAO-TOTAL.md`
+- `docs/planificacao/backlogs/BACKLOG-MVP.md`
+- `docs/planificacao/backlogs/MATRIZ-CANONICA-BK.md`
+- `docs/planificacao/backlogs/CONTRATO-CAMPOS-BK.md`
+- `docs/planificacao/backlogs/MF-VIEWS.md`
+- `docs/planificacao/sprints/PLANO-SPRINTS.md`
+- `docs/planificacao/guias-bk/README.md`
+- `docs/planificacao/guias-bk/MF6/BK-MF6-12-auto-recovery-apos-falhas.md`
+- `docs/planificacao/guias-bk/MF7/BK-MF7-04-frontend-componentizado-e-reutilizavel.md`
+- `docs/planificacao/guias-bk/MF8/BK-MF8-01-ia-evita-enviesamentos-e-respostas-inseguras.md`
 
-describe('BK-MF7-04', () => {
-  it('cumpre contrato principal', () => {
-    const output = { ok: true, bkId: 'BK-MF7-04', req: 'RNF26' };
-    expect(output.ok).toBe(true);
-  });
+#### Glossário
+
+- **StudyFlow:** plataforma de estudo com áreas privadas, turmas, materiais e IA pedagógica.
+- **Aluno autenticado:** utilizador identificado por sessão HttpOnly no backend.
+- **Professor:** utilizador que gere turmas, disciplinas, materiais oficiais e limites pedagógicos.
+- **Fonte processável:** texto extraído e autorizado que pode sustentar uma resposta IA.
+- **Evidence:** prova objetiva de funcionamento e falha controlada, usada em PR e defesa PAP.
+- **Componentização frontend:** foco técnico deste BK para cumprir `RNF26`.
+
+#### Conceitos teóricos essenciais
+
+- **Componente reutilizável:** bloco UI com props claras e sem regras de negócio escondidas.
+- **Estado assíncrono:** loading, erro, vazio ou conteúdo depois de uma chamada HTTP.
+- **Acessibilidade:** mensagens de erro precisam de ser legíveis e associadas a estado visível.
+- **Erro comum a evitar:** deixar o componente visual decidir ownership, role ou membership.
+- **Segurança no backend:** sessão, role, ownership e membership são validados por controllers/services, não por componentes visuais.
+- **Privacidade e RGPD:** logs, evidence e respostas públicas devem minimizar dados pessoais e evitar conteúdo privado.
+- **Teste negativo:** prova que a aplicação bloqueia input inválido, acesso indevido ou estado inseguro.
+
+#### Arquitetura do BK
+
+- Endpoint(s): não cria endpoint; consome clientes API existentes.
+- Modelo/schema: não cria schema.
+- Service(s): não cria service backend.
+- Controller/route: componente React `AsyncStateBlock`.
+- Guard/middleware: reutiliza `SessionGuard` quando o endpoint for privado; health e operação pública nunca expõem dados pessoais.
+- Cliente API: usa clientes existentes com `credentials: 'include'` quando houver frontend autenticado.
+- Segurança/autorização: não decide permissões no frontend; apenas mostra estados recebidos de endpoints protegidos.
+- Testes: validação manual e build TypeScript/Vite.
+- Handoff para o próximo BK: `BK-MF7-05` documenta o componente no mapa técnico mínimo.
+
+#### Ficheiros a criar/editar/rever
+
+- CRIAR: `apps/web/src/components/ui/AsyncStateBlock.tsx`
+- EDITAR: `apps/web/src/pages/student/StudyToolsPage.tsx`
+- EDITAR: `apps/web/src/pages/teacher/TeacherOfficialMaterialsPage.tsx`
+
+#### Tutorial técnico linear
+
+### Passo 1 - Confirmar contrato canónico e fronteiras
+
+1. Objetivo funcional do passo no contexto da app.
+
+Confirmar que `BK-MF7-04` entrega `RNF26` sem alterar ID, owner, prioridade, sprint ou sequência.
+
+2. Ficheiros envolvidos:
+- REVER: `docs/RNF.md`
+- REVER: `docs/planificacao/backlogs/MATRIZ-CANONICA-BK.md`
+- REVER: `docs/planificacao/backlogs/BACKLOG-MVP.md`
+- REVER: `docs/planificacao/backlogs/CONTRATO-CAMPOS-BK.md`
+- LOCALIZAÇÃO: linhas canónicas do requisito e da matriz.
+
+3. Instruções do que fazer.
+
+Lê `RNF26` em `docs/RNF.md`, confirma a linha `BK-MF7-04` na matriz e regista as decisões seguintes:
+- `CANONICO`: `RNF26` exige frontend componentizado e reutilizável.
+- `DERIVADO`: criar componente de estado assíncrono comum porque várias páginas já repetem loading/error/empty.
+- `DERIVADO`: manter `credentials: 'include'` nos clientes API, nunca no componente visual.
+
+4. Código completo, correto e integrado com a app final.
+
+Sem código neste passo.
+
+5. Explicação do código.
+
+Não há código porque este passo fixa o contrato. A implementação só começa depois de confirmar o requisito, o domínio e o BK seguinte.
+
+6. Validação do passo.
+
+Resultado esperado: `BK-MF7-04` continua ligado a `RNF26`, `prioridade: P0`, `sprint: S11` e `proximo_bk: BK-MF7-05`.
+
+7. Cenário negativo/erro esperado.
+
+Se a matriz, backlog e guia tiverem valores diferentes, não avances; regista o drift no relatório de PR.
+### Passo 2 - Mapear contratos existentes
+
+1. Objetivo funcional do passo no contexto da app.
+
+Localizar os ficheiros que este BK consome para não duplicar regras de componentização frontend.
+
+2. Ficheiros envolvidos:
+- REVER: `apps/api/src/app.module.ts`
+- REVER: `apps/web/src/routes/protectedRoutes.tsx`
+- REVER: `docs/planificacao/guias-bk/MF7/BK-MF7-03-backend-modular-por-dominios-aluno-professor-ia-materiais.md`
+- REVER: `docs/planificacao/guias-bk/MF7/BK-MF7-04-frontend-componentizado-e-reutilizavel.md`
+- LOCALIZAÇÃO: módulos já criados nas macrofases anteriores e ponto de integração deste BK.
+
+3. Instruções do que fazer.
+
+Confirma que a MF6 já entregou segurança, recovery e isolamento de IA. Este BK não substitui `SessionGuard`, ownership, membership, quotas ou guardrails; usa essas peças onde existirem.
+
+4. Código completo, correto e integrado com a app final.
+
+Sem código neste passo.
+
+5. Explicação do código.
+
+Não há código porque o objetivo é evitar duplicação. O aluno deve saber que cada ficheiro novo encaixa num contrato anterior.
+
+6. Validação do passo.
+
+Resultado esperado: lista curta de ficheiros existentes e decisão clara sobre o ponto exato de criação ou edição.
+
+7. Cenário negativo/erro esperado.
+
+Se a solução criar outro endpoint ou outro schema para uma responsabilidade já existente, rejeita a abordagem e usa o service existente.
+### Passo 3 - Criar o componente reutilizável
+
+1. Objetivo funcional do passo no contexto da app.
+
+Criar a peça comum que transforma `RNF26` em código aplicável nas páginas reais da app.
+
+2. Ficheiros envolvidos:
+- CRIAR: `apps/web/src/components/ui/AsyncStateBlock.tsx`
+- LOCALIZAÇÃO: ficheiro completo `apps/web/src/components/ui/AsyncStateBlock.tsx`.
+
+3. Instruções do que fazer.
+
+Cria o ficheiro com o código abaixo. Mantém nomes, imports e mensagens em português de Portugal. O componente recebe estado já calculado pela página; não faz chamadas HTTP, não decide permissões e não guarda dados sensíveis.
+
+4. Código completo, correto e integrado com a app final.
+
+```tsx
+// apps/web/src/components/ui/AsyncStateBlock.tsx
+/**
+ * Apresenta estados assíncronos reutilizáveis nas páginas StudyFlow.
+ */
+import { ReactNode } from "react";
+
+export type AsyncStateBlockProps = {
+    isLoading: boolean;
+    error?: string;
+    isEmpty: boolean;
+    emptyMessage: string;
+    children: ReactNode;
+};
+
+/**
+ * Componente visual para loading, erro, vazio e conteúdo com dados.
+ *
+ * @param props Estado assíncrono calculado pela página chamadora.
+ * @returns Bloco React acessível e reutilizável.
+ */
+export function AsyncStateBlock(props: AsyncStateBlockProps) {
+    if (props.isLoading) {
+        return (
+            <p className="text-sm text-slate-600" aria-live="polite">
+                A carregar dados...
+            </p>
+        );
+    }
+
+    if (props.error) {
+        // A mensagem fica visível, mas autorização e ownership continuam a pertencer ao backend.
+        return <p className="sf-error" role="alert">{props.error}</p>;
+    }
+
+    if (props.isEmpty) {
+        // O estado vazio fica explícito para evitar listas silenciosamente sem conteúdo.
+        return (
+            <p className="text-sm text-slate-600" aria-live="polite">
+                {props.emptyMessage}
+            </p>
+        );
+    }
+
+    return <>{props.children}</>;
+}
+```
+
+5. Explicação do código.
+
+O componente concentra quatro estados repetidos: carregamento, erro, vazio e conteúdo. A página chamadora continua responsável por chamar a API, receber dados tipados e decidir que mensagem mostrar. Isto mantém a segurança no backend e deixa o frontend apenas com a responsabilidade de apresentação.
+
+6. Validação do passo.
+
+Confirma que o ficheiro importa apenas `ReactNode`, exporta `AsyncStateBlock` e não lê sessão, role, ownership, quotas, fontes IA, storage do browser ou variáveis de ambiente.
+
+7. Cenário negativo/erro esperado.
+
+Se a mensagem de erro for escondida ou se o componente passar a decidir permissões, o BK falha: erro visível pertence ao frontend; autorização pertence aos endpoints protegidos.
+
+### Passo 4 - Integrar o componente nas páginas reais
+
+1. Objetivo funcional do passo no contexto da app.
+
+Substituir estados repetidos em páginas existentes de aluno e professor, sem alterar endpoints nem regras de negócio.
+
+2. Ficheiros envolvidos:
+- EDITAR: `apps/web/src/pages/student/StudyToolsPage.tsx`
+- EDITAR: `apps/web/src/pages/teacher/TeacherOfficialMaterialsPage.tsx`
+- LOCALIZAÇÃO: imports, estados de erro/carregamento e zonas de lista em `StudyToolsPage` e `TeacherOfficialMaterialsPage`.
+
+3. Instruções do que fazer.
+
+Importa `AsyncStateBlock` nas duas páginas indicadas e substitui os blocos locais repetidos de loading, erro e vazio. Não mudes clientes API, endpoints, sessão, permissões ou ownership: o frontend só apresenta estados vindos de chamadas já protegidas.
+
+4. Código completo, correto e integrado com a app final.
+
+Aplica este diff integral em `StudyToolsPage`.
+
+```diff
+diff --git a/apps/web/src/pages/student/StudyToolsPage.tsx b/apps/web/src/pages/student/StudyToolsPage.tsx
+--- a/apps/web/src/pages/student/StudyToolsPage.tsx
++++ b/apps/web/src/pages/student/StudyToolsPage.tsx
+@@
+ import { ExplanationPanel } from "../../components/ai/ExplanationPanel.js";
+ import { FlashcardsPanel } from "../../components/ai/FlashcardsPanel.js";
+ import { QuizPanel } from "../../components/ai/QuizPanel.js";
+ import { SummaryPanel } from "../../components/ai/SummaryPanel.js";
++import { AsyncStateBlock } from "../../components/ui/AsyncStateBlock.js";
+@@
+-    const [error, setError] = useState<string | null>(null);
++    const [loadError, setLoadError] = useState<string | null>(null);
++    const [actionError, setActionError] = useState<string | null>(null);
+@@
+             setSummaries(summaryList);
+             setStudyTools(toolList);
++            setLoadError(null);
+             setArtifact((current) => {
+@@
+-            setError(
++            setLoadError(
+                 caught instanceof Error
+                     ? caught.message
+                     : "Não foi possível carregar artefactos.",
+             );
+@@
+-        setError(null);
++        setActionError(null);
+         setIsGeneratingSummary(true);
+@@
+-            setError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
++            setActionError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
+@@
+-        setError(null);
++        setActionError(null);
+         setIsGeneratingTool(true);
+@@
+-            setError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
++            setActionError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
+@@
+     const isGenerating = isGeneratingSummary || isGeneratingTool;
++    const hasArtifacts = summaries.length > 0 || studyTools.length > 0;
+@@
+-                {error ? <p className="sf-error">{error}</p> : null}
++                {actionError ? <p className="sf-error" role="alert">{actionError}</p> : null}
+@@
+-                {isLoadingExisting ? (
+-                    <p className="text-sm text-slate-600">A carregar artefactos...</p>
+-                ) : null}
+@@
+-            <div className="grid gap-4 lg:grid-cols-2">
+-                <ArtifactList
+-                    artifacts={summaries}
+-                    emptyText="Ainda não há resumos gerados."
+-                    onSelect={setArtifact}
+-                    selectedId={artifact?._id}
+-                    title="Resumos"
+-                />
+-                <ArtifactList
+-                    artifacts={studyTools}
+-                    emptyText="Ainda não há ferramentas geradas."
+-                    onSelect={setArtifact}
+-                    selectedId={artifact?._id}
+-                    title="Ferramentas"
+-                />
+-            </div>
++            <AsyncStateBlock
++                isLoading={isLoadingExisting}
++                error={loadError ?? undefined}
++                isEmpty={!hasArtifacts}
++                emptyMessage="Ainda não há resumos nem ferramentas geradas."
++            >
++                <div className="grid gap-4 lg:grid-cols-2">
++                    <ArtifactList
++                        artifacts={summaries}
++                        emptyText="Ainda não há resumos gerados."
++                        onSelect={setArtifact}
++                        selectedId={artifact?._id}
++                        title="Resumos"
++                    />
++                    <ArtifactList
++                        artifacts={studyTools}
++                        emptyText="Ainda não há ferramentas geradas."
++                        onSelect={setArtifact}
++                        selectedId={artifact?._id}
++                        title="Ferramentas"
++                    />
++                </div>
++            </AsyncStateBlock>
+@@
+         <div className="sf-panel space-y-3">
+             <h2 className="text-lg font-bold">{title}</h2>
+-            {artifacts.length === 0 ? (
+-                <p className="text-sm text-slate-600">{emptyText}</p>
+-            ) : (
++            <AsyncStateBlock
++                isLoading={false}
++                isEmpty={artifacts.length === 0}
++                emptyMessage={emptyText}
++            >
+                 <ul className="space-y-2">
+                     {artifacts.map((item) => (
++                        // A API já filtra os artefactos pela área autenticada antes da lista renderizar.
+                         <li key={item._id}>
+@@
+                     ))}
+                 </ul>
+-            )}
++            </AsyncStateBlock>
+         </div>
+     );
+ }
+```
+
+Aplica este diff integral em `TeacherOfficialMaterialsPage`.
+
+```diff
+diff --git a/apps/web/src/pages/teacher/TeacherOfficialMaterialsPage.tsx b/apps/web/src/pages/teacher/TeacherOfficialMaterialsPage.tsx
+--- a/apps/web/src/pages/teacher/TeacherOfficialMaterialsPage.tsx
++++ b/apps/web/src/pages/teacher/TeacherOfficialMaterialsPage.tsx
+@@
+ import { FormEvent, useEffect, useState } from "react";
++import { AsyncStateBlock } from "../../components/ui/AsyncStateBlock.js";
+ import { ExternalMaterialImportPanel } from "../../features/mf5/external-material-import-panel.js";
+@@
+-    const [error, setError] = useState<string | null>(null);
++    const [actionError, setActionError] = useState<string | null>(null);
++    const [listError, setListError] = useState<string | null>(null);
++    const [isLoadingMaterials, setIsLoadingMaterials] = useState(true);
+@@
+     async function refresh(): Promise<void> {
+-        setMaterials(await listOfficialMaterials(subjectId));
++        setIsLoadingMaterials(true);
++        try {
++            setMaterials(await listOfficialMaterials(subjectId));
++            setListError(null);
++        } catch (caught) {
++            setListError(caught instanceof Error ? caught.message : "Erro ao carregar materiais.");
++        } finally {
++            setIsLoadingMaterials(false);
++        }
+     }
+
+     useEffect(() => {
+-        refresh().catch((caught: unknown) =>
+-            setError(caught instanceof Error ? caught.message : "Erro ao carregar materiais."),
+-        );
++        void refresh();
+     }, [subjectId]);
+@@
+-        setError(null);
++        setActionError(null);
+         try {
+@@
+-            setError(caught instanceof Error ? caught.message : "Erro ao criar material.");
++            setActionError(caught instanceof Error ? caught.message : "Erro ao criar material.");
+@@
+-        setError(null);
++        setActionError(null);
+         try {
+@@
+-            setError(caught instanceof Error ? caught.message : "Erro ao indexar material.");
++            setActionError(caught instanceof Error ? caught.message : "Erro ao indexar material.");
+@@
+-                    {error ? <p className="sf-error">{error}</p> : null}
++                    {actionError ? <p className="sf-error" role="alert">{actionError}</p> : null}
+@@
+             </div>
+             <div className="grid gap-3">
+-                {materials.length === 0 ? <p className="sf-panel text-sm text-slate-600">Ainda não há materiais oficiais.</p> : null}
+-                {materials.map((material) => (
+-                    <article className="sf-panel space-y-1" key={material._id}>
+-                        <h2 className="font-semibold">{material.title}</h2>
+-                        <p className="text-sm text-slate-600">{material.type} · {material.status}</p>
+-                        {material.sourceUrl ? <a className="text-sm text-studyflow-brand" href={material.sourceUrl}>{material.sourceUrl}</a> : null}
+-                        <div className="flex flex-wrap gap-2 pt-2">
+-                            <button
+-                                className="sf-button-secondary"
+-                                onClick={() => void handleIndex(material._id)}
+-                                type="button"
+-                            >
+-                                Indexar
+-                            </button>
+-                            {jobsByMaterial[material._id]?.status === "DONE" ? (
+-                                <a
+-                                    className="sf-button-secondary"
+-                                    href={`/app/material-index-jobs/${jobsByMaterial[material._id]._id}/versoes`}
+-                                >
+-                                    Versões
+-                                </a>
+-                            ) : null}
+-                        </div>
+-                    </article>
+-                ))}
++                <AsyncStateBlock
++                    isLoading={isLoadingMaterials}
++                    error={listError ?? undefined}
++                    isEmpty={materials.length === 0}
++                    emptyMessage="Ainda não há materiais oficiais."
++                >
++                    {materials.map((material) => (
++                        // O backend limita materiais por disciplina e professor antes da renderização.
++                        <article className="sf-panel space-y-1" key={material._id}>
++                            <h2 className="font-semibold">{material.title}</h2>
++                            <p className="text-sm text-slate-600">{material.type} · {material.status}</p>
++                            {material.sourceUrl ? <a className="text-sm text-studyflow-brand" href={material.sourceUrl}>{material.sourceUrl}</a> : null}
++                            <div className="flex flex-wrap gap-2 pt-2">
++                                <button
++                                    className="sf-button-secondary"
++                                    onClick={() => void handleIndex(material._id)}
++                                    type="button"
++                                >
++                                    Indexar
++                                </button>
++                                {jobsByMaterial[material._id]?.status === "DONE" ? (
++                                    <a
++                                        className="sf-button-secondary"
++                                        href={`/app/material-index-jobs/${jobsByMaterial[material._id]._id}/versoes`}
++                                    >
++                                        Versões
++                                    </a>
++                                ) : null}
++                            </div>
++                        </article>
++                    ))}
++                </AsyncStateBlock>
+             </div>
+         </section>
+     );
+ }
+```
+
+5. Explicação do código.
+
+Na página de aluno, `loadError` representa falha ao carregar listas já existentes e `actionError` representa falha ao gerar novo conteúdo. Na página de professor, `listError` fica separado de `actionError` para não misturar falhas de listagem com falhas de criação ou indexação. Esta separação evita mensagens ambíguas e prova que `AsyncStateBlock` é usado em ecrãs reais, não numa peça lateral.
+
+6. Validação do passo.
+
+Resultado esperado: `StudyToolsPage` e `TeacherOfficialMaterialsPage` importam `AsyncStateBlock`, continuam a chamar os mesmos clientes API e mostram estados acessíveis para loading, erro, vazio e sucesso.
+
+7. Cenário negativo/erro esperado.
+
+Se a integração contornar `SessionGuard`, ownership, membership, quotas ou guardrails já existentes, a alteração deve ser revertida.
+
+### Passo 5 - Adicionar teste frontend com negativos P0
+
+1. Objetivo funcional do passo no contexto da app.
+
+Provar que o componente reutilizável mostra estado vazio, erro de carregamento e erro de ação sem quebrar páginas protegidas.
+
+2. Ficheiros envolvidos:
+- CRIAR: `apps/web/tests/e2e/mf7-async-state-block.spec.ts`
+- REVER: `apps/web/src/routes/protectedRoutes.tsx`
+- LOCALIZAÇÃO: rotas `/app/areas/:id/ferramentas` e `/app/professor/disciplinas/:id/materiais`.
+
+3. Instruções do que fazer.
+
+Cria o ficheiro Playwright abaixo. Usa credenciais E2E por variáveis de ambiente e respostas HTTP controladas por rota de teste. Não escrevas credenciais, cookies, materiais privados ou respostas completas de IA no ficheiro.
+
+4. Código completo, correto e integrado com a app final.
+
+```tsx
+// apps/web/tests/e2e/mf7-async-state-block.spec.ts
+import { expect, test, type Page, type Route } from "@playwright/test";
+
+type Credentials = {
+    email: string;
+    password: string;
+};
+
+/**
+ * Lê credenciais E2E sem as gravar no repositório.
+ *
+ * @param role Role autenticado usado no nome das variáveis.
+ * @returns Credenciais a usar no login pela UI.
+ */
+function readCredentials(role: "STUDENT" | "TEACHER"): Credentials {
+    const email = process.env[`STUDYFLOW_E2E_${role}_EMAIL`];
+    const password = process.env[`STUDYFLOW_E2E_${role}_PASSWORD`];
+
+    if (!email || !password) {
+        throw new Error(`Define STUDYFLOW_E2E_${role}_EMAIL e STUDYFLOW_E2E_${role}_PASSWORD.`);
+    }
+
+    return { email, password };
+}
+
+/**
+ * Entra pela UI para validar uma sessão protegida real.
+ *
+ * @param page Página Playwright.
+ * @param credentials Credenciais E2E.
+ * @returns Promise resolvida quando a shell autenticada aparece.
+ */
+async function loginAs(page: Page, credentials: Credentials): Promise<void> {
+    await page.goto("/login");
+    await expect(page.getByRole("heading", { name: "StudyFlow" })).toBeVisible();
+    await page.getByLabel("Email").fill(credentials.email);
+    await page.getByLabel("Password").fill(credentials.password);
+    await page.getByRole("button", { name: "Entrar" }).click();
+    await expect(page.getByText(credentials.email)).toBeVisible();
+}
+
+/**
+ * Responde a uma rota HTTP com JSON para controlar a evidence do estado visual.
+ *
+ * @param route Rota intercetada pelo Playwright.
+ * @param status Código HTTP pretendido.
+ * @param body Corpo JSON enviado à página.
+ * @returns Promise resolvida quando a rota fica satisfeita.
+ */
+async function fulfillJson(route: Route, status: number, body: unknown): Promise<void> {
+    await route.fulfill({
+        contentType: "application/json",
+        status,
+        body: JSON.stringify(body),
+    });
+}
+
+test("MF7 aluno mostra estado vazio quando não há artefactos", async ({ page }) => {
+    await page.route("**/api/study-areas/area-mf7/summaries", (route) =>
+        fulfillJson(route, 200, []),
+    );
+    await page.route("**/api/study-areas/area-mf7/study-tools**", (route) =>
+        fulfillJson(route, 200, []),
+    );
+
+    await loginAs(page, readCredentials("STUDENT"));
+    await page.goto("/app/areas/area-mf7/ferramentas");
+
+    await expect(page.getByText("Ainda não há resumos nem ferramentas geradas.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Gerar resumo" })).toBeVisible();
+});
+
+test("MF7 aluno mostra erro de carregamento sem bloquear ações", async ({ page }) => {
+    await page.route("**/api/study-areas/area-mf7/summaries", (route) =>
+        fulfillJson(route, 500, { message: "Falha controlada ao carregar resumos." }),
+    );
+    await page.route("**/api/study-areas/area-mf7/study-tools**", (route) =>
+        fulfillJson(route, 200, []),
+    );
+
+    await loginAs(page, readCredentials("STUDENT"));
+    await page.goto("/app/areas/area-mf7/ferramentas");
+
+    await expect(page.getByRole("alert")).toContainText("Falha controlada ao carregar resumos.");
+    await expect(page.getByRole("button", { name: "Gerar resumo" })).toBeVisible();
+});
+
+test("MF7 aluno mostra erro de geração sem perder listas", async ({ page }) => {
+    await page.route("**/api/study-areas/area-mf7/summaries", (route) => {
+        if (route.request().method() === "POST") {
+            return fulfillJson(route, 429, { message: "Limite de geração atingido." });
+        }
+
+        return fulfillJson(route, 200, [
+            { _id: "summary-mf7", type: "SUMMARY", contentJson: { title: "Resumo MF7" } },
+        ]);
+    });
+    await page.route("**/api/study-areas/area-mf7/study-tools**", (route) =>
+        fulfillJson(route, 200, []),
+    );
+
+    await loginAs(page, readCredentials("STUDENT"));
+    await page.goto("/app/areas/area-mf7/ferramentas");
+    await page.getByRole("button", { name: "Gerar resumo" }).click();
+
+    await expect(page.getByRole("alert")).toContainText("Limite de geração atingido.");
+    await expect(page.getByRole("button", { name: "Resumo MF7" })).toBeVisible();
+});
+
+test("MF7 professor mostra erro de listagem sem bloquear formulário", async ({ page }) => {
+    await page.route("**/api/teacher/subjects/subject-mf7/materials", (route) =>
+        fulfillJson(route, 403, { message: "Sem permissão para listar materiais oficiais." }),
+    );
+
+    await loginAs(page, readCredentials("TEACHER"));
+    await page.goto("/app/professor/disciplinas/subject-mf7/materiais");
+
+    await expect(page.getByRole("alert")).toContainText("Sem permissão para listar materiais oficiais.");
+    await expect(page.getByRole("button", { name: "Guardar material" })).toBeVisible();
 });
 ```
 
-Fixa comportamento esperado e previne regressões no módulo.
-- Requisitos alvo deste BK: `RNF26`.
+5. Explicação do código.
 
-## Criterios de aceite
-- Fluxo principal implementado no scope definido.
-- Cenarios negativos concluidos: minimo `3` com resultado controlado.
-- Evidencia de testes por camada conforme prioridade (`P0`).
-- Contrato canónico preservado (`bk_id/macro/sprint/owner/rf_rnf/dependencias/guia_path/core_or_reforco`).
-- Evidence pronta para revisão técnica e defesa PAP.
+O teste usa as páginas reais protegidas e valida quatro estados observáveis. O caso vazio prova o caminho principal sem dados. Os três negativos P0 provam falha de listagem de aluno, falha de geração e falha de listagem docente, mantendo a interface utilizável e sem expor dados privados.
 
-## Evidence para PR/defesa
-- `pr`: link de PR/commit com resumo funcional do BK.
-- `proof`: output/screenshot/log/teste que comprova o caminho principal.
-- `neg`: evidência dos cenários negativos executados e respetivo erro controlado.
+6. Validação do passo.
 
-## Proximo BK recomendado
-`BK-MF7-05`
+Comandos recomendados:
+- `npm --prefix apps/web run build`
+- `npm --prefix apps/web run test:e2e -- tests/e2e/mf7-async-state-block.spec.ts`
 
-## Changelog
-- `2026-04-19`: guia semântico regenerado com passos, validação e snippet alinhados ao requisito.
+7. Cenário negativo/erro esperado.
+
+Se o teste passar sem verificar uma mensagem de erro visível, não conta como negativo P0. Se depender de dados privados reais para afirmar sucesso, a evidence deve ser rejeitada.
+
+### Passo 6 - Validar por camada
+
+1. Objetivo funcional do passo no contexto da app.
+
+Confirmar que backend, frontend, documentação e evidence estão alinhados.
+
+2. Ficheiros envolvidos:
+- REVER: `apps/api/package.json`
+- REVER: `apps/web/package.json`
+- REVER: `docs/planificacao/guias-bk/MF7`
+- LOCALIZAÇÃO: comandos de validação e PR.
+
+3. Instruções do que fazer.
+
+Executa validação por camada e regista observed/expected. Matriz minima de testes por prioridade: `P0` exige unit, integração e 3 negativos; `P1` exige unit ou integração e 2 negativos; `P2` exige teste focal e 1 negativo. Evidencia de testes por camada: backend, frontend, documentação e smoke quando existir endpoint.
+
+4. Código completo, correto e integrado com a app final.
+
+Sem código neste passo.
+
+5. Explicação do código.
+
+Sem código neste passo porque a validação é operacional. O valor está em comparar resultado esperado e observado de forma objetiva.
+
+6. Validação do passo.
+
+Resultados esperados:
+- `npm --prefix apps/web run build`: sem erros TypeScript/Vite.
+- `npm --prefix apps/web run test:e2e -- tests/e2e/mf7-async-state-block.spec.ts`: testes verdes quando existirem credenciais E2E e servidor local.
+- `git diff --check`: sem espaços finais.
+- `bash scripts/validate-planificacao.sh`: planeamento sem drift crítico.
+
+7. Cenário negativo/erro esperado.
+
+Se o build falhar por import criado neste BK, corrige antes de abrir PR. Se o Playwright falhar por ausência de servidor local ou credenciais E2E, regista o bloqueio com o comando e a mensagem observada.
+
+### Passo 7 - Preparar evidence e handoff
+
+1. Objetivo funcional do passo no contexto da app.
+
+Fechar `BK-MF7-04` com prova técnica e instrução clara para `BK-MF7-05`.
+
+2. Ficheiros envolvidos:
+- REVER: `docs/planificacao/guias-bk/MF7/BK-MF7-04-frontend-componentizado-e-reutilizavel.md`
+- REVER: `docs/planificacao/guias-bk/MF7/BK-MF7-05-documentacao-tecnica-minima-modelos-fluxos-endpoints.md`
+- LOCALIZAÇÃO: secções finais do guia e descrição da PR.
+
+3. Instruções do que fazer.
+
+No PR, inclui comandos executados, resultado principal, negativos, risco restante e o que o próximo BK passa a poder reutilizar. Se o BK tocar IA, inclui prova de fontes/contexto; se tocar operação, inclui prova de health, logs ou readiness.
+
+4. Código completo, correto e integrado com a app final.
+
+Tabela mínima de evidence para anexar ao PR ou relatório técnico:
+
+| Caso | Expected | Observed a registar |
+| --- | --- | --- |
+| Vazio em `/app/areas/area-mf7/ferramentas` | Mensagem `Ainda não há resumos nem ferramentas geradas.` e botão `Gerar resumo` visível. | Screenshot ou output Playwright do teste `MF7 aluno mostra estado vazio quando não há artefactos`. |
+| Negativo 1: `GET /api/study-areas/:id/summaries` falha | `role="alert"` mostra a mensagem de falha e a ação `Gerar resumo` continua visível. | Output Playwright do teste de erro de carregamento. |
+| Negativo 2: `POST /api/study-areas/:id/summaries` falha | `role="alert"` mostra limite/erro de geração e a lista já carregada continua visível. | Output Playwright do teste de erro de geração. |
+| Negativo 3: `GET /api/teacher/subjects/:id/materials` falha | `role="alert"` mostra erro docente e o formulário `Guardar material` continua visível. | Output Playwright do teste docente. |
+| Privacidade | Evidence não contém credenciais, cookies, material privado nem respostas completas de IA. | Confirmação textual no PR. |
+
+5. Explicação do código.
+
+A evidence prova que `RNF26` foi aplicado em duas páginas reais e que o componente não substitui validações do backend. O próximo BK pode documentar o mapa técnico sabendo que já existe um componente reutilizável, pontos de integração e negativos P0 objetivos.
+
+6. Validação do passo.
+
+Resultado esperado: PR ou relatório com comandos, expected/observed, três negativos P0, confirmação de privacidade e handoff explícito para `BK-MF7-05`.
+
+7. Cenário negativo/erro esperado.
+
+Se a evidence disser apenas 'funciona', sem output, request/response, teste ou screenshot, não cumpre o BK.
+
+#### Critérios de aceite
+
+- `RNF26` fica demonstrável por código, teste/evidence e explicação pedagógica.
+- O guia mantém `bk_id`, `macro`, owner, apoio, prioridade, sprint, esforço, `rf_rnf` e `proximo_bk` alinhados com matriz e backlog.
+- Cada passo tem objetivo, ficheiros, instruções, código ou justificação sem código, explicação, validação e negativo.
+- O código apresentado tem JSDoc nos elementos relevantes e comentários didáticos junto das decisões importantes.
+- Não existe decisão de sessão, ownership, membership, role, quota, fonte IA ou privacidade feita apenas no frontend.
+- Não há exposição de cookies, passwords, prompts privados, respostas IA completas, materiais privados ou dados de outro contexto em logs/evidence.
+- Os negativos mínimos respeitam a prioridade `P0`.
+
+#### Validação final
+
+- Executar pesquisa textual nos BKs MF7 para confirmar ausência de linguagem interna e caminhos privados.
+- Executar `git diff --check`.
+- Executar `bash scripts/validate-planificacao.sh`.
+- Executar `npm --prefix apps/web run build`.
+- Quando houver servidor local e credenciais E2E, executar `npm --prefix apps/web run test:e2e -- tests/e2e/mf7-async-state-block.spec.ts`.
+- Resultado esperado: comandos verdes ou falha externa registada com caminho, comando e erro observado.
+
+#### Evidence para PR/defesa
+
+- `pr`: referência do PR/commit com resumo de `BK-MF7-04`.
+- `proof_tecnico`: comando executado, output relevante ou request/response do caminho principal.
+- `proof_negativos`: três erros controlados P0 com expected/observed.
+- `proof_fontes`: para IA, lista de `sourceLabel`, `locator` e excerto limitado.
+- `proof_privacidade`: confirmação de que não há dados pessoais ou privados em logs/evidence.
+- `proof_pedagogico`: explicação curta de como `RNF26` melhora a aplicação para alunos, professores ou operação.
+
+#### Handoff
+
+`BK-MF7-05` documenta o componente no mapa técnico mínimo.
+
+O próximo BK deve reutilizar os ficheiros e decisões deste guia, sem criar outro contrato para a mesma responsabilidade.
+
+#### Changelog
+
+- `2026-06-26`: contrato de componentização frontend documentado com tutorial técnico linear, código completo, validação, negativos, evidence e caminhos públicos `apps/...`.

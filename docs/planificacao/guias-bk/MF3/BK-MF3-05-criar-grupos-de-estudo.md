@@ -8,7 +8,7 @@
 - `owner`: `Natalia`
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
-- `estado`: `DONE`
+- `estado`: `TODO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF1-02`
 - `rf_rnf`: `RF41`
@@ -17,11 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF3-06`
 - `guia_path`: `docs/planificacao/guias-bk/MF3/BK-MF3-05-criar-grupos-de-estudo.md`
-<<<<<<< HEAD
-- `last_updated`: `2026-06-14`
-=======
-- `last_updated`: `2026-06-16`
->>>>>>> 328adf2 (Update: MF4)
+- `last_updated`: `2026-06-26`
 
 #### Objetivo
 

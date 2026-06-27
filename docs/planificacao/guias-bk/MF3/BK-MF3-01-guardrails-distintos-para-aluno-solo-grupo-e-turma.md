@@ -8,7 +8,7 @@
 - `owner`: `Natalia`
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
-- `estado`: `DONE`
+- `estado`: `TODO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF2-11`
 - `rf_rnf`: `RF37`
@@ -17,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF3-02`
 - `guia_path`: `docs/planificacao/guias-bk/MF3/BK-MF3-01-guardrails-distintos-para-aluno-solo-grupo-e-turma.md`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-06-26`
 
 #### Objetivo
 

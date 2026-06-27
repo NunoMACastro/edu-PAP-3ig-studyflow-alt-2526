@@ -94,10 +94,10 @@ Rastreabilidade operacional `BK -> Sprint -> Owner` com contrato `Core/Reforco`.
 | BK-MF6-11 | MF6 | S10 | Kaua | Kaua | P1 | Core | RNF21 | - | docs/planificacao/guias-bk/MF6/BK-MF6-11-backups-diarios-automaticos.md |
 | BK-MF6-12 | MF6 | S09 | Kaua | Guilherme | P1 | Core | RNF22 | - | docs/planificacao/guias-bk/MF6/BK-MF6-12-auto-recovery-apos-falhas.md |
 | BK-MF7-01 | MF7 | S11 | Kaua | Guilherme | P0 | Reforco | RNF23 | - | docs/planificacao/guias-bk/MF7/BK-MF7-01-logs-estruturados-de-eventos-e-erros.md |
-| BK-MF7-02 | MF7 | S12 | Guilherme | Natalia | P2 | Core | RNF24 | - | docs/planificacao/guias-bk/MF7/BK-MF7-02-downtime-maximo-aceitavel-1h-mes.md |
+| BK-MF7-02 | MF7 | S10 | Guilherme | Natalia | P2 | Core | RNF24 | - | docs/planificacao/guias-bk/MF7/BK-MF7-02-downtime-maximo-aceitavel-1h-mes.md |
 | BK-MF7-03 | MF7 | S11 | Natalia | Guilherme | P0 | Reforco | RNF25 | - | docs/planificacao/guias-bk/MF7/BK-MF7-03-backend-modular-por-dominios-aluno-professor-ia-materiais.md |
 | BK-MF7-04 | MF7 | S11 | Guilherme | Natalia | P0 | Reforco | RNF26 | - | docs/planificacao/guias-bk/MF7/BK-MF7-04-frontend-componentizado-e-reutilizavel.md |
-| BK-MF7-05 | MF7 | S12 | Guilherme | Natalia | P1 | Core | RNF27 | - | docs/planificacao/guias-bk/MF7/BK-MF7-05-documentacao-tecnica-minima-modelos-fluxos-endpoints.md |
+| BK-MF7-05 | MF7 | S06 | Guilherme | Natalia | P1 | Core | RNF27 | - | docs/planificacao/guias-bk/MF7/BK-MF7-05-documentacao-tecnica-minima-modelos-fluxos-endpoints.md |
 | BK-MF7-06 | MF7 | S07 | Natalia | Guilherme | P1 | Core | RNF28 | - | docs/planificacao/guias-bk/MF7/BK-MF7-06-testes-automatizados-para-modulos-criticos.md |
 | BK-MF7-07 | MF7 | S12 | Daniel | Kaua | P1 | Core | RNF29 | - | docs/planificacao/guias-bk/MF7/BK-MF7-07-deploy-com-rollback.md |
 | BK-MF7-08 | MF7 | S12 | Kaua | Guilherme | P1 | Core | RNF30 | - | docs/planificacao/guias-bk/MF7/BK-MF7-08-endpoint-de-health-check.md |

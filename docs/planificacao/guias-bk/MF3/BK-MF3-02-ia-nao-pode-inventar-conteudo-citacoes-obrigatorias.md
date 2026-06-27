@@ -8,7 +8,7 @@
 - `owner`: `Natalia`
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
-- `estado`: `DONE`
+- `estado`: `TODO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF2-07`
 - `rf_rnf`: `RF38`
@@ -17,11 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF3-03`
 - `guia_path`: `docs/planificacao/guias-bk/MF3/BK-MF3-02-ia-nao-pode-inventar-conteudo-citacoes-obrigatorias.md`
-<<<<<<< HEAD
-- `last_updated`: `2026-06-14`
-=======
-- `last_updated`: `2026-06-16`
->>>>>>> 328adf2 (Update: MF4)
+- `last_updated`: `2026-06-26`
 
 #### Objetivo
 

@@ -112,10 +112,10 @@ Formalizar o contrato de campos BK para eliminar drift entre matriz, backlog, gu
 | BK-MF6-11 | MF6 | Kaua | P1 | - | RNF21 | S10 | Core | BK-MF6-12 | docs/planificacao/guias-bk/MF6/BK-MF6-11-backups-diarios-automaticos.md |
 | BK-MF6-12 | MF6 | Kaua | P1 | - | RNF22 | S09 | Core | BK-MF7-01 | docs/planificacao/guias-bk/MF6/BK-MF6-12-auto-recovery-apos-falhas.md |
 | BK-MF7-01 | MF7 | Kaua | P0 | - | RNF23 | S11 | Reforco | BK-MF7-02 | docs/planificacao/guias-bk/MF7/BK-MF7-01-logs-estruturados-de-eventos-e-erros.md |
-| BK-MF7-02 | MF7 | Guilherme | P2 | - | RNF24 | S12 | Core | BK-MF7-03 | docs/planificacao/guias-bk/MF7/BK-MF7-02-downtime-maximo-aceitavel-1h-mes.md |
+| BK-MF7-02 | MF7 | Guilherme | P2 | - | RNF24 | S10 | Core | BK-MF7-03 | docs/planificacao/guias-bk/MF7/BK-MF7-02-downtime-maximo-aceitavel-1h-mes.md |
 | BK-MF7-03 | MF7 | Natalia | P0 | - | RNF25 | S11 | Reforco | BK-MF7-04 | docs/planificacao/guias-bk/MF7/BK-MF7-03-backend-modular-por-dominios-aluno-professor-ia-materiais.md |
 | BK-MF7-04 | MF7 | Guilherme | P0 | - | RNF26 | S11 | Reforco | BK-MF7-05 | docs/planificacao/guias-bk/MF7/BK-MF7-04-frontend-componentizado-e-reutilizavel.md |
-| BK-MF7-05 | MF7 | Guilherme | P1 | - | RNF27 | S12 | Core | BK-MF7-06 | docs/planificacao/guias-bk/MF7/BK-MF7-05-documentacao-tecnica-minima-modelos-fluxos-endpoints.md |
+| BK-MF7-05 | MF7 | Guilherme | P1 | - | RNF27 | S06 | Core | BK-MF7-06 | docs/planificacao/guias-bk/MF7/BK-MF7-05-documentacao-tecnica-minima-modelos-fluxos-endpoints.md |
 | BK-MF7-06 | MF7 | Natalia | P1 | - | RNF28 | S07 | Core | BK-MF7-07 | docs/planificacao/guias-bk/MF7/BK-MF7-06-testes-automatizados-para-modulos-criticos.md |
 | BK-MF7-07 | MF7 | Daniel | P1 | - | RNF29 | S12 | Core | BK-MF7-08 | docs/planificacao/guias-bk/MF7/BK-MF7-07-deploy-com-rollback.md |
 | BK-MF7-08 | MF7 | Kaua | P1 | - | RNF30 | S12 | Core | BK-MF7-09 | docs/planificacao/guias-bk/MF7/BK-MF7-08-endpoint-de-health-check.md |
