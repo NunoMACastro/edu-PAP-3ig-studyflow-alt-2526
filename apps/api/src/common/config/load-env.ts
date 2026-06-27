@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const ENV_FILE_PATH = fileURLToPath(new URL("../../../.env", import.meta.url));
 
 /**
- * Carrega variáveis locais de `real_dev/api/.env`.
+ * Carrega variáveis locais do `.env` do pacote API atual.
  *
  * O loader é intencionalmente pequeno para evitar uma dependência nova. Valores
  * já definidos no ambiente do processo têm prioridade sobre o ficheiro.
