@@ -1,2 +1,0 @@
-# O ficheiro de ambiente do deploy deve definir MONGODB_URI, STUDYFLOW_BACKUP_DIR e STUDYFLOW_BACKUP_RETENTION_DAYS.
-15 2 * * * cd /srv/studyflow && npm --prefix apps/api run backup:daily >> /var/log/studyflow-backup.log 2>&1
