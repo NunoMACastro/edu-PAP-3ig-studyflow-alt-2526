@@ -1,0 +1,61 @@
+/**
+ * Implementa uma pagina React de student com estado, carregamento e ações do utilizador.
+ */
+import { FormEvent, useState } from "react";
+import { askRoomAi, RoomAiAnswer } from "../../lib/apiClient.js";
+
+/**
+ * Props do componente React de student; mantêm explícitas as dependências vindas da página.
+ */
+type RoomAiPageProps = {
+    roomId: string;
+};
+
+/**
+ * Página da IA partilhada da sala.
+ */
+export function RoomAiPage({ roomId }: RoomAiPageProps) {
+    const [question, setQuestion] = useState("");
+    const [answer, setAnswer] = useState<RoomAiAnswer | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    /**
+     * Trata a acao do utilizador e sincroniza o estado da interface.
+     *
+     * @param event Evento da interface que dispara a acao.
+     */
+    async function handleSubmit(event: FormEvent): Promise<void> {
+        event.preventDefault();
+        setLoading(true);
+        setError(null);
+        try {
+            setAnswer(await askRoomAi(roomId, { question }));
+            setQuestion("");
+        } catch (caught) {
+            setError(caught instanceof Error ? caught.message : "Erro ao perguntar.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <section className="space-y-4">
+            <form className="sf-panel space-y-4" onSubmit={(event) => void handleSubmit(event)}>
+                <h1 className="text-xl font-bold">IA da sala</h1>
+                {error ? <p className="sf-error">{error}</p> : null}
+                <textarea rows={4} value={question} onChange={(event) => setQuestion(event.target.value)} />
+                <button className="sf-button-primary" disabled={loading || question.trim().length < 4}>
+                    Perguntar
+                </button>
+            </form>
+            {answer ? (
+                <article className="sf-panel space-y-3">
+                    <h2 className="font-semibold">Resposta</h2>
+                    <p className="whitespace-pre-wrap text-sm text-slate-700">{answer.answer}</p>
+                    <p className="text-sm text-slate-600">Fontes usadas: {answer.sources.map((source) => source.title).join(", ")}</p>
+                </article>
+            ) : null}
+        </section>
+    );
+}

@@ -1,0 +1,89 @@
+/**
+ * Implementa a funcionalidade frontend de IA coletiva do grupo e o respetivo contrato com a API.
+ */
+import { FormEvent, useEffect, useState } from "react";
+import { askStudyGroupAi, StudyGroupAiAnswer } from "./ask-study-group-ai.js";
+
+/**
+ * Props do componente React de IA coletiva do grupo; mantêm explícitas as dependências vindas da página.
+ */
+type StudyGroupAiPanelProps = {
+    initialGroupId?: string | null;
+};
+
+/**
+ * Painel de IA coletiva.
+ *
+ * @param props Grupo selecionado pela página agregadora.
+ * @returns Formulário e resposta.
+ */
+export function StudyGroupAiPanel({ initialGroupId }: StudyGroupAiPanelProps) {
+    const [groupId, setGroupId] = useState(initialGroupId ?? "");
+    const [question, setQuestion] = useState("");
+    const [sourceShareIds, setSourceShareIds] = useState("");
+    const [answer, setAnswer] = useState<StudyGroupAiAnswer | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        setGroupId(initialGroupId ?? "");
+    }, [initialGroupId]);
+
+    /**
+     * Trata a acao do utilizador e sincroniza o estado da interface.
+     *
+     * @param event Evento da interface que dispara a acao.
+     */
+    async function handleSubmit(event: FormEvent): Promise<void> {
+        event.preventDefault();
+        setLoading(true);
+        setError(null);
+        try {
+            setAnswer(
+                await askStudyGroupAi(groupId, {
+                    question,
+                    sourceShareIds: sourceShareIds
+                        .split(",")
+                        .map((sourceId) => sourceId.trim())
+                        .filter(Boolean),
+                }),
+            );
+        } catch (caught) {
+            setError(caught instanceof Error ? caught.message : "Erro ao responder.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <section className="sf-panel space-y-4">
+            <h2 className="text-lg font-semibold">IA coletiva</h2>
+            {error ? <p className="sf-error">{error}</p> : null}
+            <form className="space-y-3" onSubmit={(event) => void handleSubmit(event)}>
+                <label className="block">
+                    Grupo
+                    <input value={groupId} onChange={(event) => setGroupId(event.target.value)} />
+                </label>
+                <label className="block">
+                    Fontes
+                    <input value={sourceShareIds} onChange={(event) => setSourceShareIds(event.target.value)} />
+                </label>
+                <label className="block">
+                    Pergunta
+                    <textarea rows={3} value={question} onChange={(event) => setQuestion(event.target.value)} />
+                </label>
+                <button className="sf-button-primary" disabled={loading || !groupId || question.trim().length < 5}>
+                    {loading ? "A responder..." : "Responder"}
+                </button>
+            </form>
+            {answer ? (
+                <div className="space-y-2 text-sm">
+                    <p className="whitespace-pre-line text-slate-800">{answer.answer}</p>
+                    {answer.sources.map((source) => (
+                        <p className="text-slate-600" key={source.shareId}>{source.title}</p>
+                    ))}
+                </div>
+            ) : null}
+        </section>
+    );
+}
