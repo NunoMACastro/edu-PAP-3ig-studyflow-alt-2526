@@ -17,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF7-05`
 - `guia_path`: `docs/planificacao/guias-bk/MF7/BK-MF7-04-frontend-componentizado-e-reutilizavel.md`
-- `last_updated`: `2026-06-26`
+- `last_updated`: `2026-06-28`
 
 #### Objetivo
 
@@ -93,7 +93,7 @@ Este BK é incremental: consome contratos já fechados nas MFs anteriores e entr
 - Endpoint(s): não cria endpoint; consome clientes API existentes.
 - Modelo/schema: não cria schema.
 - Service(s): não cria service backend.
-- Controller/route: componente React `AsyncStateBlock`.
+- Frontend component: componente React `AsyncStateBlock`.
 - Guard/middleware: reutiliza `SessionGuard` quando o endpoint for privado; health e operação pública nunca expõem dados pessoais.
 - Cliente API: usa clientes existentes com `credentials: 'include'` quando houver frontend autenticado.
 - Segurança/autorização: não decide permissões no frontend; apenas mostra estados recebidos de endpoints protegidos.
@@ -196,7 +196,7 @@ Cria o ficheiro com o código abaixo. Mantém nomes, imports e mensagens em port
 /**
  * Apresenta estados assíncronos reutilizáveis nas páginas StudyFlow.
  */
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 export type AsyncStateBlockProps = {
     isLoading: boolean;
@@ -245,7 +245,7 @@ O componente concentra quatro estados repetidos: carregamento, erro, vazio e con
 
 6. Validação do passo.
 
-Confirma que o ficheiro importa apenas `ReactNode`, exporta `AsyncStateBlock` e não lê sessão, role, ownership, quotas, fontes IA, storage do browser ou variáveis de ambiente.
+Confirma que o ficheiro importa apenas `type ReactNode`, exporta `AsyncStateBlock` e não lê sessão, role, ownership, quotas, fontes IA, storage do browser ou variáveis de ambiente.
 
 7. Cenário negativo/erro esperado.
 
@@ -264,252 +264,517 @@ Substituir estados repetidos em páginas existentes de aluno e professor, sem al
 
 3. Instruções do que fazer.
 
-Importa `AsyncStateBlock` nas duas páginas indicadas e substitui os blocos locais repetidos de loading, erro e vazio. Não mudes clientes API, endpoints, sessão, permissões ou ownership: o frontend só apresenta estados vindos de chamadas já protegidas.
+Importa `AsyncStateBlock` nas duas páginas indicadas e substitui os blocos locais repetidos de loading, erro e vazio. Mantém o estado de carregamento inicial alinhado com a primeira chamada remota, separa erros de carregamento de erros de ação e não mudes clientes API, endpoints, sessão, permissões ou ownership: o frontend só apresenta estados vindos de chamadas já protegidas.
 
 4. Código completo, correto e integrado com a app final.
 
-Aplica este diff integral em `StudyToolsPage`.
+Substitui o conteúdo final de `StudyToolsPage` pelo ficheiro abaixo. A página já vinha de BKs anteriores, por isso este passo não recria clientes API nem altera o fluxo de quiz em background entregue na MF6.
 
-```diff
-diff --git a/apps/web/src/pages/student/StudyToolsPage.tsx b/apps/web/src/pages/student/StudyToolsPage.tsx
---- a/apps/web/src/pages/student/StudyToolsPage.tsx
-+++ b/apps/web/src/pages/student/StudyToolsPage.tsx
-@@
- import { ExplanationPanel } from "../../components/ai/ExplanationPanel.js";
- import { FlashcardsPanel } from "../../components/ai/FlashcardsPanel.js";
- import { QuizPanel } from "../../components/ai/QuizPanel.js";
- import { SummaryPanel } from "../../components/ai/SummaryPanel.js";
-+import { AsyncStateBlock } from "../../components/ui/AsyncStateBlock.js";
-@@
--    const [error, setError] = useState<string | null>(null);
-+    const [loadError, setLoadError] = useState<string | null>(null);
-+    const [actionError, setActionError] = useState<string | null>(null);
-@@
-             setSummaries(summaryList);
-             setStudyTools(toolList);
-+            setLoadError(null);
-             setArtifact((current) => {
-@@
--            setError(
-+            setLoadError(
-                 caught instanceof Error
-                     ? caught.message
-                     : "Não foi possível carregar artefactos.",
-             );
-@@
--        setError(null);
-+        setActionError(null);
-         setIsGeneratingSummary(true);
-@@
--            setError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
-+            setActionError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
-@@
--        setError(null);
-+        setActionError(null);
-         setIsGeneratingTool(true);
-@@
--            setError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
-+            setActionError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
-@@
-     const isGenerating = isGeneratingSummary || isGeneratingTool;
-+    const hasArtifacts = summaries.length > 0 || studyTools.length > 0;
-@@
--                {error ? <p className="sf-error">{error}</p> : null}
-+                {actionError ? <p className="sf-error" role="alert">{actionError}</p> : null}
-@@
--                {isLoadingExisting ? (
--                    <p className="text-sm text-slate-600">A carregar artefactos...</p>
--                ) : null}
-@@
--            <div className="grid gap-4 lg:grid-cols-2">
--                <ArtifactList
--                    artifacts={summaries}
--                    emptyText="Ainda não há resumos gerados."
--                    onSelect={setArtifact}
--                    selectedId={artifact?._id}
--                    title="Resumos"
--                />
--                <ArtifactList
--                    artifacts={studyTools}
--                    emptyText="Ainda não há ferramentas geradas."
--                    onSelect={setArtifact}
--                    selectedId={artifact?._id}
--                    title="Ferramentas"
--                />
--            </div>
-+            <AsyncStateBlock
-+                isLoading={isLoadingExisting}
-+                error={loadError ?? undefined}
-+                isEmpty={!hasArtifacts}
-+                emptyMessage="Ainda não há resumos nem ferramentas geradas."
-+            >
-+                <div className="grid gap-4 lg:grid-cols-2">
-+                    <ArtifactList
-+                        artifacts={summaries}
-+                        emptyText="Ainda não há resumos gerados."
-+                        onSelect={setArtifact}
-+                        selectedId={artifact?._id}
-+                        title="Resumos"
-+                    />
-+                    <ArtifactList
-+                        artifacts={studyTools}
-+                        emptyText="Ainda não há ferramentas geradas."
-+                        onSelect={setArtifact}
-+                        selectedId={artifact?._id}
-+                        title="Ferramentas"
-+                    />
-+                </div>
-+            </AsyncStateBlock>
-@@
-         <div className="sf-panel space-y-3">
-             <h2 className="text-lg font-bold">{title}</h2>
--            {artifacts.length === 0 ? (
--                <p className="text-sm text-slate-600">{emptyText}</p>
--            ) : (
-+            <AsyncStateBlock
-+                isLoading={false}
-+                isEmpty={artifacts.length === 0}
-+                emptyMessage={emptyText}
-+            >
-                 <ul className="space-y-2">
-                     {artifacts.map((item) => (
-+                        // A API já filtra os artefactos pela área autenticada antes da lista renderizar.
-                         <li key={item._id}>
-@@
-                     ))}
-                 </ul>
--            )}
-+            </AsyncStateBlock>
-         </div>
-     );
- }
+```tsx
+// apps/web/src/pages/student/StudyToolsPage.tsx
+/**
+ * Implementa uma pagina React de student com estado, carregamento e ações do utilizador.
+ */
+import { type FormEvent, useEffect, useState } from "react";
+import { ExplanationPanel } from "../../components/ai/ExplanationPanel.js";
+import { FlashcardsPanel } from "../../components/ai/FlashcardsPanel.js";
+import { QuizPanel } from "../../components/ai/QuizPanel.js";
+import { SummaryPanel } from "../../components/ai/SummaryPanel.js";
+import { AsyncStateBlock } from "../../components/ui/AsyncStateBlock.js";
+import {
+    createQuizGenerationJob,
+    generateStudyTool,
+    generateSummary,
+    getQuizGenerationJob,
+    listStudyTools,
+    listSummaries,
+    type AiArtifact,
+    type QuizGenerationJob,
+    type StudyToolType,
+} from "../../lib/apiClient.js";
+
+/**
+ * Props do componente React de student; mantêm explícitas as dependências vindas da página.
+ */
+type StudyToolsPageProps = {
+    studyAreaId: string;
+};
+
+/**
+ * Página de resumos e ferramentas IA da área.
+ *
+ * @param props Identificador da área.
+ * @returns Controlos de geração e resultado.
+ */
+export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
+    const [type, setType] = useState<StudyToolType>("EXPLANATION");
+    const [topic, setTopic] = useState("");
+    const [artifact, setArtifact] = useState<AiArtifact | null>(null);
+    const [summaries, setSummaries] = useState<AiArtifact[]>([]);
+    const [studyTools, setStudyTools] = useState<AiArtifact[]>([]);
+    const [quizJob, setQuizJob] = useState<QuizGenerationJob | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [isLoadingExisting, setIsLoadingExisting] = useState(true);
+    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+    const [isGeneratingTool, setIsGeneratingTool] = useState(false);
+
+    /**
+     * Recarrega artefactos IA já persistidos para a área.
+     *
+     * @returns Promise resolvida depois de atualizar as listas.
+     */
+    async function refreshArtifacts(preferredArtifactId?: string): Promise<void> {
+        setIsLoadingExisting(true);
+        try {
+            const [summaryList, toolList] = await Promise.all([
+                listSummaries(studyAreaId),
+                listStudyTools(studyAreaId),
+            ]);
+            setSummaries(summaryList);
+            setStudyTools(toolList);
+            setLoadError(null);
+            setArtifact((current) => {
+                const allArtifacts = [...summaryList, ...toolList];
+                if (preferredArtifactId) {
+                    const preferred = allArtifacts.find(
+                        (item) => item._id === preferredArtifactId,
+                    );
+                    if (preferred) return preferred;
+                }
+                const currentStillExists = allArtifacts.find(
+                    (item) => item._id === current?._id,
+                );
+                return currentStillExists ?? summaryList[0] ?? toolList[0] ?? null;
+            });
+        } catch (caught) {
+            setLoadError(
+                caught instanceof Error
+                    ? caught.message
+                    : "Não foi possível carregar artefactos.",
+            );
+        } finally {
+            setIsLoadingExisting(false);
+        }
+    }
+
+    useEffect(() => {
+        void refreshArtifacts();
+    }, [studyAreaId]);
+
+    useEffect(() => {
+        if (!quizJob || !["QUEUED", "PROCESSING"].includes(quizJob.status)) {
+            return undefined;
+        }
+
+        const timer = window.setInterval(async () => {
+            try {
+                const nextJob = await getQuizGenerationJob(studyAreaId, quizJob._id);
+                setQuizJob(nextJob);
+                if (nextJob.status === "DONE" && nextJob.artifactId) {
+                    await refreshArtifacts(nextJob.artifactId);
+                }
+            } catch (caught) {
+                // A UI não mostra detalhes técnicos que possam revelar fontes privadas ou prompts.
+                setActionError(
+                    caught instanceof Error
+                        ? caught.message
+                        : "Não foi possível atualizar o estado do quiz.",
+                );
+            }
+        }, 1500);
+
+        return () => window.clearInterval(timer);
+    }, [quizJob, studyAreaId]);
+
+    /**
+     * Gera um resumo para a área.
+     *
+     * @returns Promise resolvida depois de guardar resultado.
+     */
+    async function handleSummary(): Promise<void> {
+        if (isGeneratingSummary || isGeneratingTool) return;
+        setActionError(null);
+        setIsGeneratingSummary(true);
+        try {
+            const created = await generateSummary(studyAreaId);
+            setArtifact(created);
+            setSummaries((current) => [created, ...current]);
+        } catch (caught) {
+            setActionError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
+        } finally {
+            setIsGeneratingSummary(false);
+        }
+    }
+
+    /**
+     * Gera a ferramenta de estudo escolhida.
+     *
+     * @param event Evento de submissão.
+     * @returns Promise resolvida depois de guardar resultado.
+     */
+    async function handleTool(event: FormEvent): Promise<void> {
+        event.preventDefault();
+        if (isGeneratingSummary || isGeneratingTool) return;
+        setActionError(null);
+        setIsGeneratingTool(true);
+        try {
+            if (type === "QUIZ") {
+                const normalizedTopic = topic.trim();
+                const createdJob = await createQuizGenerationJob(studyAreaId, {
+                    topic: normalizedTopic || undefined,
+                });
+                setArtifact(null);
+                setQuizJob(createdJob);
+                return;
+            }
+            const created = await generateStudyTool(studyAreaId, { type, topic });
+            setArtifact(created);
+            setStudyTools((current) => [created, ...current]);
+        } catch (caught) {
+            setActionError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
+        } finally {
+            setIsGeneratingTool(false);
+        }
+    }
+
+    const isQuizJobActive =
+        quizJob?.status === "QUEUED" || quizJob?.status === "PROCESSING";
+    const isGenerating = isGeneratingSummary || isGeneratingTool || isQuizJobActive;
+    const hasArtifacts = summaries.length > 0 || studyTools.length > 0;
+
+    return (
+        <section className="space-y-6">
+            <div className="sf-panel space-y-4">
+                <h1 className="text-xl font-bold">IA da área</h1>
+                {actionError ? <p className="sf-error" role="alert">{actionError}</p> : null}
+                {isGenerating ? (
+                    <p className="text-sm text-slate-600">
+                        {isGeneratingSummary
+                            ? "A gerar resumo..."
+                            : isQuizJobActive
+                              ? "A preparar quiz em background..."
+                              : "A gerar ferramenta..."}
+                    </p>
+                ) : null}
+                {quizJob ? (
+                    <p className="text-sm text-slate-600" aria-live="polite">
+                        {quizJob.status === "DONE"
+                            ? "Quiz pronto para resolver."
+                            : quizJob.status === "FAILED"
+                              ? quizJob.errorMessage ?? "Não foi possível gerar o quiz."
+                              : `Quiz em ${quizJob.status === "QUEUED" ? "fila" : "processamento"}.`}
+                    </p>
+                ) : null}
+                <div className="flex flex-wrap gap-3">
+                    <button
+                        className="sf-button-secondary"
+                        type="button"
+                        onClick={() => void handleSummary()}
+                        disabled={isGenerating}
+                    >
+                        {isGeneratingSummary ? "A gerar..." : "Gerar resumo"}
+                    </button>
+                </div>
+                <form className="grid gap-3 md:grid-cols-[180px_1fr_auto]" onSubmit={(event) => void handleTool(event)}>
+                    <select
+                        value={type}
+                        onChange={(event) => setType(event.target.value as StudyToolType)}
+                        disabled={isGenerating}
+                    >
+                        <option value="EXPLANATION">Explicação</option>
+                        <option value="FLASHCARDS">Cards</option>
+                        <option value="QUIZ">Quiz</option>
+                    </select>
+                    <input
+                        value={topic}
+                        onChange={(event) => setTopic(event.target.value)}
+                        placeholder="Tópico opcional"
+                        disabled={isGenerating}
+                    />
+                    <button className="sf-button-primary" type="submit" disabled={isGenerating}>
+                        {isGeneratingTool ? "A gerar..." : "Gerar"}
+                    </button>
+                </form>
+            </div>
+            <AsyncStateBlock
+                isLoading={isLoadingExisting}
+                error={loadError ?? undefined}
+                isEmpty={!hasArtifacts}
+                emptyMessage="Ainda não há resumos nem ferramentas geradas."
+            >
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <ArtifactList
+                        artifacts={summaries}
+                        emptyText="Ainda não há resumos gerados."
+                        onSelect={setArtifact}
+                        selectedId={artifact?._id}
+                        title="Resumos"
+                    />
+                    <ArtifactList
+                        artifacts={studyTools}
+                        emptyText="Ainda não há ferramentas geradas."
+                        onSelect={setArtifact}
+                        selectedId={artifact?._id}
+                        title="Ferramentas"
+                    />
+                </div>
+            </AsyncStateBlock>
+            {artifact?.type === "SUMMARY" ? <SummaryPanel artifact={artifact} /> : null}
+            {artifact?.type === "EXPLANATION" ? <ExplanationPanel artifact={artifact} /> : null}
+            {artifact?.type === "FLASHCARDS" ? <FlashcardsPanel artifact={artifact} /> : null}
+            {artifact?.type === "QUIZ" ? (
+                <QuizPanel artifact={artifact} studyAreaId={studyAreaId} />
+            ) : null}
+        </section>
+    );
+}
+
+/**
+ * Props do componente React de student; mantêm explícitas as dependências vindas da página.
+ */
+type ArtifactListProps = {
+    artifacts: AiArtifact[];
+    emptyText: string;
+    onSelect: (artifact: AiArtifact) => void;
+    selectedId?: string;
+    title: string;
+};
+
+/**
+ * Lista artefactos já persistidos da área.
+ *
+ * @param props Artefactos, seleção e texto vazio.
+ * @returns Lista compacta de artefactos.
+ */
+function ArtifactList({
+    artifacts,
+    emptyText,
+    onSelect,
+    selectedId,
+    title,
+}: ArtifactListProps) {
+    return (
+        <div className="sf-panel space-y-3">
+            <h2 className="text-lg font-bold">{title}</h2>
+            <AsyncStateBlock
+                isLoading={false}
+                isEmpty={artifacts.length === 0}
+                emptyMessage={emptyText}
+            >
+                <ul className="space-y-2">
+                    {artifacts.map((item) => {
+                        // A API já filtra os artefactos pela área autenticada antes da lista renderizar.
+                        return (
+                            <li key={item._id}>
+                                <button
+                                    className={
+                                        item._id === selectedId
+                                            ? "sf-button-primary w-full text-left"
+                                            : "sf-button-secondary w-full text-left"
+                                    }
+                                    onClick={() => onSelect(item)}
+                                    type="button"
+                                >
+                                    {artifactLabel(item)}
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ul>
+            </AsyncStateBlock>
+        </div>
+    );
+}
+
+/**
+ * Obtém uma etiqueta curta para um artefacto.
+ *
+ * @param artifact Artefacto IA.
+ * @returns Texto visível na lista.
+ */
+function artifactLabel(artifact: AiArtifact): string {
+    const title = artifact.contentJson.title;
+    if (typeof title === "string" && title.trim()) return title;
+    if (artifact.type === "FLASHCARDS") return "Cards";
+    if (artifact.type === "QUIZ") return "Quiz";
+    return artifact.type === "EXPLANATION" ? "Explicação" : "Resumo";
+}
 ```
 
-Aplica este diff integral em `TeacherOfficialMaterialsPage`.
+Substitui o conteúdo final de `TeacherOfficialMaterialsPage` pelo ficheiro abaixo. A página já vinha da MF1 e continua a usar os mesmos clientes API, incluindo o painel de importação externa da MF5.
 
-```diff
-diff --git a/apps/web/src/pages/teacher/TeacherOfficialMaterialsPage.tsx b/apps/web/src/pages/teacher/TeacherOfficialMaterialsPage.tsx
---- a/apps/web/src/pages/teacher/TeacherOfficialMaterialsPage.tsx
-+++ b/apps/web/src/pages/teacher/TeacherOfficialMaterialsPage.tsx
-@@
- import { FormEvent, useEffect, useState } from "react";
-+import { AsyncStateBlock } from "../../components/ui/AsyncStateBlock.js";
- import { ExternalMaterialImportPanel } from "../../features/mf5/external-material-import-panel.js";
-@@
--    const [error, setError] = useState<string | null>(null);
-+    const [actionError, setActionError] = useState<string | null>(null);
-+    const [listError, setListError] = useState<string | null>(null);
-+    const [isLoadingMaterials, setIsLoadingMaterials] = useState(true);
-@@
-     async function refresh(): Promise<void> {
--        setMaterials(await listOfficialMaterials(subjectId));
-+        setIsLoadingMaterials(true);
-+        try {
-+            setMaterials(await listOfficialMaterials(subjectId));
-+            setListError(null);
-+        } catch (caught) {
-+            setListError(caught instanceof Error ? caught.message : "Erro ao carregar materiais.");
-+        } finally {
-+            setIsLoadingMaterials(false);
-+        }
-     }
+```tsx
+// apps/web/src/pages/teacher/TeacherOfficialMaterialsPage.tsx
+/**
+ * Implementa uma pagina React de teacher com estado, carregamento e ações do utilizador.
+ */
+import { type FormEvent, useEffect, useState } from "react";
+import { AsyncStateBlock } from "../../components/ui/AsyncStateBlock.js";
+import { ExternalMaterialImportPanel } from "../../features/mf5/external-material-import-panel.js";
+import {
+    createOfficialMaterial,
+    indexOfficialMaterial,
+    listOfficialMaterials,
+    type MaterialIndexJob,
+    type OfficialMaterial,
+} from "../../lib/apiClient.js";
 
-     useEffect(() => {
--        refresh().catch((caught: unknown) =>
--            setError(caught instanceof Error ? caught.message : "Erro ao carregar materiais."),
--        );
-+        void refresh();
-     }, [subjectId]);
-@@
--        setError(null);
-+        setActionError(null);
-         try {
-@@
--            setError(caught instanceof Error ? caught.message : "Erro ao criar material.");
-+            setActionError(caught instanceof Error ? caught.message : "Erro ao criar material.");
-@@
--        setError(null);
-+        setActionError(null);
-         try {
-@@
--            setError(caught instanceof Error ? caught.message : "Erro ao indexar material.");
-+            setActionError(caught instanceof Error ? caught.message : "Erro ao indexar material.");
-@@
--                    {error ? <p className="sf-error">{error}</p> : null}
-+                    {actionError ? <p className="sf-error" role="alert">{actionError}</p> : null}
-@@
-             </div>
-             <div className="grid gap-3">
--                {materials.length === 0 ? <p className="sf-panel text-sm text-slate-600">Ainda não há materiais oficiais.</p> : null}
--                {materials.map((material) => (
--                    <article className="sf-panel space-y-1" key={material._id}>
--                        <h2 className="font-semibold">{material.title}</h2>
--                        <p className="text-sm text-slate-600">{material.type} · {material.status}</p>
--                        {material.sourceUrl ? <a className="text-sm text-studyflow-brand" href={material.sourceUrl}>{material.sourceUrl}</a> : null}
--                        <div className="flex flex-wrap gap-2 pt-2">
--                            <button
--                                className="sf-button-secondary"
--                                onClick={() => void handleIndex(material._id)}
--                                type="button"
--                            >
--                                Indexar
--                            </button>
--                            {jobsByMaterial[material._id]?.status === "DONE" ? (
--                                <a
--                                    className="sf-button-secondary"
--                                    href={`/app/material-index-jobs/${jobsByMaterial[material._id]._id}/versoes`}
--                                >
--                                    Versões
--                                </a>
--                            ) : null}
--                        </div>
--                    </article>
--                ))}
-+                <AsyncStateBlock
-+                    isLoading={isLoadingMaterials}
-+                    error={listError ?? undefined}
-+                    isEmpty={materials.length === 0}
-+                    emptyMessage="Ainda não há materiais oficiais."
-+                >
-+                    {materials.map((material) => (
-+                        // O backend limita materiais por disciplina e professor antes da renderização.
-+                        <article className="sf-panel space-y-1" key={material._id}>
-+                            <h2 className="font-semibold">{material.title}</h2>
-+                            <p className="text-sm text-slate-600">{material.type} · {material.status}</p>
-+                            {material.sourceUrl ? <a className="text-sm text-studyflow-brand" href={material.sourceUrl}>{material.sourceUrl}</a> : null}
-+                            <div className="flex flex-wrap gap-2 pt-2">
-+                                <button
-+                                    className="sf-button-secondary"
-+                                    onClick={() => void handleIndex(material._id)}
-+                                    type="button"
-+                                >
-+                                    Indexar
-+                                </button>
-+                                {jobsByMaterial[material._id]?.status === "DONE" ? (
-+                                    <a
-+                                        className="sf-button-secondary"
-+                                        href={`/app/material-index-jobs/${jobsByMaterial[material._id]._id}/versoes`}
-+                                    >
-+                                        Versões
-+                                    </a>
-+                                ) : null}
-+                            </div>
-+                        </article>
-+                    ))}
-+                </AsyncStateBlock>
-             </div>
-         </section>
-     );
- }
+/**
+ * Props do componente React de teacher; mantêm explícitas as dependências vindas da página.
+ */
+type TeacherOfficialMaterialsPageProps = {
+    subjectId: string;
+};
+
+/**
+ * Página de materiais oficiais da disciplina.
+ */
+export function TeacherOfficialMaterialsPage({ subjectId }: TeacherOfficialMaterialsPageProps) {
+    const [materials, setMaterials] = useState<OfficialMaterial[]>([]);
+    const [type, setType] = useState<"TEXT" | "URL">("TEXT");
+    const [title, setTitle] = useState("");
+    const [textContent, setTextContent] = useState("");
+    const [sourceUrl, setSourceUrl] = useState("");
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [listError, setListError] = useState<string | null>(null);
+    const [isLoadingMaterials, setIsLoadingMaterials] = useState(true);
+    const [jobsByMaterial, setJobsByMaterial] = useState<
+        Record<string, MaterialIndexJob>
+    >({});
+
+    /**
+     * Recarrega dados remotos para manter a interface atualizada.
+     */
+    async function refresh(): Promise<void> {
+        setIsLoadingMaterials(true);
+        try {
+            setMaterials(await listOfficialMaterials(subjectId));
+            setListError(null);
+        } catch (caught) {
+            setListError(caught instanceof Error ? caught.message : "Erro ao carregar materiais.");
+        } finally {
+            setIsLoadingMaterials(false);
+        }
+    }
+
+    useEffect(() => {
+        void refresh();
+    }, [subjectId]);
+
+    /**
+     * Trata a acao do utilizador e sincroniza o estado da interface.
+     *
+     * @param event Evento da interface que dispara a acao.
+     */
+    async function handleSubmit(event: FormEvent): Promise<void> {
+        event.preventDefault();
+        setActionError(null);
+        try {
+            await createOfficialMaterial(subjectId, {
+                title,
+                type,
+                textContent: type === "TEXT" ? textContent : undefined,
+                sourceUrl: type === "URL" ? sourceUrl : undefined,
+            });
+            setTitle("");
+            setTextContent("");
+            setSourceUrl("");
+            await refresh();
+        } catch (caught) {
+            setActionError(caught instanceof Error ? caught.message : "Erro ao criar material.");
+        }
+    }
+
+    /**
+     * Trata a acao do utilizador e sincroniza o estado da interface.
+     *
+     * @param materialId Identificador usado para limitar a operação a material.
+     */
+    async function handleIndex(materialId: string): Promise<void> {
+        setActionError(null);
+        try {
+            const job = await indexOfficialMaterial(materialId);
+            setJobsByMaterial((current) => ({ ...current, [materialId]: job }));
+        } catch (caught) {
+            setActionError(caught instanceof Error ? caught.message : "Erro ao indexar material.");
+        }
+    }
+
+    return (
+        <section className="grid gap-6 lg:grid-cols-[380px_1fr]">
+            <div className="space-y-6">
+                <form className="sf-panel space-y-4" onSubmit={(event) => void handleSubmit(event)}>
+                    <h1 className="text-xl font-bold">Materiais oficiais</h1>
+                    {actionError ? <p className="sf-error" role="alert">{actionError}</p> : null}
+                    <select value={type} onChange={(event) => setType(event.target.value as "TEXT" | "URL")}>
+                        <option value="TEXT">Texto processado</option>
+                        <option value="URL">Referência URL</option>
+                    </select>
+                    <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Título" />
+                    {type === "TEXT" ? (
+                        <textarea rows={8} value={textContent} onChange={(event) => setTextContent(event.target.value)} placeholder="Conteúdo textual oficial" />
+                    ) : (
+                        <input value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://..." />
+                    )}
+                    <button className="sf-button-primary">Guardar material</button>
+                </form>
+                <ExternalMaterialImportPanel
+                    targetId={subjectId}
+                    targetType="OFFICIAL_SUBJECT"
+                    onImported={refresh}
+                />
+            </div>
+            <div className="grid gap-3">
+                <AsyncStateBlock
+                    isLoading={isLoadingMaterials}
+                    error={listError ?? undefined}
+                    isEmpty={materials.length === 0}
+                    emptyMessage="Ainda não há materiais oficiais."
+                >
+                    {materials.map((material) => {
+                        // O backend limita materiais por disciplina e professor antes da renderização.
+                        return (
+                            <article className="sf-panel space-y-1" key={material._id}>
+                                <h2 className="font-semibold">{material.title}</h2>
+                                <p className="text-sm text-slate-600">{material.type} · {material.status}</p>
+                                {material.sourceUrl ? <a className="text-sm text-studyflow-brand" href={material.sourceUrl}>{material.sourceUrl}</a> : null}
+                                <div className="flex flex-wrap gap-2 pt-2">
+                                    <button
+                                        className="sf-button-secondary"
+                                        onClick={() => void handleIndex(material._id)}
+                                        type="button"
+                                    >
+                                        Indexar
+                                    </button>
+                                    {jobsByMaterial[material._id]?.status === "DONE" ? (
+                                        <a
+                                            className="sf-button-secondary"
+                                            href={`/app/material-index-jobs/${jobsByMaterial[material._id]._id}/versoes`}
+                                        >
+                                            Versões
+                                        </a>
+                                    ) : null}
+                                </div>
+                            </article>
+                        );
+                    })}
+                </AsyncStateBlock>
+            </div>
+        </section>
+    );
+}
 ```
 
 5. Explicação do código.
 
-Na página de aluno, `loadError` representa falha ao carregar listas já existentes e `actionError` representa falha ao gerar novo conteúdo. Na página de professor, `listError` fica separado de `actionError` para não misturar falhas de listagem com falhas de criação ou indexação. Esta separação evita mensagens ambíguas e prova que `AsyncStateBlock` é usado em ecrãs reais, não numa peça lateral.
+Na página de aluno, `loadError` representa falha ao carregar listas já existentes e `actionError` representa falha ao gerar novo conteúdo ou atualizar o polling do quiz. A linha `isGeneratingSummary || isGeneratingTool || isQuizJobActive` é preservada porque veio da MF6 e impede ações concorrentes durante a geração de quiz em background. `isLoadingExisting` começa como `true` para a primeira renderização não mostrar estado vazio antes da resposta da API.
+
+Na página de professor, `listError` fica separado de `actionError` para não misturar falhas de listagem com falhas de criação ou indexação. Esta separação evita mensagens ambíguas e prova que `AsyncStateBlock` é usado em ecrãs reais, não numa peça lateral. Os comentários perto das listas explicam que o backend continua a ser a fronteira de ownership, área, disciplina e professor.
 
 6. Validação do passo.
 
-Resultado esperado: `StudyToolsPage` e `TeacherOfficialMaterialsPage` importam `AsyncStateBlock`, continuam a chamar os mesmos clientes API e mostram estados acessíveis para loading, erro, vazio e sucesso.
+Resultado esperado: `StudyToolsPage` e `TeacherOfficialMaterialsPage` importam `AsyncStateBlock`, continuam a chamar os mesmos clientes API, não deixam referências antigas a `error`/`setError` nestas duas páginas e mostram estados acessíveis para loading, erro, vazio e sucesso.
 
 7. Cenário negativo/erro esperado.
 
@@ -627,7 +892,13 @@ test("MF7 aluno mostra erro de geração sem perder listas", async ({ page }) =>
         }
 
         return fulfillJson(route, 200, [
-            { _id: "summary-mf7", type: "SUMMARY", contentJson: { title: "Resumo MF7" } },
+            {
+                _id: "summary-mf7",
+                studyAreaId: "area-mf7",
+                type: "SUMMARY",
+                contentJson: { title: "Resumo MF7" },
+                sourcesJson: [],
+            },
         ]);
     });
     await page.route("**/api/study-areas/area-mf7/study-tools**", (route) =>
@@ -780,4 +1051,5 @@ O próximo BK deve reutilizar os ficheiros e decisões deste guia, sem criar out
 
 #### Changelog
 
+- `2026-06-28`: Passo 4 corrigido para substituir o diff parcial por código final completo, preservar o estado de quiz em background da MF6, separar `loadError`/`actionError`/`listError`, iniciar carregamentos remotos em estado `true` e alinhar o mock E2E com o contrato `AiArtifact`.
 - `2026-06-26`: contrato de componentização frontend documentado com tutorial técnico linear, código completo, validação, negativos, evidence e caminhos públicos `apps/...`.
