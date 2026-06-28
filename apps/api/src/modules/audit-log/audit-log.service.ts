@@ -1,9 +1,11 @@
+// apps/api/src/modules/audit-log/audit-log.service.ts
 /**
- * Implementa auditoria aplicacional com metadata minimizada.
+ * Implementa auditoria aplicacional com metadata minimizada e logs estruturados.
  */
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
+import { StructuredEventService } from "../../common/observability/structured-event.service.js";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { AuditQueryDto } from "./dto/audit-query.dto.js";
 import {
@@ -42,10 +44,12 @@ const SENSITIVE_KEYS = [
 export class AuditLogService {
     /**
      * @param auditModel Modelo Mongoose de eventos de auditoria.
+     * @param structuredEventService Service que normaliza eventos antes da persistência.
      */
     constructor(
         @InjectModel(AuditEvent.name)
         private readonly auditModel: Model<AuditEventDocument>,
+        private readonly structuredEventService: StructuredEventService,
     ) {}
 
     /**
@@ -55,14 +59,33 @@ export class AuditLogService {
      * @returns Evento público persistido.
      */
     async record(input: AuditRecordInput) {
+        const resourceType = input.resourceType.trim();
+        const resourceId = input.resourceId?.trim();
+        const structuredEvent = this.structuredEventService.record({
+            correlationId: `${input.domain}:${resourceType}:${resourceId ?? "sem-recurso"}`,
+            domain: input.domain,
+            action: input.action,
+            result: input.result,
+            metadata: {
+                ...input.metadata,
+                resourceType,
+                resourceId: resourceId ?? "sem-recurso",
+            },
+        });
+
         const event = await this.auditModel.create({
             actorId: new Types.ObjectId(input.actorId),
-            domain: input.domain,
-            action: input.action.trim(),
-            resourceType: input.resourceType.trim(),
-            resourceId: input.resourceId,
-            result: input.result,
-            metadata: this.redactMetadata(input.metadata ?? {}),
+            domain: structuredEvent.domain,
+            action: structuredEvent.action,
+            resourceType,
+            resourceId,
+            result: structuredEvent.result,
+            // A segunda redacção mantém o audit log como última barreira antes da BD.
+            metadata: this.redactMetadata({
+                correlationId: structuredEvent.correlationId,
+                observedAt: structuredEvent.at,
+                ...structuredEvent.metadata,
+            }),
         });
         return this.toView(event.toObject());
     }
