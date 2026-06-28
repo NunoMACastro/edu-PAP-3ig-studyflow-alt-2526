@@ -1,11 +1,46 @@
+// apps/web/src/features/source-grounded-ai/source-grounded-ai-panel.tsx
 /**
  * Implementa a funcionalidade frontend de IA com fontes obrigatórias e o respetivo contrato com a API.
  */
 import { FormEvent, useState } from "react";
-import {
-    askSourceGroundedAi,
-    SourceGroundedAnswer,
-} from "./ask-source-grounded-ai.js";
+import { requestMf3Json } from "../mf3/request-mf3-json.js";
+
+/**
+ * Contrato de IA com fontes obrigatórias que documenta a estrutura esperada em tempo de desenvolvimento.
+ */
+export type SourceGroundedAnswer = {
+    _id: string;
+    sourceJobIds: string[];
+    question: string;
+    answer: string;
+    citations: {
+        sourceJobId: string;
+        materialId: string;
+        sourceLabel: string;
+        locator: string;
+        excerpt: string;
+    }[];
+    createdAt?: string;
+};
+
+/**
+ * Pede resposta fundamentada em fontes indexadas.
+ *
+ * @param input Jobs autorizados e pergunta.
+ * @returns Resposta com citações.
+ */
+export function askSourceGroundedAi(input: {
+    sourceJobIds: string[];
+    question: string;
+}): Promise<SourceGroundedAnswer> {
+    return requestMf3Json<SourceGroundedAnswer>(
+        "/api/ai/source-grounded-answers",
+        {
+            method: "POST",
+            body: JSON.stringify(input),
+        },
+    );
+}
 
 /**
  * Painel de resposta com citações obrigatórias.
@@ -20,15 +55,17 @@ export function SourceGroundedAiPanel() {
     const [error, setError] = useState<string | null>(null);
 
     /**
-     * Trata a acao do utilizador e sincroniza o estado da interface.
+     * Trata a ação do utilizador e sincroniza o estado da interface.
      *
-     * @param event Evento da interface que dispara a acao.
+     * @param event Evento da interface que dispara a ação.
      */
     async function handleSubmit(event: FormEvent): Promise<void> {
         event.preventDefault();
         setLoading(true);
         setError(null);
+
         try {
+            // O frontend envia apenas ids de jobs e pergunta; o backend decide se as fontes são legíveis.
             setAnswer(
                 await askSourceGroundedAi({
                     sourceJobIds: sourceJobIds
@@ -40,7 +77,7 @@ export function SourceGroundedAiPanel() {
             );
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : "Erro ao responder.");
-        } finally {
+        } finaly {
             setLoading(false);
         }
     }
@@ -52,13 +89,27 @@ export function SourceGroundedAiPanel() {
             <form className="space-y-3" onSubmit={(event) => void handleSubmit(event)}>
                 <label className="block">
                     Jobs de indexação
-                    <input value={sourceJobIds} onChange={(event) => setSourceJobIds(event.target.value)} />
+                    <input
+                        value={sourceJobIds}
+                        onChange={(event) => setSourceJobIds(event.target.value)}
+                    />
                 </label>
                 <label className="block">
                     Pergunta
-                    <textarea rows={3} value={question} onChange={(event) => setQuestion(event.target.value)} />
+                    <textarea
+                        rows={3}
+                        value={question}
+                        onChange={(event) => setQuestion(event.target.value)}
+                    />
                 </label>
-                <button className="sf-button-primary" disabled={loading || sourceJobIds.trim().length === 0 || question.trim().length < 5}>
+                <button
+                    className="sf-button-primary"
+                    disabled={
+                        loading ||
+                        sourceJobIds.trim().length === 0 ||
+                        question.trim().length < 5
+                    }
+                >
                     {loading ? "A responder..." : "Responder"}
                 </button>
             </form>
@@ -66,9 +117,16 @@ export function SourceGroundedAiPanel() {
                 <div className="space-y-3 text-sm">
                     <p className="whitespace-pre-line text-slate-800">{answer.answer}</p>
                     {answer.citations.map((citation) => (
-                        <p className="rounded-md border border-slate-200 p-2" key={`${citation.sourceJobId}-${citation.locator}`}>
-                            {citation.sourceLabel} · {citation.locator}
-                        </p>
+                        <article
+                            className="rounded-md border border-slate-200 p-3"
+                            key={`${citation.sourceJobId}-${citation.locator}`}
+                        >
+                            <p className="font-medium text-slate-900">
+                                {citation.sourceLabel} · {citation.locator}
+                            </p>
+                            {/* O excerto é limitado no backend para explicar a origem sem expor o material completo. */}
+                            <p className="mt-1 text-slate-700">{citation.excerpt}</p>
+                        </article>
                     ))}
                 </div>
             ) : null}

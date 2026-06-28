@@ -1,3 +1,4 @@
+// apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts
 /**
  * Implementa as regras de negócio de IA com fontes obrigatórias e concentra validações do domínio.
  */
@@ -22,6 +23,7 @@ import {
 } from "../material-index/material-index.service.js";
 import { MaterialTextChunk } from "../material-index/schemas/material-index-job.schema.js";
 import { AskSourceGroundedAiDto } from "./dto/ask-source-grounded-ai.dto.js";
+import { normalizePublicCitation } from "./citation-policy.js";
 import {
     SourceGroundedAiAnswer,
     SourceGroundedAiAnswerDocument,
@@ -44,7 +46,7 @@ export type SourceGroundedAiAnswerView = {
  * Serviço de respostas com citações obrigatórias.
  *
  * A resposta é pedida ao provider isolado de IA depois de o backend validar
- * fontes autorizadas. O prompt inclui apenas excertos processáveis e impede
+ * fontes autorizadas. O prompt includes apenas excertos processáveis e impede
  * conhecimento externo, preservando o contrato anti-alucinação do BK.
  */
 @Injectable()
@@ -155,19 +157,20 @@ export class SourceGroundedAiService {
      *
      * @param job Job autorizado.
      * @param chunk Chunk indexado.
-     * @returns Citação com excerto limitado.
+     * @returns Citação com origem legível e excerto limitado.
      */
     private toCitation(
         job: MaterialIndexJobView,
         chunk: MaterialTextChunk,
     ): SourceGroundedCitation {
-        return {
+        // A autorização já aconteceu em findReadableDoneJob(...); aqui só normalizamos a parte pública.
+        return normalizePublicCitation({
             sourceJobId: job._id,
             materialId: job.materialId,
             sourceLabel: chunk.sourceLabel,
             locator: chunk.locator,
-            excerpt: chunk.text.trim().slice(0, 420),
-        };
+            excerpt: chunk.text,
+        });
     }
 
     /**
