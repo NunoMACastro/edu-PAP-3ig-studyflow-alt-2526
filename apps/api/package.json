@@ -16,7 +16,8 @@
     "backup:daily": "nest build && node dist/scripts/backup-database.js",
     "backup:daily:dry-run": "nest build && node dist/scripts/backup-database.js --dry-run",
     "test": "jest --config ./jest.config.cjs --passWithNoTests",
-    "test:unit": "npm test"
+    "test:unit": "npm test",
+    "deploy:check": "npm run build && node dist/scripts/validate-deploy-readiness.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
