@@ -1,21 +1,23 @@
+// apps/web/src/pages/student/StudyToolsPage.tsx
 /**
  * Implementa uma pagina React de student com estado, carregamento e ações do utilizador.
  */
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { ExplanationPanel } from "../../components/ai/ExplanationPanel.js";
 import { FlashcardsPanel } from "../../components/ai/FlashcardsPanel.js";
 import { QuizPanel } from "../../components/ai/QuizPanel.js";
 import { SummaryPanel } from "../../components/ai/SummaryPanel.js";
+import { AsyncStateBlock } from "../../components/ui/AsyncStateBlock.js";
 import {
-    AiArtifact,
     createQuizGenerationJob,
     generateStudyTool,
     generateSummary,
     getQuizGenerationJob,
     listStudyTools,
     listSummaries,
-    QuizGenerationJob,
-    StudyToolType,
+    type AiArtifact,
+    type QuizGenerationJob,
+    type StudyToolType,
 } from "../../lib/apiClient.js";
 
 /**
@@ -38,8 +40,9 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
     const [summaries, setSummaries] = useState<AiArtifact[]>([]);
     const [studyTools, setStudyTools] = useState<AiArtifact[]>([]);
     const [quizJob, setQuizJob] = useState<QuizGenerationJob | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [isLoadingExisting, setIsLoadingExisting] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [isLoadingExisting, setIsLoadingExisting] = useState(true);
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
     const [isGeneratingTool, setIsGeneratingTool] = useState(false);
 
@@ -57,6 +60,7 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
             ]);
             setSummaries(summaryList);
             setStudyTools(toolList);
+            setLoadError(null);
             setArtifact((current) => {
                 const allArtifacts = [...summaryList, ...toolList];
                 if (preferredArtifactId) {
@@ -65,13 +69,13 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
                     );
                     if (preferred) return preferred;
                 }
-                const currentStillExists = [...summaryList, ...toolList].find(
+                const currentStillExists = allArtifacts.find(
                     (item) => item._id === current?._id,
                 );
                 return currentStillExists ?? summaryList[0] ?? toolList[0] ?? null;
             });
         } catch (caught) {
-            setError(
+            setLoadError(
                 caught instanceof Error
                     ? caught.message
                     : "Não foi possível carregar artefactos.",
@@ -99,7 +103,7 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
                 }
             } catch (caught) {
                 // A UI não mostra detalhes técnicos que possam revelar fontes privadas ou prompts.
-                setError(
+                setActionError(
                     caught instanceof Error
                         ? caught.message
                         : "Não foi possível atualizar o estado do quiz.",
@@ -117,14 +121,14 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
      */
     async function handleSummary(): Promise<void> {
         if (isGeneratingSummary || isGeneratingTool) return;
-        setError(null);
+        setActionError(null);
         setIsGeneratingSummary(true);
         try {
             const created = await generateSummary(studyAreaId);
             setArtifact(created);
             setSummaries((current) => [created, ...current]);
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
+            setActionError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
         } finally {
             setIsGeneratingSummary(false);
         }
@@ -139,7 +143,7 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
     async function handleTool(event: FormEvent): Promise<void> {
         event.preventDefault();
         if (isGeneratingSummary || isGeneratingTool) return;
-        setError(null);
+        setActionError(null);
         setIsGeneratingTool(true);
         try {
             if (type === "QUIZ") {
@@ -155,7 +159,7 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
             setArtifact(created);
             setStudyTools((current) => [created, ...current]);
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
+            setActionError(caught instanceof Error ? caught.message : "Não foi possível gerar.");
         } finally {
             setIsGeneratingTool(false);
         }
@@ -164,12 +168,13 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
     const isQuizJobActive =
         quizJob?.status === "QUEUED" || quizJob?.status === "PROCESSING";
     const isGenerating = isGeneratingSummary || isGeneratingTool || isQuizJobActive;
+    const hasArtifacts = summaries.length > 0 || studyTools.length > 0;
 
     return (
         <section className="space-y-6">
             <div className="sf-panel space-y-4">
                 <h1 className="text-xl font-bold">IA da área</h1>
-                {error ? <p className="sf-error">{error}</p> : null}
+                {actionError ? <p className="sf-error" role="alert">{actionError}</p> : null}
                 {isGenerating ? (
                     <p className="text-sm text-slate-600">
                         {isGeneratingSummary
@@ -187,9 +192,6 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
                               ? quizJob.errorMessage ?? "Não foi possível gerar o quiz."
                               : `Quiz em ${quizJob.status === "QUEUED" ? "fila" : "processamento"}.`}
                     </p>
-                ) : null}
-                {isLoadingExisting ? (
-                    <p className="text-sm text-slate-600">A carregar artefactos...</p>
                 ) : null}
                 <div className="flex flex-wrap gap-3">
                     <button
@@ -222,22 +224,29 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
                     </button>
                 </form>
             </div>
-            <div className="grid gap-4 lg:grid-cols-2">
-                <ArtifactList
-                    artifacts={summaries}
-                    emptyText="Ainda não há resumos gerados."
-                    onSelect={setArtifact}
-                    selectedId={artifact?._id}
-                    title="Resumos"
-                />
-                <ArtifactList
-                    artifacts={studyTools}
-                    emptyText="Ainda não há ferramentas geradas."
-                    onSelect={setArtifact}
-                    selectedId={artifact?._id}
-                    title="Ferramentas"
-                />
-            </div>
+            <AsyncStateBlock
+                isLoading={isLoadingExisting}
+                error={loadError ?? undefined}
+                isEmpty={!hasArtifacts}
+                emptyMessage="Ainda não há resumos nem ferramentas geradas."
+            >
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <ArtifactList
+                        artifacts={summaries}
+                        emptyText="Ainda não há resumos gerados."
+                        onSelect={setArtifact}
+                        selectedId={artifact?._id}
+                        title="Resumos"
+                    />
+                    <ArtifactList
+                        artifacts={studyTools}
+                        emptyText="Ainda não há ferramentas geradas."
+                        onSelect={setArtifact}
+                        selectedId={artifact?._id}
+                        title="Ferramentas"
+                    />
+                </div>
+            </AsyncStateBlock>
             {artifact?.type === "SUMMARY" ? <SummaryPanel artifact={artifact} /> : null}
             {artifact?.type === "EXPLANATION" ? <ExplanationPanel artifact={artifact} /> : null}
             {artifact?.type === "FLASHCARDS" ? <FlashcardsPanel artifact={artifact} /> : null}
@@ -275,27 +284,32 @@ function ArtifactList({
     return (
         <div className="sf-panel space-y-3">
             <h2 className="text-lg font-bold">{title}</h2>
-            {artifacts.length === 0 ? (
-                <p className="text-sm text-slate-600">{emptyText}</p>
-            ) : (
+            <AsyncStateBlock
+                isLoading={false}
+                isEmpty={artifacts.length === 0}
+                emptyMessage={emptyText}
+            >
                 <ul className="space-y-2">
-                    {artifacts.map((item) => (
-                        <li key={item._id}>
-                            <button
-                                className={
-                                    item._id === selectedId
-                                        ? "sf-button-primary w-full text-left"
-                                        : "sf-button-secondary w-full text-left"
-                                }
-                                onClick={() => onSelect(item)}
-                                type="button"
-                            >
-                                {artifactLabel(item)}
-                            </button>
-                        </li>
-                    ))}
+                    {artifacts.map((item) => {
+                        // A API já filtra os artefactos pela área autenticada antes da lista renderizar.
+                        return (
+                            <li key={item._id}>
+                                <button
+                                    className={
+                                        item._id === selectedId
+                                            ? "sf-button-primary w-full text-left"
+                                            : "sf-button-secondary w-full text-left"
+                                    }
+                                    onClick={() => onSelect(item)}
+                                    type="button"
+                                >
+                                    {artifactLabel(item)}
+                                </button>
+                            </li>
+                        );
+                    })}
                 </ul>
-            )}
+            </AsyncStateBlock>
         </div>
     );
 }

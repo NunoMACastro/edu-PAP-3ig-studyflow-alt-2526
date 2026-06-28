@@ -1,14 +1,16 @@
+// apps/web/src/pages/teacher/TeacherOfficialMaterialsPage.tsx
 /**
  * Implementa uma pagina React de teacher com estado, carregamento e ações do utilizador.
  */
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
+import { AsyncStateBlock } from "../../components/ui/AsyncStateBlock.js";
 import { ExternalMaterialImportPanel } from "../../features/mf5/external-material-import-panel.js";
 import {
     createOfficialMaterial,
     indexOfficialMaterial,
     listOfficialMaterials,
-    MaterialIndexJob,
-    OfficialMaterial,
+    type MaterialIndexJob,
+    type OfficialMaterial,
 } from "../../lib/apiClient.js";
 
 /**
@@ -27,7 +29,9 @@ export function TeacherOfficialMaterialsPage({ subjectId }: TeacherOfficialMater
     const [title, setTitle] = useState("");
     const [textContent, setTextContent] = useState("");
     const [sourceUrl, setSourceUrl] = useState("");
-    const [error, setError] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [listError, setListError] = useState<string | null>(null);
+    const [isLoadingMaterials, setIsLoadingMaterials] = useState(true);
     const [jobsByMaterial, setJobsByMaterial] = useState<
         Record<string, MaterialIndexJob>
     >({});
@@ -36,13 +40,19 @@ export function TeacherOfficialMaterialsPage({ subjectId }: TeacherOfficialMater
      * Recarrega dados remotos para manter a interface atualizada.
      */
     async function refresh(): Promise<void> {
-        setMaterials(await listOfficialMaterials(subjectId));
+        setIsLoadingMaterials(true);
+        try {
+            setMaterials(await listOfficialMaterials(subjectId));
+            setListError(null);
+        } catch (caught) {
+            setListError(caught instanceof Error ? caught.message : "Erro ao carregar materiais.");
+        } finally {
+            setIsLoadingMaterials(false);
+        }
     }
 
     useEffect(() => {
-        refresh().catch((caught: unknown) =>
-            setError(caught instanceof Error ? caught.message : "Erro ao carregar materiais."),
-        );
+        void refresh();
     }, [subjectId]);
 
     /**
@@ -52,7 +62,7 @@ export function TeacherOfficialMaterialsPage({ subjectId }: TeacherOfficialMater
      */
     async function handleSubmit(event: FormEvent): Promise<void> {
         event.preventDefault();
-        setError(null);
+        setActionError(null);
         try {
             await createOfficialMaterial(subjectId, {
                 title,
@@ -65,7 +75,7 @@ export function TeacherOfficialMaterialsPage({ subjectId }: TeacherOfficialMater
             setSourceUrl("");
             await refresh();
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : "Erro ao criar material.");
+            setActionError(caught instanceof Error ? caught.message : "Erro ao criar material.");
         }
     }
 
@@ -75,12 +85,12 @@ export function TeacherOfficialMaterialsPage({ subjectId }: TeacherOfficialMater
      * @param materialId Identificador usado para limitar a operação a material.
      */
     async function handleIndex(materialId: string): Promise<void> {
-        setError(null);
+        setActionError(null);
         try {
             const job = await indexOfficialMaterial(materialId);
             setJobsByMaterial((current) => ({ ...current, [materialId]: job }));
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : "Erro ao indexar material.");
+            setActionError(caught instanceof Error ? caught.message : "Erro ao indexar material.");
         }
     }
 
@@ -89,7 +99,7 @@ export function TeacherOfficialMaterialsPage({ subjectId }: TeacherOfficialMater
             <div className="space-y-6">
                 <form className="sf-panel space-y-4" onSubmit={(event) => void handleSubmit(event)}>
                     <h1 className="text-xl font-bold">Materiais oficiais</h1>
-                    {error ? <p className="sf-error">{error}</p> : null}
+                    {actionError ? <p className="sf-error" role="alert">{actionError}</p> : null}
                     <select value={type} onChange={(event) => setType(event.target.value as "TEXT" | "URL")}>
                         <option value="TEXT">Texto processado</option>
                         <option value="URL">Referência URL</option>
@@ -109,31 +119,40 @@ export function TeacherOfficialMaterialsPage({ subjectId }: TeacherOfficialMater
                 />
             </div>
             <div className="grid gap-3">
-                {materials.length === 0 ? <p className="sf-panel text-sm text-slate-600">Ainda não há materiais oficiais.</p> : null}
-                {materials.map((material) => (
-                    <article className="sf-panel space-y-1" key={material._id}>
-                        <h2 className="font-semibold">{material.title}</h2>
-                        <p className="text-sm text-slate-600">{material.type} · {material.status}</p>
-                        {material.sourceUrl ? <a className="text-sm text-studyflow-brand" href={material.sourceUrl}>{material.sourceUrl}</a> : null}
-                        <div className="flex flex-wrap gap-2 pt-2">
-                            <button
-                                className="sf-button-secondary"
-                                onClick={() => void handleIndex(material._id)}
-                                type="button"
-                            >
-                                Indexar
-                            </button>
-                            {jobsByMaterial[material._id]?.status === "DONE" ? (
-                                <a
-                                    className="sf-button-secondary"
-                                    href={`/app/material-index-jobs/${jobsByMaterial[material._id]._id}/versoes`}
-                                >
-                                    Versões
-                                </a>
-                            ) : null}
-                        </div>
-                    </article>
-                ))}
+                <AsyncStateBlock
+                    isLoading={isLoadingMaterials}
+                    error={listError ?? undefined}
+                    isEmpty={materials.length === 0}
+                    emptyMessage="Ainda não há materiais oficiais."
+                >
+                    {materials.map((material) => {
+                        // O backend limita materiais por disciplina e professor antes da renderização.
+                        return (
+                            <article className="sf-panel space-y-1" key={material._id}>
+                                <h2 className="font-semibold">{material.title}</h2>
+                                <p className="text-sm text-slate-600">{material.type} · {material.status}</p>
+                                {material.sourceUrl ? <a className="text-sm text-studyflow-brand" href={material.sourceUrl}>{material.sourceUrl}</a> : null}
+                                <div className="flex flex-wrap gap-2 pt-2">
+                                    <button
+                                        className="sf-button-secondary"
+                                        onClick={() => void handleIndex(material._id)}
+                                        type="button"
+                                    >
+                                        Indexar
+                                    </button>
+                                    {jobsByMaterial[material._id]?.status === "DONE" ? (
+                                        <a
+                                            className="sf-button-secondary"
+                                            href={`/app/material-index-jobs/${jobsByMaterial[material._id]._id}/versoes`}
+                                        >
+                                            Versões
+                                        </a>
+                                    ) : null}
+                                </div>
+                            </article>
+                        );
+                    })}
+                </AsyncStateBlock>
             </div>
         </section>
     );
