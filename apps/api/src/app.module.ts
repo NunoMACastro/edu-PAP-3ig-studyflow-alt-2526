@@ -1,9 +1,11 @@
+// apps/api/src/app.module.ts
 /**
  * Agrupa os módulos principais da API para expor a aplicação StudyFlow.
  */
 import "./common/config/load-env.js";
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
+import { HealthModule } from "./common/health/health.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
 import { StudentsModule } from "./modules/students/students.module.js";
 import { StudyModule } from "./modules/study/study.module.js";
@@ -41,21 +43,20 @@ import { FollowUpAlertsModule } from "./modules/follow-up-alerts/follow-up-alert
 import { NotificationPoliciesModule } from "./modules/notification-policies/notification-policies.module.js";
 import { PrivacyDataExportsModule } from "./modules/privacy-data-exports/privacy-data-exports.module.js";
 import { ExternalMaterialImportsModule } from "./modules/external-material-imports/external-material-imports.module.js";
-import { RuntimeModule } from "./common/runtime/runtime.module.js";
 
 /**
  * Módulo raiz da API.
  *
- * A MF0 fica organizada por domínios, conforme RNF25: autenticação, alunos,
- * estudo individual, áreas de estudo, materiais e IA. A ligação MongoDB usa
- * `MONGODB_URI`, mantendo o endpoint local como valor de desenvolvimento.
+ * A aplicação fica organizada por domínios e inclui um módulo técnico comum
+ * para health-check operacional, sem misturar dados privados na resposta.
  */
 @Module({
     imports: [
         MongooseModule.forRoot(
             process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017/studyflow",
         ),
-        RuntimeModule,
+        // HealthModule entra cedo porque não depende de sessão nem de módulos de domínio.
+        HealthModule,
         AuthModule,
         StudentsModule,
         StudyModule,
