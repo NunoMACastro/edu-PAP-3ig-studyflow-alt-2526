@@ -1,6 +1,7 @@
 /**
  * Implementa as regras de negócio de turma ai e concentra validações do domínio.
  */
+import * as aiContextPolicy from "../ai/context/ai-context-policy.js";
 import {
     ForbiddenException,
     GatewayTimeoutException,
@@ -84,6 +85,9 @@ export class ClassAiService {
         // A inscrição na disciplina é validada antes de qualquer material oficial ser exposto ao aluno.
         const { subject, schoolClass } =
             await this.subjectsService.findSubjectForStudent(actor.id, subjectId);
+
+        aiContextPolicy.assertAiContextProfile("CLASS_SUBJECT", "TEACHER_CLASS");
+
         const materials = await this.materialsService.listProcessedForSubject(
             subject._id,
         );
