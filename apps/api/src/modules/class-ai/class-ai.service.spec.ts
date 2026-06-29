@@ -210,6 +210,111 @@ describe("ClassAiService", () => {
             prompt: expect.stringContaining("Explica derivadas."),
             options: { model: "gpt-test", timeoutMs: 5000 },
         });
+
+        it("não chama o provider quando a política de IA da disciplina está desativada", async () => {
+    const {
+        aiModelPoliciesService,
+        aiProvider,
+        aiQuotasService,
+        interactionModel,
+        materialsService,
+        service,
+    } = makeService();
+    // A policy desativada deve falhar cedo para não listar materiais nem preparar contexto de IA.
+    aiModelPoliciesService.resolveForUse.mockRejectedValueOnce(
+        new ServiceUnavailableException({
+            code: "AI_MODEL_POLICY_DISABLED",
+            message: "Esta funcionalidade de IA está temporariamente desativada.",
+        }),
+    );
+
+    await expect(
+        service.askClassAi(student, subjectId, {
+            question: "Explica derivadas.",
+        }),
+    ).rejects.toMatchObject({
+        response: {
+            code: "AI_MODEL_POLICY_DISABLED",
+        },
+    });
+
+    expect(aiModelPoliciesService.resolveForUse).toHaveBeenCalledWith("CLASS_AI");
+    expect(materialsService.listProcessedForSubject).not.toHaveBeenCalled();
+    expect(aiQuotasService.reserveUsage).not.toHaveBeenCalled();
+    expect(aiProvider.generateClassAnswer).not.toHaveBeenCalled();
+    expect(interactionModel.create).not.toHaveBeenCalled();
+});
+
+it("não reserva quota nem chama o provider quando o prompt excede o limite", async () => {
+    const {
+        aiModelPoliciesService,
+        aiProvider,
+        aiQuotasService,
+        interactionModel,
+        materialsService,
+        service,
+    } = makeService();
+    materialsService.listProcessedForSubject.mockResolvedValue([
+        makeMaterial(materialId),
+    ]);
+    aiModelPoliciesService.resolveForUse.mockResolvedValueOnce({
+        enabled: true,
+        model: "gpt-test",
+        timeoutMs: 5000,
+        maxSourceCount: 10,
+        maxPromptChars: 10,
+    });
+    // O limite curto simula a regra docente e deve bloquear antes de reservar quota ou chamar o provider.
+
+    await expect(
+        service.askClassAi(student, subjectId, {
+            question: "Explica derivadas com detalhe.",
+        }),
+    ).rejects.toBeInstanceOf(PayloadTooLargeException);
+
+    expect(aiQuotasService.reserveUsage).not.toHaveBeenCalled();
+    expect(aiProvider.generateClassAnswer).not.toHaveBeenCalled();
+    expect(interactionModel.create).not.toHaveBeenCalled();
+});
+
+it("não chama o provider quando a reserva de quota falha", async () => {
+    const {
+        aiProvider,
+        aiQuotasService,
+        interactionModel,
+        materialsService,
+        service,
+    } = makeService();
+    materialsService.listProcessedForSubject.mockResolvedValue([
+        makeMaterial(materialId),
+    ]);
+    aiQuotasService.reserveUsage.mockRejectedValueOnce(
+        new ServiceUnavailableException({
+            code: "AI_QUOTA_EXCEEDED",
+            message: "O limite de IA da turma foi atingido.",
+        }),
+    );
+
+    await expect(
+        service.askClassAi(student, subjectId, {
+            question: "Explica derivadas.",
+        }),
+    ).rejects.toMatchObject({
+        response: {
+            code: "AI_QUOTA_EXCEEDED",
+        },
+    });
+
+    // Mesmo quando a quota é avaliada, a falha impede chamada externa e evita persistir uma resposta inexistente.
+    expect(aiQuotasService.reserveUsage).toHaveBeenCalledWith({
+        scope: "CLASS",
+        targetId: classId,
+        purpose: "CLASS_AI",
+        units: 1,
+    });
+    expect(aiProvider.generateClassAnswer).not.toHaveBeenCalled();
+    expect(interactionModel.create).not.toHaveBeenCalled();
+});
     });
 });
 

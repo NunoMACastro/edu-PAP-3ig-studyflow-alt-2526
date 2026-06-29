@@ -14,6 +14,11 @@ import { AuditLogService } from "../audit-log/audit-log.service.js";
 import { AiConsentPurpose } from "../ai-consents/schemas/ai-consent.schema.js";
 import { UpsertAiModelPolicyDto } from "./dto/upsert-ai-model-policy.dto.js";
 import { AiModelPolicy, AiModelPolicyDocument } from "./schemas/ai-model-policy.schema.js";
+import * as aiContextPolicy from "../ai/context/ai-context-policy.js";
+import {
+    AiModelPoliciesService,
+    assertPromptWithinLimit,
+} from "../ai-model-policies/ai-model-policies.service.js";
 
 export const DEFAULT_AI_MAX_SOURCE_COUNT = 10;
 export const DEFAULT_AI_MAX_PROMPT_CHARS = 12000;
@@ -30,9 +35,28 @@ export type ResolvedAiModelPolicy = {
 
 /**
  * Bloqueia prompts acima do limite administrativo antes de qualquer chamada externa.
+ *// apps/api/src/modules/ai-model-policies/ai-model-policies.service.ts
+import { PayloadTooLargeException } from "@nestjs/common";
+import { AiConsentPurpose } from "../ai-consents/schemas/ai-consent.schema.js";
+
+export const DEFAULT_AI_MAX_PROMPT_CHARS = 12000;
+
+export type ResolvedAiModelPolicy = {
+    purpose: AiConsentPurpose;
+    enabled: boolean;
+    provider: string;
+    model: string;
+    timeoutMs: number;
+    maxSourceCount: number;
+    maxPromptChars: number;
+};
+
+/**
+ * Garante que o prompt final respeita o limite definido para a finalidade IA.
  *
  * @param prompt Prompt final que seria enviado ao provider.
  * @param policy Política efetiva resolvida para a finalidade IA.
+ * @throws PayloadTooLargeException quando o prompt excede o limite permitido.
  */
 export function assertPromptWithinLimit(
     prompt: string,
@@ -44,7 +68,10 @@ export function assertPromptWithinLimit(
         policy.maxPromptChars > 0
             ? policy.maxPromptChars
             : DEFAULT_AI_MAX_PROMPT_CHARS;
+
     if (prompt.length <= maxPromptChars) return;
+
+    // O bloqueio acontece antes da chamada externa para preservar custo, privacidade e regra docente.
     throw new PayloadTooLargeException({
         code: "AI_PROMPT_TOO_LARGE",
         message: "O contexto selecionado excede o limite administrativo de IA.",
