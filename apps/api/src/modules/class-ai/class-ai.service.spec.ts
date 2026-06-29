@@ -1,6 +1,7 @@
 /**
  * Testa o comportamento de turma ai e documenta os cenários de aceitação automatizados.
  */
+import * as aiContextPolicy from "../ai/context/ai-context-policy.js";
 import {
     ForbiddenException,
     ServiceUnavailableException,
@@ -24,6 +25,50 @@ describe("ClassAiService", () => {
         email: "professor@example.test",
         role: "TEACHER",
     };
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    it("bloqueia perfil incompatível antes de materiais, quota, provider e persistência", async () => {
+        const {
+            aiProvider,
+            aiQuotasService,
+            interactionModel,
+            materialsService,
+            service,
+        } = makeService();
+        // Forçamos a falha da policy para provar que o service pára no guardrail de contexto.
+        jest.spyOn(aiContextPolicy, "assertAiContextProfile").mockImplementationOnce(
+            () => {
+                throw new ForbiddenException({
+                    code: "AI_CONTEXT_PROFILE_MISMATCH",
+                    message: "O perfil de IA não corresponde ao contexto pedido.",
+                });
+            },
+        );
+
+        await expect(
+            service.askClassAi(student, subjectId, {
+                question: "Explica derivadas.",
+            }),
+        ).rejects.toMatchObject({
+            response: {
+                code: "AI_CONTEXT_PROFILE_MISMATCH",
+            },
+        });
+
+        expect(aiContextPolicy.assertAiContextProfile).toHaveBeenCalledWith(
+            "CLASS_SUBJECT",
+            "TEACHER_CLASS",
+        );
+        // Estes asserts provam que a falha acontece antes de ler materiais, reservar quota, chamar provider ou gravar interação.
+        expect(materialsService.listProcessedForSubject).not.toHaveBeenCalled();
+        expect(aiQuotasService.reserveUsage).not.toHaveBeenCalled();
+        expect(aiProvider.generateClassAnswer).not.toHaveBeenCalled();
+        expect(interactionModel.create).not.toHaveBeenCalled();
+    });
+
     it("bloqueia IA docente para utilizadores que não sejam alunos", async () => {
         const { aiProvider, interactionModel, subjectsService, service } =
             makeService();
