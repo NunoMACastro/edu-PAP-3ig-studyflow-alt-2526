@@ -1,3 +1,4 @@
+// apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.spec.ts
 /**
  * Testa o comportamento de IA com fontes obrigatórias e documenta os cenários de aceitação automatizados.
  */
