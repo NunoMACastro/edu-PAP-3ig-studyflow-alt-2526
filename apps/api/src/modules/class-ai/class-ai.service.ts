@@ -71,129 +71,129 @@ export class ClassAiService {
      * @returns Resposta validada, limitada às fontes e pronta para persistência ou apresentação.
      */
     async askClassAi(
-        actor: AuthenticatedUser,
-        subjectId: string,
-        input: AskClassAiDto,
-    ) {
-        if (actor.role !== "STUDENT") {
-            throw new ForbiddenException({
-                code: "STUDENT_ROLE_REQUIRED",
-                message: "Esta funcionalidade é exclusiva de alunos.",
-            });
-        }
-
-        // A inscrição na disciplina é validada antes de qualquer material oficial ser exposto ao aluno.
-        const { subject, schoolClass } =
-            await this.subjectsService.findSubjectForStudent(actor.id, subjectId);
-
-        aiContextPolicy.assertAiContextProfile("CLASS_SUBJECT", "TEACHER_CLASS");
-
-        const materials = await this.materialsService.listProcessedForSubject(
-            subject._id,
-        );
-        if (materials.length === 0) {
-            throw new UnprocessableEntityException({
-                code: "NO_OFFICIAL_AI_SOURCES",
-                message:
-                    "Esta disciplina ainda não tem materiais oficiais processados para IA.",
-            });
-        }
-
-        const voice = await this.voiceService.findVoiceForSubject(subject._id);
-        await this.aiConsentsService.assertGranted(actor.id, "CLASS_AI");
-        const policy = await this.aiModelPoliciesService.resolveForUse("CLASS_AI");
-        const limitedMaterials = materials.slice(0, policy.maxSourceCount);
-        const prompt = buildClassAiPrompt({
-            subjectName: subject.name,
-            question: input.question.trim(),
-            materials: limitedMaterials,
-            voice,
+    actor: AuthenticatedUser,
+    subjectId: string,
+    input: AskClassAiDto,
+) {
+    if (actor.role !== "STUDENT") {
+        throw new ForbiddenException({
+            code: "STUDENT_ROLE_REQUIRED",
+            message: "Esta funcionalidade é exclusiva de alunos.",
         });
-        assertPromptWithinLimit(prompt, policy);
-        await this.aiQuotasService.reserveUsage({
-            scope: "CLASS",
-            targetId: String(schoolClass._id),
-            purpose: "CLASS_AI",
-            units: this.estimateUsageUnits(prompt),
-        });
-
-        try {
-            // O prompt recebe apenas materiais oficiais processados e a voz configurada pelo professor.
-            const result = await this.aiProvider.generateClassAnswer({
-                prompt,
-                options: { model: policy.model, timeoutMs: policy.timeoutMs },
-            });
-            // A resposta só é aceite se citar materiais oficiais permitidos para esta disciplina.
-            this.validateResult(result, limitedMaterials);
-
-            const interaction = await this.interactionModel.create({
-                subjectId: new Types.ObjectId(subject._id),
-                classId: new Types.ObjectId(schoolClass._id),
-                studentId: new Types.ObjectId(actor.id),
-                question: input.question.trim(),
-                answer: result.answer.trim(),
-                sourceMaterialIds: result.sourceMaterialIds.map(
-                    (sourceId) => new Types.ObjectId(sourceId),
-                ),
-                voiceRulesApplied: voice.rules,
-            });
-
-            const created = interaction.toObject() as { createdAt?: Date };
-            await this.auditLogService.record({
-                actorId: actor.id,
-                domain: "AI",
-                action: "CLASS_AI_REQUESTED",
-                resourceType: "Subject",
-                resourceId: String(subject._id),
-                result: "SUCCESS",
-                metadata: {
-                    purpose: "CLASS_AI",
-                    classId: String(schoolClass._id),
-                    model: policy.model,
-                    sourceCount: limitedMaterials.length,
-                },
-            });
-
-            return {
-                _id: String(interaction._id),
-                subjectId: subject._id,
-                classId: schoolClass._id,
-                question: interaction.question,
-                answer: interaction.answer,
-                voiceRulesApplied: interaction.voiceRulesApplied,
-                sources: limitedMaterials.filter((material) =>
-                    result.sourceMaterialIds.includes(material._id),
-                ),
-                createdAt: created.createdAt,
-            };
-        } catch (error) {
-            await this.auditLogService.record({
-                actorId: actor.id,
-                domain: "AI",
-                action: "CLASS_AI_REQUESTED",
-                resourceType: "Subject",
-                resourceId: String(subject._id),
-                result: "FAILED",
-                metadata: {
-                    purpose: "CLASS_AI",
-                    classId: String(schoolClass._id),
-                    model: policy.model,
-                    sourceCount: limitedMaterials.length,
-                },
-            });
-            if (
-                error instanceof GatewayTimeoutException ||
-                error instanceof ServiceUnavailableException ||
-                error instanceof UnprocessableEntityException
-            ) {
-                throw error;
-            }
-            throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_UNAVAILABLE",
-                message: "A IA está temporariamente indisponível.",
-            });
-        }
     }
+
+    // A inscrição na disciplina é validada antes de qualquer regra docente ser aplicada.
+    const { subject, schoolClass } =
+        await this.subjectsService.findSubjectForStudent(actor.id, subjectId);
+
+    aiContextPolicy.assertAiContextProfile("CLASS_SUBJECT", "TEACHER_CLASS");
+    await this.aiConsentsService.assertGranted(actor.id, "CLASS_AI");
+    const policy = await this.aiModelPoliciesService.resolveForUse("CLASS_AI");
+
+    const materials = await this.materialsService.listProcessedForSubject(
+        subject._id,
+    );
+    if (materials.length === 0) {
+        throw new UnprocessableEntityException({
+            code: "NO_OFFICIAL_AI_SOURCES",
+            message:
+                "Esta disciplina ainda não tem materiais oficiais processados para IA.",
+        });
+    }
+
+    const voice = await this.voiceService.findVoiceForSubject(subject._id);
+    const limitedMaterials = materials.slice(0, policy.maxSourceCount);
+    const prompt = buildClassAiPrompt({
+        subjectName: subject.name,
+        question: input.question.trim(),
+        materials: limitedMaterials,
+        voice,
+    });
+    assertPromptWithinLimit(prompt, policy);
+    await this.aiQuotasService.reserveUsage({
+        scope: "CLASS",
+        targetId: String(schoolClass._id),
+        purpose: "CLASS_AI",
+        units: this.estimateUsageUnits(prompt),
+    });
+
+    try {
+        // O provider só é chamado depois de contexto, consentimento, política, limite de prompt e quota.
+        const result = await this.aiProvider.generateClassAnswer({
+            prompt,
+            options: { model: policy.model, timeoutMs: policy.timeoutMs },
+        });
+        // A resposta só é aceite se citar materiais oficiais permitidos para esta disciplina.
+        this.validateResult(result, limitedMaterials);
+
+        const interaction = await this.interactionModel.create({
+            subjectId: new Types.ObjectId(subject._id),
+            classId: new Types.ObjectId(schoolClass._id),
+            studentId: new Types.ObjectId(actor.id),
+            question: input.question.trim(),
+            answer: result.answer.trim(),
+            sourceMaterialIds: result.sourceMaterialIds.map(
+                (sourceId) => new Types.ObjectId(sourceId),
+            ),
+            voiceRulesApplied: voice.rules,
+        });
+
+        const created = interaction.toObject() as { createdAt?: Date };
+        await this.auditLogService.record({
+            actorId: actor.id,
+            domain: "AI",
+            action: "CLASS_AI_REQUESTED",
+            resourceType: "Subject",
+            resourceId: String(subject._id),
+            result: "SUCCESS",
+            metadata: {
+                purpose: "CLASS_AI",
+                classId: String(schoolClass._id),
+                model: policy.model,
+                sourceCount: limitedMaterials.length,
+            },
+        });
+
+        return {
+            _id: String(interaction._id),
+            subjectId: subject._id,
+            classId: schoolClass._id,
+            question: interaction.question,
+            answer: interaction.answer,
+            voiceRulesApplied: interaction.voiceRulesApplied,
+            sources: limitedMaterials.filter((material) =>
+                result.sourceMaterialIds.includes(material._id),
+            ),
+            createdAt: created.createdAt,
+        };
+    } catch (error) {
+        await this.auditLogService.record({
+            actorId: actor.id,
+            domain: "AI",
+            action: "CLASS_AI_REQUESTED",
+            resourceType: "Subject",
+            resourceId: String(subject._id),
+            result: "FAILED",
+            metadata: {
+                purpose: "CLASS_AI",
+                classId: String(schoolClass._id),
+                model: policy.model,
+                sourceCount: limitedMaterials.length,
+            },
+        });
+        if (
+            error instanceof GatewayTimeoutException ||
+            error instanceof ServiceUnavailableException ||
+            error instanceof UnprocessableEntityException
+        ) {
+            throw error;
+        }
+        throw new ServiceUnavailableException({
+            code: "AI_PROVIDER_UNAVAILABLE",
+            message: "A IA está temporariamente indisponível.",
+        });
+    }
+}
 
     private estimateUsageUnits(prompt: string): number {
         return Math.max(1, Math.ceil(prompt.length / 1000));
