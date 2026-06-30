@@ -1,4 +1,4 @@
-# BK-MF2-12 - Assistente IA da disciplina/turma com voz docente.
+# BK-MF2-12 - Assistente IA da disciplina/turma com voz docente herdada.
 
 ## Header
 - `doc_id`: `GUIA-BK-MF2-12`
@@ -20,7 +20,7 @@
 
 ## Objetivo do BK
 
-Estender a IA da disciplina/turma com voz docente, usando apenas materiais oficiais aprovados e a configuração criada pelo professor.
+Estender a IA da disciplina/turma com voz docente herdada, usando apenas materiais oficiais aprovados e a voz efetiva resolvida pelo professor.
 
 ## Importância
 
@@ -29,7 +29,7 @@ Este BK fecha a MF2 com um assistente oficial de disciplina. Ele tem impacto dir
 ## Scope-in
 
 - Editar o domínio `class-ai` já criado em `BK-MF1-11`.
-- Usar `SubjectsService.findSubjectForStudent`, `OfficialMaterialsService.findProcessedBySubject` e `TeacherAiVoiceService.findForSubject`.
+- Usar `SubjectsService.findSubjectForStudent`, `OfficialMaterialsService.findProcessedBySubject` e `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })`.
 - Aplicar regras de voz docente no prompt.
 - Guardar resposta com materiais oficiais e regras usadas.
 
@@ -45,7 +45,7 @@ Este BK fecha a MF2 com um assistente oficial de disciplina. Ele tem impacto dir
 
 ## Estado depois
 
-`ClassAiService` passa a suportar o assistente da disciplina com voz docente, mantendo o import de `AiModule` e as validações de aluno, disciplina, materiais oficiais e voz.
+`ClassAiService` passa a suportar o assistente da disciplina com voz docente efetiva, mantendo o import de `AiModule` e as validações de aluno, disciplina, materiais oficiais e voz.
 
 ## Pré-requisitos
 
@@ -59,12 +59,14 @@ Este BK fecha a MF2 com um assistente oficial de disciplina. Ele tem impacto dir
 - Voz docente: regras de tom e estilo configuradas pelo professor.
 - Material oficial: fonte da disciplina aprovada ou processada pelo professor.
 - Assistente da disciplina: IA acessível ao aluno inscrito, limitada à disciplina.
+- Voz efetiva: resultado da herança `SUBJECT_OVERRIDE -> CLASS_BASE -> DEFAULT`.
 
 ## Conceitos teóricos
 
-- **Extensão acumulada.** editar módulo existente preserva comportamento anterior. Este conceito vem de `RF36` e das dependências `BK-MF1-10`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-12 - Assistente IA da disciplina/turma com voz docente.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
-- **Fonte oficial obrigatória.** a resposta deve vir dos materiais da disciplina. Este conceito vem de `RF36` e das dependências `BK-MF1-10`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-12 - Assistente IA da disciplina/turma com voz docente.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
-- **Perfil de IA.** regras docentes condicionam tom, nível de detalhe e limites. Este conceito vem de `RF36` e das dependências `BK-MF1-10`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-12 - Assistente IA da disciplina/turma com voz docente.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
+- **Extensão acumulada.** editar módulo existente preserva comportamento anterior. Este conceito vem de `RF36` e das dependências `BK-MF1-10`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-12 - Assistente IA da disciplina/turma com voz docente herdada.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
+- **Fonte oficial obrigatória.** a resposta deve vir dos materiais da disciplina. Este conceito vem de `RF36` e das dependências `BK-MF1-10`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-12 - Assistente IA da disciplina/turma com voz docente herdada.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
+- **Perfil de IA.** regras docentes condicionam tom, nível de detalhe e limites. Este conceito vem de `RF36` e das dependências `BK-MF1-10`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-12 - Assistente IA da disciplina/turma com voz docente herdada.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
+- **Herança da voz docente.** a disciplina pode ter override, mas quando não tem usa a voz base da turma; se nenhuma existir, aplica defaults seguros.
 - **Backend, validação e segurança.** O backend recebe a identidade pela sessão autenticada, valida DTOs antes do service e confirma ownership ou membership nos services herdados. Esta regra vem da fundação MF0/MF1 e segue para os BKs seguintes como contrato de segurança. Serve para impedir leitura ou escrita entre alunos, professores, turmas e disciplinas diferentes.
 - **Frontend tipado e sessão real.** O frontend usa cliente API tipado em `apps/web/src/lib/api/...`, envia cookies com `credentials: "include"`, mostra estados de carregamento, erro, vazio e sucesso, e não guarda tokens em `localStorage`. Isto evita chamadas anónimas, dados de actor no body e payloads sem tipo claro.
 - **IA, fontes e guardrails.** Este BK só envolve provider de IA quando o próprio requisito o pede. Quando não há chamada de IA, o guia limita-se a preparar fontes, autorização ou contexto sem prometer geração automática; quando há chamada de IA, o provider vem de `AiModule`/`AI_PROVIDER`, as fontes são recolhidas antes da chamada e a resposta só é persistida depois de validação mínima.
@@ -72,13 +74,14 @@ Este BK fecha a MF2 com um assistente oficial de disciplina. Ele tem impacto dir
 ## Decisões documentais
 
 - `CANONICO`: `BK-MF2-12`, `RF36`, prioridade `P0`, owner `Natalia`, apoio `Guilherme`, sprint `S05`, dependências `BK-MF1-10` e próximo BK `BK-MF3-01` vêm da matriz, backlog e contrato de campos.
-- `CANONICO`: o domínio funcional é `BK-MF2-12 - Assistente IA da disciplina/turma com voz docente.`; este BK preserva a sequência da MF2 e não altera IDs, RF/RNF, prioridades, owners ou dependências.
+- `CANONICO`: o domínio funcional é `BK-MF2-12 - Assistente IA da disciplina/turma com voz docente herdada.`; este BK preserva a sequência da MF2 e não altera IDs, RF/RNF, prioridades, owners ou dependências.
+- `CANONICO`: a voz docente vem de `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })`; chamadas antigas a `findForSubject` são legado dos snippets pré-alteração.
 - `DERIVADO`: os nomes de módulos, services, DTOs, schemas, clientes API e páginas resultam dos passos deste guia e mantêm a convenção já usada no próprio código documentado.
 - `DERIVADO`: os caminhos frontend previstos usam `apps/web/src/lib/api/...` para clientes HTTP e `apps/web/src/pages/mf2/...` para páginas, porque essa é a localização usada nos passos de implementação.
 
 ## Arquitetura do BK
 
-`ClassAiService` valida inscrição na disciplina, recolhe materiais oficiais, carrega voz docente, chama `AI_PROVIDER` e grava `ClassAiAnswer`. O módulo `ClassAiModule` continua a importar `AiModule`, `SubjectsModule`, `OfficialMaterialsModule` e `TeacherAiModule`.
+`ClassAiService` valida inscrição na disciplina, recolhe materiais oficiais, resolve voz docente efetiva, chama `AI_PROVIDER` e grava `ClassAiAnswer`. O módulo `ClassAiModule` continua a importar `AiModule`, `SubjectsModule`, `OfficialMaterialsModule` e `TeacherAiModule`.
 
 ## Ficheiros previstos
 
@@ -213,7 +216,10 @@ export class ClassAiService {
         if (materials.length === 0) {
             throw new UnprocessableEntityException("Disciplina sem materiais oficiais processados.");
         }
-        const voice = await this.teacherAiVoiceService.findForSubject(subject);
+        const voice = await this.teacherAiVoiceService.resolveTeacherVoice({
+            classId: subject.classId.toString(),
+            subjectId: subject._id.toString(),
+        });
         const rules = voice?.rules ?? [];
         const answerText = await this.generateAnswer(dto.question, materials.map((material) => material.contentText).join("\n"), rules);
         const answer = await this.answers.create({ subjectId: subject._id, classId: subject.classId, studentId: new Types.ObjectId(actor.id), question: dto.question.trim(), answer: answerText, officialMaterialIds: materials.map((material) => material._id.toString()), teacherVoiceRules: rules });
@@ -602,7 +608,9 @@ bash scripts/validate-planificacao.sh
 ## Expected results
 
 - Aluno inscrito pergunta à IA da disciplina e recebe resposta baseada em materiais oficiais.
-- Resposta guarda materiais oficiais e regras de voz docente aplicadas.
+- Disciplina sem override herda voz base da turma.
+- Disciplina com override usa a voz da disciplina.
+- Resposta guarda materiais oficiais e regras de voz docente efetivamente aplicadas.
 - Disciplina sem materiais processados devolve erro controlado.
 - Aluno fora da turma não recebe resposta.
 
@@ -612,17 +620,21 @@ bash scripts/validate-planificacao.sh
 - O module importa explicitamente controller e service.
 - O controller só declara parâmetros reais das rotas.
 - O service valida ownership ou membership antes de consultar dados.
+- O service usa `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })`.
+- `voiceRulesApplied` guarda as regras efetivamente usadas, não apenas o override bruto.
 - A página usa cliente API tipado e cookies HttpOnly.
 
 ## Validação final
 
 - Confirmar que `ClassAiModule` é editado como módulo existente da cadeia MF1.
-- Confirmar que a voz docente vem de `TeacherAiVoiceService.findForSubject`.
+- Confirmar que a voz docente vem de `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })`.
+- Confirmar herança da turma sem override e precedência do override da disciplina.
 - Executar caso positivo e três cenários negativos por ser BK `P0`.
 
 ## Evidence para PR/defesa
 
 - Print ou log do caminho principal concluído.
+- Evidence de resposta com voz herdada da turma e resposta com override da disciplina.
 - Log de pelo menos um cenário negativo controlado.
 - Resultado de `bash scripts/validate-planificacao.sh`.
 - Confirmação de que `git diff --check` não reporta espaços inválidos.
@@ -633,4 +645,5 @@ BK-MF3-01
 
 ## Changelog
 
+- `2026-06-30`: documentada voz efetiva por herança de turma com override opcional de disciplina.
 - `2026-06-08`: guia corrigido para contrato executável da MF2, com integração acumulativa, autorização explícita e validação do handoff.

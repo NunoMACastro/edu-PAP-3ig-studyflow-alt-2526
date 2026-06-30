@@ -25,11 +25,11 @@ Rastreabilidade bidirecional `RF -> BK` gerada automaticamente.
 | RF09 | 1 | BK-MF0-09 |
 | RF10 | 1 | BK-MF0-10 |
 | RF11 | 1 | BK-MF0-11 |
-| RF12 | 1 | BK-MF0-12 |
+| RF12 | 2 | BK-MF0-12, BK-MF8-14 |
 | RF13 | 1 | BK-MF1-01 |
 | RF14 | 1 | BK-MF1-02 |
 | RF15 | 1 | BK-MF1-03 |
-| RF16 | 1 | BK-MF1-04 |
+| RF16 | 3 | BK-MF1-04, BK-MF8-10, BK-MF8-11 |
 | RF19 | 1 | BK-MF1-07 |
 | RF20 | 1 | BK-MF1-08 |
 | RF21 | 1 | BK-MF1-09 |
@@ -39,9 +39,9 @@ Rastreabilidade bidirecional `RF -> BK` gerada automaticamente.
 | RF25 | 1 | BK-MF2-01 |
 | RF26 | 1 | BK-MF2-02 |
 | RF27 | 1 | BK-MF2-03 |
-| RF28 | 1 | BK-MF2-04 |
+| RF28 | 3 | BK-MF2-04, BK-MF8-12, BK-MF8-13 |
 | RF29 | 1 | BK-MF2-05 |
-| RF30 | 1 | BK-MF2-06 |
+| RF30 | 2 | BK-MF2-06, BK-MF8-13 |
 | RF31 | 1 | BK-MF2-07 |
 | RF32 | 1 | BK-MF2-08 |
 | RF33 | 1 | BK-MF2-09 |
@@ -53,7 +53,7 @@ Rastreabilidade bidirecional `RF -> BK` gerada automaticamente.
 | RF39 | 1 | BK-MF3-03 |
 | RF40 | 1 | BK-MF3-04 |
 | RF41 | 1 | BK-MF3-05 |
-| RF42 | 1 | BK-MF3-06 |
+| RF42 | 3 | BK-MF3-06, BK-MF8-10, BK-MF8-11 |
 | RF43 | 1 | BK-MF3-07 |
 | RF44 | 1 | BK-MF3-08 |
 | RF45 | 1 | BK-MF3-09 |
@@ -71,6 +71,5 @@ Rastreabilidade bidirecional `RF -> BK` gerada automaticamente.
 | RF57 | 1 | BK-MF4-09 |
 | RF58 | 1 | BK-MF4-10 |
 | RF61 | 1 | BK-MF5-01 |
-
 ## Changelog
 - `2026-04-19`: anexo RF gerado automaticamente.

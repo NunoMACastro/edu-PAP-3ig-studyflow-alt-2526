@@ -8,8 +8,8 @@
 4. [Fiabilidade, Backups e Continuidade](#4-fiabilidade-backups-e-continuidade)
 5. [Manutenção, Organização e Qualidade](#5-manutenção-organização-e-qualidade)
 6. [IA - Ética, Controlo e Explicabilidade](#6-ia-ética-controlo-e-explicabilidade)
-7. [Compatibilidade, Integração e Formatos](#7-compatibilidade-integração-e-formatos)
-8. [Localização e Preferências](#8-localização-e-preferências)
+7. [Compatibilidade, Formatos e Fecho de Produto](#7-compatibilidade-formatos-e-fecho-de-produto)
+8. [Localização e Preparação Futura](#8-localização-e-preparação-futura)
 9. [Stack Tecnológica Recomendada](#9-stack-tecnológica-recomendada)
 10. [Licença](#licença)
 11. [Changelog](#changelog)
@@ -85,6 +85,9 @@
 | RNF28  | Testes automatizados para módulos críticos.                     | Qualidade  | Should     |
 | RNF29  | Deploy com rollback.                                            | Operação   | Should     |
 | RNF30  | Endpoint de health-check.                                       | Operação   | Should     |
+| RNF41  | Verificação dos testes atuais e criação dos testes em falta.    | Qualidade  | Must       |
+| RNF42  | Execução final da bateria de testes e recolha de evidence.      | Qualidade  | Must       |
+| RNF45  | Correção dos erros encontrados nos testes e revalidação final.  | Qualidade  | Must       |
 
 ---
 
@@ -94,8 +97,8 @@
 | Código | Requisito                                               | Tipo            | Prioridade |
 | ------ | ------------------------------------------------------- | --------------- | ---------- |
 | RNF31  | IA explica fontes dos conteúdos (páginas/secções).      | Explicabilidade | Must       |
-| RNF32  | IA respeita perfis distintos (aluno, turma, professor). | Segurança IA    | Must       |
-| RNF33  | IA segue limites definidos pelo professor.              | Ética           | Must       |
+| RNF32  | IA respeita perfis distintos (aluno, sala, turma, disciplina, professor). | Segurança IA    | Must       |
+| RNF33  | IA segue limites definidos pelo professor, incluindo voz base da turma e overrides de disciplina. | Ética           | Must       |
 | RNF34  | IA evita enviesamentos e respostas inseguras.           | Ética           | Must       |
 | RNF35  | IA não pode inventar informação factual.                | Ética           | Must       |
 | RNF36  | IA adapta explicações ao nível do aluno.                | Personalização  | Should     |
@@ -103,24 +106,26 @@
 
 ---
 
-<a id="7-compatibilidade-integração-e-formatos"></a>
-## 7. Compatibilidade, Integração e Formatos
+Nota RNF32/RNF33: a voz docente não pode atravessar para áreas privadas, salas livres de alunos ou IA de sala colaborativa. A herança permitida fica limitada a turma, disciplina e salas guiadas docentes com disciplina associada.
+
+<a id="7-compatibilidade-formatos-e-fecho-de-produto"></a>
+## 7. Compatibilidade, Formatos e Fecho de Produto
 
 | Código | Requisito                                     | Tipo            | Prioridade |
 | ------ | --------------------------------------------- | --------------- | ---------- |
-| RNF38  | Compatível com Chrome, Edge, Firefox, Safari. | Compatibilidade | Must       |
+| RNF38  | Aproximação da UI real à UI definida no mockup. | UX final      | Must       |
 | RNF39  | Suporte a importação UTF-8 e PT-PT.           | Compatibilidade | Must       |
 | RNF40  | Exportação de resumos/quizzes em PDF/MD.      | Compatibilidade | Should     |
-| RNF41  | Preparado para integrações com Drive/ICS/LMS. | Integração      | Could      |
+
+> Compatibilidade completa multi-browser e integrações Drive/ICS/LMS ficam como melhoria pós-MVP, porque a defesa PAP será feita em ambiente e browser controlados.
 
 ---
 
-<a id="8-localização-e-preferências"></a>
-## 8. Localização e Preferências
+<a id="8-localização-e-preparação-futura"></a>
+## 8. Localização e Preparação Futura
 
 | Código | Requisito                            | Tipo        | Prioridade |
 | ------ | ------------------------------------ | ----------- | ---------- |
-| RNF42  | Interface em português (Portugal).   | Localização | Must       |
 | RNF43  | Datas no formato dd/mm/aaaa.         | Localização | Must       |
 | RNF44  | Preparado para futura tradução i18n. | Localização | Could      |
 

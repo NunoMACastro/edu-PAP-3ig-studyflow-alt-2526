@@ -20,7 +20,7 @@
 
 ## Contexto do BK
 - Entrega alvo: `IA adapta explicações ao nível do aluno.` com rastreabilidade direta para `RNF36`.
-- Foco da macro `MF8`: Compatibilidade e fecho PAP.
+- Foco da macro `MF8`: Fecho de produto, qualidade da IA e validação final.
 - Dominio semântico aplicado: `ai_orchestration`.
 
 ## Bloco pedagogico

@@ -83,7 +83,7 @@ def classify_domain(titulo: str, rf_rnf: str) -> str:
 
     if req in {"RNF38"} or any(k in title for k in ["chrome", "firefox", "safari", "edge", "compat"]):
         return "compatibility_browser"
-    if req in {"RNF39", "RNF42", "RNF43", "RNF44"} or any(k in title for k in ["pt-pt", "portugu", "datas", "i18n", "utf-8"]):
+    if req in {"RNF39", "RNF43", "RNF44"} or any(k in title for k in ["pt-pt", "portugu", "datas", "i18n", "utf-8"]):
         return "localization"
     if req in {"RNF14", "RNF15", "RNF16", "RNF17", "RNF18", "RNF19", "RNF20"} or any(
         k in title for k in ["https", "tls", "hashing", "password", "xss", "csrf", "injection", "brute", "sandbox seguro", "cookies"]
@@ -93,8 +93,19 @@ def classify_domain(titulo: str, rf_rnf: str) -> str:
         k in title for k in ["backup", "recovery", "downtime", "health-check", "deploy", "rollback", "logs"]
     ):
         return "reliability_ops"
-    if req in {"RNF25", "RNF26", "RNF27", "RNF28"} or any(
-        k in title for k in ["backend modular", "frontend componentizado", "documentacao tecnica", "testes automatizados"]
+    if req in {"RNF25", "RNF26", "RNF27", "RNF28", "RNF41", "RNF42", "RNF45"} or any(
+        k in title
+        for k in [
+            "backend modular",
+            "frontend componentizado",
+            "documentacao tecnica",
+            "testes automatizados",
+            "testes atuais",
+            "testes finais",
+            "execucao final de testes",
+            "correcao de erros",
+            "revalidacao final",
+        ]
     ):
         return "quality_architecture"
     if req in {"RNF08", "RNF09", "RNF10", "RNF11", "RNF12", "RNF13"} or any(
@@ -119,8 +130,18 @@ def classify_domain(titulo: str, rf_rnf: str) -> str:
         k in title for k in ["assistente ia", "guardrails", "citacoes obrigatorias", "nao pode inventar", "conhecimento externo", "adapta explicacoes"]
     ):
         return "ai_orchestration"
-    if req in {"RNF01", "RNF02", "RNF03", "RNF04", "RNF05", "RNF06", "RNF07"} or any(
-        k in title for k in ["interface intuitiva", "layout responsivo", "acessibilidade", "feedback imediato", "validacao de formularios", "navegacao consistente"]
+    if req in {"RNF01", "RNF02", "RNF03", "RNF04", "RNF05", "RNF06", "RNF07", "RNF38"} or any(
+        k in title
+        for k in [
+            "interface intuitiva",
+            "layout responsivo",
+            "acessibilidade",
+            "feedback imediato",
+            "validacao de formularios",
+            "navegacao consistente",
+            "mockup",
+            "ui do mockup",
+        ]
     ):
         return "ux_accessibility"
     if req in {"RF61", "RNF41"} or any(k in title for k in ["drive", "onedrive", "ics", "lms", "integracao"]):

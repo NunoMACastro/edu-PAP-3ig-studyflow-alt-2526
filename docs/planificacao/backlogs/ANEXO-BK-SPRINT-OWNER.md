@@ -6,7 +6,7 @@
 - `area`: `project`
 - `owner`: `Nuno`
 - `status`: `ativo`
-- `last_updated`: `2026-05-31`
+- `last_updated`: `2026-06-30`
 
 ## Objetivo
 Rastreabilidade operacional `BK -> Sprint -> Owner` com contrato `Core/Reforco`.
@@ -64,30 +64,30 @@ Rastreabilidade operacional `BK -> Sprint -> Owner` com contrato `Core/Reforco`.
 | BK-MF4-02 | MF4 | S07 | Guilherme | Natalia | P1 | Core | RF50 | BK-MF2-11 | docs/planificacao/guias-bk/MF4/BK-MF4-02-professores-definem-alertas-de-acompanhamento-ex-aluno-inativo-x-dias.md |
 | BK-MF4-03 | MF4 | S07 | Natalia | Guilherme | P1 | Core | RF51 | BK-MF4-02 | docs/planificacao/guias-bk/MF4/BK-MF4-03-administradores-configuram-canais-e-quotas-maximas-de-notificacoes.md |
 | BK-MF4-04 | MF4 | S08 | Kaua | Guilherme | P0 | Reforco | RF52 | - | docs/planificacao/guias-bk/MF4/BK-MF4-04-exportar-dados-pessoais.md |
-| BK-MF4-05 | MF4 | S08 | Natalia | Guilherme | P0 | Reforco | RF53 | - | docs/planificacao/guias-bk/MF4/BK-MF4-05-eliminar-conta-e-dados.md |
+| BK-MF4-05 | MF4 | S08 | Daniel | Guilherme | P0 | Reforco | RF53 | - | docs/planificacao/guias-bk/MF4/BK-MF4-05-eliminar-conta-e-dados.md |
 | BK-MF4-06 | MF4 | S08 | Guilherme | Natalia | P0 | Reforco | RF54 | - | docs/planificacao/guias-bk/MF4/BK-MF4-06-gestao-de-consentimentos-para-ia.md |
 | BK-MF4-07 | MF4 | S02 | Kaua | Guilherme | P0 | Reforco | RF55 | BK-MF0-04 | docs/planificacao/guias-bk/MF4/BK-MF4-07-gestao-de-utilizadores-e-papeis.md |
 | BK-MF4-08 | MF4 | S06 | Natalia | Guilherme | P0 | Reforco | RF56 | BK-MF4-07 | docs/planificacao/guias-bk/MF4/BK-MF4-08-auditoria-completa-materiais-ia-papeis.md |
 | BK-MF4-09 | MF4 | S07 | Kaua | Kaua | P1 | Core | RF57 | BK-MF2-11 | docs/planificacao/guias-bk/MF4/BK-MF4-09-configurar-modelos-de-ia-e-limites-de-uso.md |
-| BK-MF4-10 | MF4 | S07 | Kaua | Guilherme | P1 | Core | RF58 | BK-MF4-09 | docs/planificacao/guias-bk/MF4/BK-MF4-10-definir-quotas-de-ia-por-aluno-turma-grupo-e-monitorizar-consumo.md |
-| BK-MF5-01 | MF5 | S08 | Daniel | Kaua | P1 | Core | RF61 | - | docs/planificacao/guias-bk/MF5/BK-MF5-01-integracao-com-drives-google-onedrive-para-importacao-unidirecional-de-materiais-de-estudo.md |
+| BK-MF4-10 | MF4 | S08 | Natalia | Guilherme | P1 | Core | RF58 | BK-MF4-09 | docs/planificacao/guias-bk/MF4/BK-MF4-10-definir-quotas-de-ia-por-aluno-turma-grupo-e-monitorizar-consumo.md |
+| BK-MF5-01 | MF5 | S09 | Daniel | Kaua | P1 | Core | RF61 | - | docs/planificacao/guias-bk/MF5/BK-MF5-01-integracao-com-drives-google-onedrive-para-importacao-unidirecional-de-materiais-de-estudo.md |
 | BK-MF5-03 | MF5 | S09 | Guilherme | Natalia | P0 | Reforco | RNF01 | - | docs/planificacao/guias-bk/MF5/BK-MF5-03-interface-intuitiva-e-clara-para-alunos-e-professores.md |
 | BK-MF5-04 | MF5 | S09 | Kaua | Guilherme | P0 | Reforco | RNF02 | - | docs/planificacao/guias-bk/MF5/BK-MF5-04-layout-responsivo-para-desktop-tablet-mobile.md |
 | BK-MF5-05 | MF5 | S09 | Natalia | Guilherme | P0 | Reforco | RNF03 | - | docs/planificacao/guias-bk/MF5/BK-MF5-05-feedback-imediato-em-acoes-guardar-ia-uploads.md |
-| BK-MF5-06 | MF5 | S08 | Daniel | Natalia | P1 | Core | RNF04 | - | docs/planificacao/guias-bk/MF5/BK-MF5-06-navegacao-consistente-entre-modulos.md |
+| BK-MF5-06 | MF5 | S08 | Kaua | Natalia | P1 | Core | RNF04 | - | docs/planificacao/guias-bk/MF5/BK-MF5-06-navegacao-consistente-entre-modulos.md |
 | BK-MF5-07 | MF5 | S08 | Natalia | Guilherme | P1 | Core | RNF05 | - | docs/planificacao/guias-bk/MF5/BK-MF5-07-regras-basicas-de-acessibilidade-contraste-labels.md |
 | BK-MF5-08 | MF5 | S08 | Guilherme | Natalia | P0 | Reforco | RNF06 | - | docs/planificacao/guias-bk/MF5/BK-MF5-08-validacao-completa-de-formularios-antes-de-submissao.md |
-| BK-MF5-09 | MF5 | S10 | Daniel | Kaua | P1 | Core | RNF07 | - | docs/planificacao/guias-bk/MF5/BK-MF5-09-notificacoes-discretas-e-contextualizadas.md |
-| BK-MF5-10 | MF5 | S09 | Daniel | Guilherme | P0 | Reforco | RNF08 | - | docs/planificacao/guias-bk/MF5/BK-MF5-10-dashboards-e-estudo-carregam-em-2s.md |
-| BK-MF5-11 | MF5 | S08 | Kaua | Guilherme | P1 | Core | RNF09 | - | docs/planificacao/guias-bk/MF5/BK-MF5-11-respostas-da-ia-devem-surgir-em-4s.md |
-| BK-MF5-12 | MF5 | S09 | Guilherme | Natalia | P1 | Core | RNF10 | - | docs/planificacao/guias-bk/MF5/BK-MF5-12-suportar-200-utilizadores-simultaneos-por-escola.md |
+| BK-MF5-09 | MF5 | S11 | Daniel | Kaua | P1 | Core | RNF07 | - | docs/planificacao/guias-bk/MF5/BK-MF5-09-notificacoes-discretas-e-contextualizadas.md |
+| BK-MF5-10 | MF5 | S09 | Guilherme | Guilherme | P0 | Reforco | RNF08 | - | docs/planificacao/guias-bk/MF5/BK-MF5-10-dashboards-e-estudo-carregam-em-2s.md |
+| BK-MF5-11 | MF5 | S07 | Kaua | Guilherme | P1 | Core | RNF09 | - | docs/planificacao/guias-bk/MF5/BK-MF5-11-respostas-da-ia-devem-surgir-em-4s.md |
+| BK-MF5-12 | MF5 | S10 | Guilherme | Natalia | P1 | Core | RNF10 | - | docs/planificacao/guias-bk/MF5/BK-MF5-12-suportar-200-utilizadores-simultaneos-por-escola.md |
 | BK-MF6-01 | MF6 | S10 | Natalia | Guilherme | P0 | Reforco | RNF11 | - | docs/planificacao/guias-bk/MF6/BK-MF6-01-indexacao-de-documentos-deve-ser-assincrona-e-nao-bloquear-ui.md |
-| BK-MF6-02 | MF6 | S10 | Daniel | Guilherme | P1 | Core | RNF12 | - | docs/planificacao/guias-bk/MF6/BK-MF6-02-geracao-de-quizzes-em-background-quando-necessario.md |
+| BK-MF6-02 | MF6 | S11 | Daniel | Guilherme | P1 | Core | RNF12 | - | docs/planificacao/guias-bk/MF6/BK-MF6-02-geracao-de-quizzes-em-background-quando-necessario.md |
 | BK-MF6-03 | MF6 | S08 | Natalia | Guilherme | P2 | Core | RNF13 | - | docs/planificacao/guias-bk/MF6/BK-MF6-03-arquitetura-preparada-para-escalar-horizontalmente.md |
 | BK-MF6-04 | MF6 | S10 | Guilherme | Natalia | P0 | Reforco | RNF14 | - | docs/planificacao/guias-bk/MF6/BK-MF6-04-https-obrigatorio-tls-1-2.md |
 | BK-MF6-05 | MF6 | S10 | Kaua | Guilherme | P0 | Reforco | RNF15 | - | docs/planificacao/guias-bk/MF6/BK-MF6-05-passwords-com-hashing-seguro-bcrypt-argon2.md |
 | BK-MF6-06 | MF6 | S10 | Natalia | Guilherme | P0 | Reforco | RNF16 | - | docs/planificacao/guias-bk/MF6/BK-MF6-06-sessoes-com-cookies-httponly-secure-samesite.md |
-| BK-MF6-07 | MF6 | S10 | Guilherme | Natalia | P0 | Reforco | RNF17 | - | docs/planificacao/guias-bk/MF6/BK-MF6-07-protecoes-contra-xss-csrf-injection-brute-force.md |
+| BK-MF6-07 | MF6 | S10 | Daniel | Natalia | P0 | Reforco | RNF17 | - | docs/planificacao/guias-bk/MF6/BK-MF6-07-protecoes-contra-xss-csrf-injection-brute-force.md |
 | BK-MF6-08 | MF6 | S10 | Natalia | Guilherme | P0 | Reforco | RNF18 | - | docs/planificacao/guias-bk/MF6/BK-MF6-08-processamento-de-documentos-em-sandbox-seguro.md |
 | BK-MF6-09 | MF6 | S09 | Natalia | Guilherme | P0 | Reforco | RNF19 | - | docs/planificacao/guias-bk/MF6/BK-MF6-09-guardrails-obrigatorios-na-ia.md |
 | BK-MF6-10 | MF6 | S09 | Natalia | Natalia | P0 | Reforco | RNF20 | - | docs/planificacao/guias-bk/MF6/BK-MF6-10-ia-nao-acede-a-dados-de-outras-turmas-ou-alunos.md |
@@ -107,14 +107,20 @@ Rastreabilidade operacional `BK -> Sprint -> Owner` com contrato `Core/Reforco`.
 | BK-MF8-01 | MF8 | S12 | Natalia | Guilherme | P0 | Reforco | RNF34 | - | docs/planificacao/guias-bk/MF8/BK-MF8-01-ia-evita-enviesamentos-e-respostas-inseguras.md |
 | BK-MF8-02 | MF8 | S11 | Natalia | Guilherme | P0 | Reforco | RNF35 | - | docs/planificacao/guias-bk/MF8/BK-MF8-02-ia-nao-pode-inventar-informacao-factual.md |
 | BK-MF8-03 | MF8 | S12 | Daniel | Natalia | P1 | Core | RNF36 | - | docs/planificacao/guias-bk/MF8/BK-MF8-03-ia-adapta-explicacoes-ao-nivel-do-aluno.md |
-| BK-MF8-04 | MF8 | S11 | Daniel | Kaua | P0 | Reforco | RNF37 | - | docs/planificacao/guias-bk/MF8/BK-MF8-04-ia-externa-segue-politicas-e-filtros-proprios.md |
-| BK-MF8-05 | MF8 | S11 | Guilherme | Natalia | P0 | Reforco | RNF38 | - | docs/planificacao/guias-bk/MF8/BK-MF8-05-compativel-com-chrome-edge-firefox-safari.md |
-| BK-MF8-06 | MF8 | S11 | Natalia | Guilherme | P0 | Reforco | RNF39 | - | docs/planificacao/guias-bk/MF8/BK-MF8-06-suporte-a-importacao-utf-8-e-pt-pt.md |
-| BK-MF8-07 | MF8 | S12 | Natalia | Guilherme | P1 | Core | RNF40 | - | docs/planificacao/guias-bk/MF8/BK-MF8-07-exportacao-de-resumos-quizzes-em-pdf-md.md |
-| BK-MF8-08 | MF8 | S11 | Kaua | Guilherme | P2 | Core | RNF41 | - | docs/planificacao/guias-bk/MF8/BK-MF8-08-preparado-para-integracoes-com-drive-ics-lms.md |
-| BK-MF8-09 | MF8 | S08 | Natalia | Guilherme | P0 | Reforco | RNF42 | - | docs/planificacao/guias-bk/MF8/BK-MF8-09-interface-em-portugues-portugal.md |
-| BK-MF8-10 | MF8 | S07 | Daniel | Kaua | P0 | Reforco | RNF43 | - | docs/planificacao/guias-bk/MF8/BK-MF8-10-datas-no-formato-dd-mm-aaaa.md |
-| BK-MF8-11 | MF8 | S06 | Guilherme | Kaua | P2 | Core | RNF44 | - | docs/planificacao/guias-bk/MF8/BK-MF8-11-preparado-para-futura-traducao-i18n.md |
-
+| BK-MF8-04 | MF8 | S11 | Kaua | Guilherme | P0 | Reforco | RNF37 | - | docs/planificacao/guias-bk/MF8/BK-MF8-04-ia-externa-segue-politicas-e-filtros-proprios.md |
+| BK-MF8-05 | MF8 | S12 | Guilherme | Natalia | P0 | Reforco | RNF38 | - | docs/planificacao/guias-bk/MF8/BK-MF8-05-aproximacao-da-ui-a-ui-do-mockup.md |
+| BK-MF8-06 | MF8 | S12 | Kaua | Natalia | P0 | Reforco | RNF39 | - | docs/planificacao/guias-bk/MF8/BK-MF8-06-suporte-a-importacao-utf-8-e-pt-pt.md |
+| BK-MF8-07 | MF8 | S12 | Kaua | Guilherme | P1 | Core | RNF40 | - | docs/planificacao/guias-bk/MF8/BK-MF8-07-exportacao-de-resumos-quizzes-em-pdf-md.md |
+| BK-MF8-08 | MF8 | S12 | Daniel | Kaua | P0 | Reforco | RNF43 | - | docs/planificacao/guias-bk/MF8/BK-MF8-08-datas-no-formato-dd-mm-aaaa.md |
+| BK-MF8-09 | MF8 | S12 | Kaua | Guilherme | P2 | Core | RNF44 | - | docs/planificacao/guias-bk/MF8/BK-MF8-09-preparado-para-futura-traducao-i18n.md |
+| BK-MF8-10 | MF8 | S12 | Guilherme | Natalia | P1 | Core | RF16, RF42, RNF20, RNF23 | BK-MF1-04 | docs/planificacao/guias-bk/MF8/BK-MF8-10-historico-privado-dos-chats-ia-da-sala.md |
+| BK-MF8-11 | MF8 | S12 | Natalia | Guilherme | P1 | Core | RF16, RF42, RNF20 | BK-MF8-10 | docs/planificacao/guias-bk/MF8/BK-MF8-11-partilha-read-only-e-fork-privado-de-chat-ia-da-sala.md |
+| BK-MF8-12 | MF8 | S12 | Guilherme | Natalia | P0 | Reforco | RF28 | BK-MF2-04 | docs/planificacao/guias-bk/MF8/BK-MF8-12-realizacao-de-mini-testes-oficiais-por-aluno.md |
+| BK-MF8-13 | MF8 | S12 | Natalia | Guilherme | P1 | Core | RF28, RF30 | BK-MF8-12 | docs/planificacao/guias-bk/MF8/BK-MF8-13-rankings-dos-mini-testes-oficiais.md |
+| BK-MF8-14 | MF8 | S12 | Daniel | Guilherme | P1 | Core | RF12 | BK-MF0-12 | docs/planificacao/guias-bk/MF8/BK-MF8-14-flashcards-em-modo-de-exercicio-e-revisao.md |
+| BK-MF8-15 | MF8 | S12 | Natalia | Guilherme | P0 | Reforco | RNF41 | BK-MF8-14 | docs/planificacao/guias-bk/MF8/BK-MF8-15-verificacao-dos-testes-atuais-e-criacao-dos-testes-em-falta.md |
+| BK-MF8-16 | MF8 | S12 | Guilherme | Natalia | P0 | Reforco | RNF42 | BK-MF8-15 | docs/planificacao/guias-bk/MF8/BK-MF8-16-execucao-final-de-testes.md |
+| BK-MF8-17 | MF8 | S12 | Daniel | Guilherme | P0 | Reforco | RNF45 | BK-MF8-16 | docs/planificacao/guias-bk/MF8/BK-MF8-17-correcao-de-erros.md |
 ## Changelog
+- `2026-06-30`: MF8 redistribuido para owners principais 5/4/4/4, promovendo Kaua em BK-MF8-04, BK-MF8-06 e BK-MF8-07.
 - `2026-04-19`: anexo BK/Sprint/Owner gerado automaticamente.

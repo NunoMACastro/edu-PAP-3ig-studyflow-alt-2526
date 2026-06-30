@@ -10,7 +10,7 @@
 - `output_mode`: `relatorio_e_resumo`
 - `strict_scope`: `true`
 - `check_mf_coherence`: `true`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-06-29`
 
 ## Escopo desta execução
 Esta execução auditou os 12 BKs da `MF3` sem editar guias de aluno, código real, mockups, documentos canónicos ou BKs fora da macrofase alvo.
@@ -171,13 +171,13 @@ Resultado: OK, sem saída.
 ### `bash scripts/validate-planificacao.sh`
 Resultado: OK.
 
-Resumo do validador:
+Resumo do validador, revalidado na atualização documental de `2026-06-29`:
 - `overall_pass`: `true`
 - `score.total`: `100`
 - `drift_critical_count`: `0`
 - `rf_docs`: `57`
-- `rnf_docs`: `44`
-- `guide_bk`: `101`
+- `rnf_docs`: `45`
+- `guide_bk`: `102`
 
 ## Bloqueios e TODOs restantes
 - `TODO`: corrigir `BK-MF3-09` e `BK-MF3-10` para alinhar expected results com `201 Created`, ou decidir tecnicamente introduzir `@HttpCode(200)` nos controllers reais.

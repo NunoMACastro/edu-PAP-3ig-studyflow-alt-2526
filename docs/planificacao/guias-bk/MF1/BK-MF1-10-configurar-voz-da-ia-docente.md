@@ -1,4 +1,4 @@
-# BK-MF1-10 - Configurar “voz da IA” docente.
+# BK-MF1-10 - Configurar voz da IA docente por turma, com override opcional por disciplina.
 
 ## Header
 - `doc_id`: `GUIA-BK-MF1-10`
@@ -19,16 +19,17 @@
 - `last_updated`: `2026-05-30`
 
 ## Objetivo
-Implementar `RF22`: permitir que o professor configure a voz pedagógica da IA para uma disciplina.
+Implementar `RF22`: permitir que o professor configure a voz pedagógica base da IA para uma turma, mantendo override opcional por disciplina.
 
 ## Importância
 A IA limitada do aluno não deve soar genérica. Deve respeitar o tom, nível de detalhe e regras definidos pelo professor, mas sem ignorar guardrails: a voz altera forma e pedagogia, não autoriza respostas sem fontes.
 
 ## Scope-in
-- Criar `TeacherAiVoice`.
+- Criar `TeacherClassAiVoice` para voz base por turma.
+- Manter `TeacherAiVoice` como override opcional por disciplina.
 - Guardar tom, nível de detalhe e regras.
-- Ter uma configuração por disciplina.
-- Expor `PUT` para criação/atualização.
+- Ter uma configuração base por turma e, quando necessário, uma configuração por disciplina.
+- Expor `PUT` para criação/atualização e `DELETE` para remover override de disciplina.
 - Disponibilizar leitura para a IA limitada.
 
 ## Scope-out
@@ -43,11 +44,13 @@ A IA limitada do aluno não deve soar genérica. Deve respeitar o tom, nível de
 - Ainda não existe configuração docente de IA.
 
 ## Estado depois
-- Professor configura voz da IA numa disciplina sua.
+- Professor configura voz base da IA numa turma sua.
+- Professor pode configurar ou remover override de voz numa disciplina sua.
 - A configuração pode ser atualizada com `PUT`.
-- `BK-MF1-11` consegue aplicar a voz ao prompt.
+- `BK-MF1-11` consegue aplicar a voz efetiva ao prompt.
 
 ## Pré-requisitos
+- `BK-MF1-07` com `ClassesService.findOwnedClass`.
 - `BK-MF1-08` com `SubjectsService.findOwnedSubject`.
 - `SessionGuard`.
 - Professor de desenvolvimento criado pela seed local de `BK-MF1-07`.
@@ -70,6 +73,8 @@ A IA limitada do aluno não deve soar genérica. Deve respeitar o tom, nível de
 
 **Voz não é fonte.** Mesmo que o professor peça uma resposta detalhada, a IA continua limitada aos materiais oficiais `PROCESSED`. A voz muda forma; as fontes definem conteúdo.
 
+**Herança da voz docente.** A turma define a voz base da IA docente. A disciplina pode ter override opcional. Em runtime, a voz efetiva segue a ordem `SUBJECT_OVERRIDE -> CLASS_BASE -> DEFAULT`.
+
 **Validação com professor real.** Usa o professor de desenvolvimento criado no `BK-MF1-07` para configurar a voz. Isto confirma que a configuração pertence ao professor autenticado e que um aluno não consegue alterar a voz docente.
 
 **Decorators do NestJS.** Decorators como `@Controller`, `@Post`, `@Get`, `@Put`, `@Module` e `@Injectable` dizem ao NestJS que papel cada classe tem. O controller recebe pedidos HTTP, o service contém regras de negócio e o módulo liga tudo.
@@ -85,6 +90,7 @@ A IA limitada do aluno não deve soar genérica. Deve respeitar o tom, nível de
 **Fetch API e cookies.** O frontend usa `fetch` para chamar a API. A opção `credentials: 'include'` envia o cookie HttpOnly da sessão, sem expor tokens no JavaScript.
 
 ## Arquitetura do BK
+- `apps/api/src/modules/teacher-ai/schemas/teacher-class-ai-voice.schema.ts`
 - `apps/api/src/modules/teacher-ai/schemas/teacher-ai-voice.schema.ts`
 - `apps/api/src/modules/teacher-ai/dto/update-teacher-ai-voice.dto.ts`
 - `apps/api/src/modules/teacher-ai/teacher-ai-voice.service.ts`
@@ -94,8 +100,24 @@ A IA limitada do aluno não deve soar genérica. Deve respeitar o tom, nível de
 - `apps/web/src/pages/teacher/TeacherAiVoicePage.tsx`
 
 Endpoints:
+- `GET /api/teacher/classes/:classId/ai-voice`
+- `PUT /api/teacher/classes/:classId/ai-voice`
+- `DELETE /api/teacher/subjects/:subjectId/ai-voice`
 - `PUT /api/teacher/subjects/:subjectId/ai-voice`
 - `GET /api/teacher/subjects/:subjectId/ai-voice`
+
+## Alteração extra-planificação - 2026-06-30
+
+A decisão ativa para a app final está em `docs/planificacao/guias-bk/DECISAO-ARQUITETURA-VOZ-IA-DOCENTE.md`.
+
+Este guia nasceu com snippets orientados a uma configuração única por disciplina. Esses snippets devem ser tratados como legado sempre que mostrarem apenas `subjectId` ou `findForSubject`. A implementação real deve usar:
+
+- voz base da turma em `TeacherClassAiVoice`;
+- override opcional de disciplina em `TeacherAiVoice`;
+- resolvedor `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })`;
+- metadata pública `scope`, `source`, `hasOverride`, `classId`, `subjectId?`, `teacherId?`, `tone`, `detailLevel` e `rules`;
+- UI docente em `/app/professor/turmas/:classId/voz` para a voz base;
+- UI docente em `/app/professor/disciplinas/:subjectId/voz` para override da disciplina.
 
 ## Guia linear de implementação
 
@@ -161,7 +183,7 @@ TeacherAiVoiceSchema.index({ teacherId: 1, subjectId: 1 });
 
 5. Explicação do código.
 
-    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `subjectId` e regras textuais, devolve uma configuração única por disciplina e normaliza listas antes de persistir. As validações esperadas são `403` para aluno, `404` para disciplina fora do professor e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
+    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `classId` ou `subjectId` e regras textuais, devolve voz base de turma ou override de disciplina e normaliza listas antes de persistir. As validações esperadas são `403` para aluno, `404` para turma ou disciplina fora do professor, remoção de override por `DELETE` e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
 
 6. Como validar este passo.
 
@@ -210,7 +232,7 @@ export class UpdateTeacherAiVoiceDto {
 
 5. Explicação do código.
 
-    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `subjectId` e regras textuais, devolve uma configuração única por disciplina e normaliza listas antes de persistir. As validações esperadas são `403` para aluno, `404` para disciplina fora do professor e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
+    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `classId` ou `subjectId` e regras textuais, devolve voz base de turma ou override de disciplina e normaliza listas antes de persistir. As validações esperadas são `403` para aluno, `404` para turma ou disciplina fora do professor, remoção de override por `DELETE` e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
 
 6. Como validar este passo.
 
@@ -282,8 +304,17 @@ export class TeacherAiVoiceService {
         return voice ? this.toView(voice) : this.defaultVoice(subject);
     }
 
-    async findForSubject(subject: Subject) {
-        return this.voiceModel.findOne({ subjectId: subject._id }).lean();
+    async resolveTeacherVoice(params: { classId: string; subjectId?: string }) {
+        if (params.subjectId) {
+            const subjectOverride = await this.voiceModel
+                .findOne({ subjectId: new Types.ObjectId(params.subjectId) })
+                .lean();
+            if (subjectOverride) {
+                return subjectOverride;
+            }
+        }
+
+        return this.defaultVoiceForClass(params.classId);
     }
 
     private cleanRules(rules: string[]) {
@@ -310,6 +341,19 @@ export class TeacherAiVoiceService {
         };
     }
 
+    private defaultVoiceForClass(classId: string) {
+        return {
+            id: "",
+            classId,
+            tone: "CALM",
+            detailLevel: "BALANCED",
+            rules: [],
+            scope: "CLASS",
+            source: "DEFAULT",
+            hasOverride: false,
+        };
+    }
+
     private toView(voice: TeacherAiVoice | TeacherAiVoiceDocument) {
         return {
             id: voice._id.toString(),
@@ -325,7 +369,7 @@ export class TeacherAiVoiceService {
 
 5. Explicação do código.
 
-    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `subjectId` e regras textuais, devolve uma configuração única por disciplina e normaliza listas antes de persistir. As validações esperadas são `403` para aluno, `404` para disciplina fora do professor e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
+    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `classId` ou `subjectId` e regras textuais, devolve voz base de turma ou override de disciplina e normaliza listas antes de persistir. As validações esperadas são `403` para aluno, `404` para turma ou disciplina fora do professor, remoção de override por `DELETE` e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
 
 6. Como validar este passo.
 
@@ -393,7 +437,7 @@ export class TeacherAiVoiceController {
 
 5. Explicação do código.
 
-    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `subjectId` e regras textuais, devolve uma configuração única por disciplina e normaliza listas antes de persistir. As validações esperadas são `403` para aluno, `404` para disciplina fora do professor e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
+    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `classId` ou `subjectId` e regras textuais, devolve voz base de turma ou override de disciplina e normaliza listas antes de persistir. As validações esperadas são `403` para aluno, `404` para turma ou disciplina fora do professor, remoção de override por `DELETE` e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
 
 6. Como validar este passo.
 
@@ -445,7 +489,7 @@ export class TeacherAiModule {}
 
 5. Explicação do código.
 
-    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `subjectId` e regras textuais, devolve uma configuração única por disciplina e normaliza listas antes de persistir. As validações esperadas são `403` para aluno, `404` para disciplina fora do professor e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
+    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `classId` ou `subjectId` e regras textuais, devolve voz base de turma ou override de disciplina e normaliza listas antes de persistir. As validações esperadas são `403` para aluno, `404` para turma ou disciplina fora do professor, remoção de override por `DELETE` e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
 
 6. Como validar este passo.
 
@@ -517,7 +561,7 @@ export async function getTeacherAiVoice(subjectId: string) {
 
 5. Explicação do código.
 
-    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `subjectId` e regras textuais, devolve uma configuração única por disciplina e normaliza listas antes de persistir. As validações esperadas são `403` para aluno, `404` para disciplina fora do professor e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
+    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `classId` ou `subjectId` e regras textuais, devolve voz base de turma ou override de disciplina e normaliza listas antes de persistir. As validações esperadas são `403` para aluno, `404` para turma ou disciplina fora do professor, remoção de override por `DELETE` e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
 
 6. Como validar este passo.
 
@@ -630,7 +674,7 @@ export function TeacherAiVoicePage({ subjectId }: Props) {
 
 5. Explicação do código.
 
-    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `subjectId` e regras textuais, devolve uma configuração única por disciplina e normaliza listas antes de persistir. A página cobre carregamento, vazio inicial, sucesso de gravação e erro. As validações esperadas são `403` para aluno, `404` para disciplina fora do professor e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
+    Este passo pertence ao fluxo da voz docente: recebe sessão de professor, `classId` ou `subjectId` e regras textuais, devolve voz base de turma ou override de disciplina e normaliza listas antes de persistir. A página cobre carregamento, vazio inicial, sucesso de gravação e erro. As validações esperadas são `403` para aluno, `404` para turma ou disciplina fora do professor, remoção de override por `DELETE` e atualização idempotente por `PUT`. O resultado é consumido pelo `BK-MF1-11` para orientar a IA limitada da turma.
 
 6. Como validar este passo.
 
@@ -680,32 +724,38 @@ Não há código novo neste passo. Usa-o para confirmar que os passos anteriores
 ## Validação operacional por passo
 
 - Antes dos passos técnicos: inicia sessão com o professor de desenvolvimento criado no `BK-MF1-07`.
-- Passos 1 e 2: confirmar schema e DTO de voz docente com configuração única por disciplina.
-- Passos 3 e 4: validar `PUT` idempotente, normalização de regras e ownership da disciplina.
+- Passos 1 e 2: confirmar schemas e DTO de voz docente com base por turma e override opcional por disciplina.
+- Passos 3 e 4: validar `PUT` idempotente, normalização de regras, ownership da turma e ownership da disciplina.
 - Passos 5 e 6: confirmar export de `TeacherAiVoiceService` para `BK-MF1-11` e cliente frontend alinhado com o controller.
 - Passo 7: validar carregamento, vazio inicial, sucesso de gravação e erros da API.
 
 ## Cenários negativos específicos
 
 - Aluno recebe `403`.
+- Professor sem ownership da turma recebe `404`.
 - Professor sem ownership da disciplina recebe `404`.
 - Regras vazias são removidas antes de persistir.
 - Segunda gravação atualiza o mesmo registo, sem duplicar configuração.
+- Remover override da disciplina volta a herdar a voz base da turma.
 
 ## Expected results
+- `PUT /api/teacher/classes/:classId/ai-voice` com professor dono devolve `200` e cria ou atualiza a voz base da turma.
 - `PUT /api/teacher/subjects/:subjectId/ai-voice` com professor dono devolve `200` e cria ou atualiza uma única configuração.
-- O professor de desenvolvimento criado no `BK-MF1-07` consegue configurar voz apenas numa disciplina sua.
-- Segundo `PUT` para a mesma disciplina atualiza o mesmo registo, sem duplicar.
+- `DELETE /api/teacher/subjects/:subjectId/ai-voice` remove o override e a disciplina volta a herdar da turma.
+- O professor de desenvolvimento criado no `BK-MF1-07` consegue configurar voz apenas numa turma/disciplina sua.
+- Segundo `PUT` para a mesma turma ou disciplina atualiza o mesmo registo, sem duplicar.
 - Regras vazias são removidas antes de persistir.
 - Aluno autenticado devolve `403`.
-- Professor sem ownership da disciplina devolve `404`.
+- Professor sem ownership da turma/disciplina devolve `404`.
 - Frontend mostra carregamento, vazio inicial, sucesso de gravação e erros da API.
 
 ## Critérios de aceite
-- Uma configuração por disciplina.
+- Uma configuração base por turma.
+- Override opcional por disciplina.
 - `teacherId` vem da sessão.
 - Cliente e controller usam `PUT`.
 - `TeacherAiModule` exporta `TeacherAiVoiceService`.
+- `TeacherAiVoiceService` resolve `SUBJECT_OVERRIDE -> CLASS_BASE -> DEFAULT`.
 - Regras são normalizadas antes de gravar.
 
 ## Validação final
@@ -716,18 +766,20 @@ npm run test:unit
 npm run test:integration
 ```
 
-Confirma no diff que não existe chamada `POST` para a rota de atualização de voz.
+Confirma no diff que não existe chamada `POST` para a rota de atualização de voz e que existe `DELETE` para remover override da disciplina.
 
 ## Evidence para PR/defesa
 - Prova de login local com o professor criado no `BK-MF1-07`.
-- Screenshot da configuração guardada.
+- Screenshot da voz base da turma guardada.
+- Screenshot do override de disciplina guardado e removido.
 - Segundo pedido `PUT` a atualizar a mesma configuração.
 - Resposta `403` para aluno.
 - Demonstração de regras vazias removidas.
 
 ## Handoff
-`BK-MF1-11` deve ler `TeacherAiVoiceService.findForSubject` e usar tom, nível de detalhe e regras no prompt da IA limitada, validando com a disciplina criada pelo professor de desenvolvimento.
+`BK-MF1-11` deve ler `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })` e usar tom, nível de detalhe e regras efetivas no prompt da IA limitada, validando com a turma e a disciplina criadas pelo professor de desenvolvimento.
 
 ## Changelog
+- 2026-06-30: Documentada alteração extra-planificação para voz base por turma com override opcional por disciplina.
 - 2026-05-31: Pré-requisitos e validação alinhados com a seed local de professor criada no BK-MF1-07.
 - 2026-05-30: Guia reescrito com endpoint `PUT`, sanitização de regras e módulo exportado.

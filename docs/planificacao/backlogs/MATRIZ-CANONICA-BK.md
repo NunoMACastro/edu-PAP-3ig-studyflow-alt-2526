@@ -6,7 +6,7 @@
 - `area`: `project`
 - `owner`: `Nuno`
 - `status`: `ativo`
-- `last_updated`: `2026-04-19`
+- `last_updated`: `2026-06-30`
 
 ## Objetivo
 Matriz unica e canónica para garantir rastreabilidade `RF/RNF -> BK -> Sprint -> Guia` sem drift operacional.
@@ -33,10 +33,10 @@ Matriz unica e canónica para garantir rastreabilidade `RF/RNF -> BK -> Sprint -
 | BK-MF1-07 | MF1 | Criar turmas. | Guilherme | Natalia | P0 | TODO | M | - | RF19 | Fase 1 | S03 | Reforco | BK-MF1-08 | docs/planificacao/guias-bk/MF1/BK-MF1-07-criar-turmas.md |
 | BK-MF1-08 | MF1 | Criar disciplinas e associá-las às turmas. | Natalia | Guilherme | P0 | TODO | M | BK-MF1-07 | RF20 | Fase 1 | S03 | Reforco | BK-MF1-09 | docs/planificacao/guias-bk/MF1/BK-MF1-08-criar-disciplinas-e-associa-las-as-turmas.md |
 | BK-MF1-09 | MF1 | Submeter materiais da disciplina (versão oficial). | Kaua | Natalia | P0 | DONE | M | BK-MF1-08 | RF21 | Fase 1 | S03 | Reforco | BK-MF1-10 | docs/planificacao/guias-bk/MF1/BK-MF1-09-submeter-materiais-da-disciplina-versao-oficial.md |
-| BK-MF1-10 | MF1 | Configurar “voz da IA” docente. | Natalia | Guilherme | P1 | DONE | S | BK-MF1-09 | RF22 | Fase 1 | S03 | Core | BK-MF1-11 | docs/planificacao/guias-bk/MF1/BK-MF1-10-configurar-voz-da-ia-docente.md |
+| BK-MF1-10 | MF1 | Configurar voz da IA docente por turma, com override opcional por disciplina. | Natalia | Guilherme | P1 | DONE | S | BK-MF1-09 | RF22 | Fase 1 | S03 | Core | BK-MF1-11 | docs/planificacao/guias-bk/MF1/BK-MF1-10-configurar-voz-da-ia-docente.md |
 | BK-MF1-11 | MF1 | O aluno inscrito numa turma recebe versão limitada da IA. | Natalia | Guilherme | P0 | DONE | M | BK-MF1-10 | RF23 | Fase 1 | S03 | Reforco | BK-MF1-12 | docs/planificacao/guias-bk/MF1/BK-MF1-11-o-aluno-inscrito-numa-turma-recebe-versao-limitada-da-ia.md |
 | BK-MF1-12 | MF1 | Professores podem enviar avisos e publicações. | Kaua | Guilherme | P1 | TODO | S | BK-MF1-07 | RF24 | Fase 1 | S03 | Core | BK-MF2-01 | docs/planificacao/guias-bk/MF1/BK-MF1-12-professores-podem-enviar-avisos-e-publicacoes.md |
-| BK-MF2-01 | MF2 | Professores podem criar salas de estudo guiado. | Guilherme | Natalia | P2 | DONE | S | BK-MF1-07 | RF25 | Fase 1 | S05 | Core | BK-MF2-02 | docs/planificacao/guias-bk/MF2/BK-MF2-01-professores-podem-criar-salas-de-estudo-guiado.md |
+| BK-MF2-01 | MF2 | Professores podem criar salas de estudo guiado com disciplina opcional. | Guilherme | Natalia | P2 | DONE | S | BK-MF1-07 | RF25 | Fase 1 | S05 | Core | BK-MF2-02 | docs/planificacao/guias-bk/MF2/BK-MF2-01-professores-podem-criar-salas-de-estudo-guiado.md |
 | BK-MF2-02 | MF2 | Professores podem criar projetos para a turma. | Guilherme | Natalia | P1 | DONE | S | BK-MF1-07 | RF26 | Fase 1 | S05 | Core | BK-MF2-03 | docs/planificacao/guias-bk/MF2/BK-MF2-02-professores-podem-criar-projetos-para-a-turma.md |
 | BK-MF2-03 | MF2 | A IA deve ajudar o aluno a elaborar projetos de forma gradual. | Natalia | Guilherme | P1 | DONE | S | BK-MF2-02 | RF27 | Fase 1 | S05 | Core | BK-MF2-04 | docs/planificacao/guias-bk/MF2/BK-MF2-03-a-ia-deve-ajudar-o-aluno-a-elaborar-projetos-de-forma-gradual.md |
 | BK-MF2-04 | MF2 | Criar testes/mini-testes oficiais. | Guilherme | Natalia | P0 | DONE | M | BK-MF1-08 | RF28 | Fase 1 | S05 | Reforco | BK-MF2-05 | docs/planificacao/guias-bk/MF2/BK-MF2-04-criar-testes-mini-testes-oficiais.md |
@@ -47,7 +47,7 @@ Matriz unica e canónica para garantir rastreabilidade `RF/RNF -> BK -> Sprint -
 | BK-MF2-09 | MF2 | Manter versões dos materiais. | Natalia | Guilherme | P1 | DONE | S | BK-MF2-07 | RF33 | Fase 1 | S05 | Core | BK-MF2-10 | docs/planificacao/guias-bk/MF2/BK-MF2-09-manter-versoes-dos-materiais.md |
 | BK-MF2-10 | MF2 | Separar materiais entre “aluno”, “professor” e “turma”. | Daniel | Guilherme | P0 | DONE | M | BK-MF2-07 | RF34 | Fase 1 | S05 | Reforco | BK-MF2-11 | docs/planificacao/guias-bk/MF2/BK-MF2-10-separar-materiais-entre-aluno-professor-e-turma.md |
 | BK-MF2-11 | MF2 | Assistente IA privado por Área de Estudo. | Guilherme | Natalia | P0 | DONE | M | BK-MF0-10 | RF35 | Fase 1 | S04 | Reforco | BK-MF2-12 | docs/planificacao/guias-bk/MF2/BK-MF2-11-assistente-ia-privado-por-area-de-estudo.md |
-| BK-MF2-12 | MF2 | Assistente IA da disciplina/turma com voz docente. | Natalia | Guilherme | P0 | DONE | M | BK-MF1-10 | RF36 | Fase 1 | S05 | Reforco | BK-MF3-01 | docs/planificacao/guias-bk/MF2/BK-MF2-12-assistente-ia-da-disciplina-turma-com-voz-docente.md |
+| BK-MF2-12 | MF2 | Assistente IA da disciplina/turma com voz docente herdada. | Natalia | Guilherme | P0 | DONE | M | BK-MF1-10 | RF36 | Fase 1 | S05 | Reforco | BK-MF3-01 | docs/planificacao/guias-bk/MF2/BK-MF2-12-assistente-ia-da-disciplina-turma-com-voz-docente.md |
 | BK-MF3-01 | MF3 | Guardrails distintos para aluno solo, grupo e turma. | Natalia | Natalia | P0 | TODO | M | BK-MF2-11 | RF37 | Fase 2 | S07 | Reforco | BK-MF3-02 | docs/planificacao/guias-bk/MF3/BK-MF3-01-guardrails-distintos-para-aluno-solo-grupo-e-turma.md |
 | BK-MF3-02 | MF3 | IA não pode inventar conteúdo (citações obrigatórias). | Natalia | Guilherme | P0 | TODO | M | BK-MF2-07 | RF38 | Fase 2 | S07 | Reforco | BK-MF3-03 | docs/planificacao/guias-bk/MF3/BK-MF3-02-ia-nao-pode-inventar-conteudo-citacoes-obrigatorias.md |
 | BK-MF3-03 | MF3 | IA pode recorrer a conhecimento externo (limitado) quando permitido. | Kaua | Guilherme | P1 | TODO | S | BK-MF2-11 | RF39 | Fase 2 | S07 | Core | BK-MF3-04 | docs/planificacao/guias-bk/MF3/BK-MF3-03-ia-pode-recorrer-a-conhecimento-externo-limitado-quando-permitido.md |
@@ -102,24 +102,30 @@ Matriz unica e canónica para garantir rastreabilidade `RF/RNF -> BK -> Sprint -
 | BK-MF7-07 | MF7 | Deploy com rollback. | Daniel | Kaua | P1 | TODO | S | - | RNF29 | Fase 3 | S12 | Core | BK-MF7-08 | docs/planificacao/guias-bk/MF7/BK-MF7-07-deploy-com-rollback.md |
 | BK-MF7-08 | MF7 | Endpoint de health-check. | Kaua | Guilherme | P1 | TODO | S | - | RNF30 | Fase 3 | S12 | Core | BK-MF7-09 | docs/planificacao/guias-bk/MF7/BK-MF7-08-endpoint-de-health-check.md |
 | BK-MF7-09 | MF7 | IA explica fontes dos conteúdos (páginas/secções). | Kaua | Guilherme | P0 | TODO | M | - | RNF31 | Fase 3 | S12 | Reforco | BK-MF7-10 | docs/planificacao/guias-bk/MF7/BK-MF7-09-ia-explica-fontes-dos-conteudos-paginas-seccoes.md |
-| BK-MF7-10 | MF7 | IA respeita perfis distintos (aluno, turma, professor). | Natalia | Guilherme | P0 | TODO | M | - | RNF32 | Fase 3 | S12 | Reforco | BK-MF7-11 | docs/planificacao/guias-bk/MF7/BK-MF7-10-ia-respeita-perfis-distintos-aluno-turma-professor.md |
-| BK-MF7-11 | MF7 | IA segue limites definidos pelo professor. | Guilherme | Natalia | P0 | TODO | M | - | RNF33 | Fase 3 | S12 | Reforco | BK-MF8-01 | docs/planificacao/guias-bk/MF7/BK-MF7-11-ia-segue-limites-definidos-pelo-professor.md |
+| BK-MF7-10 | MF7 | IA respeita perfis distintos (aluno, sala, turma, disciplina, professor). | Natalia | Guilherme | P0 | TODO | M | - | RNF32 | Fase 3 | S12 | Reforco | BK-MF7-11 | docs/planificacao/guias-bk/MF7/BK-MF7-10-ia-respeita-perfis-distintos-aluno-turma-professor.md |
+| BK-MF7-11 | MF7 | IA segue limites definidos pelo professor, incluindo voz herdada. | Guilherme | Natalia | P0 | TODO | M | - | RNF33 | Fase 3 | S12 | Reforco | BK-MF8-01 | docs/planificacao/guias-bk/MF7/BK-MF7-11-ia-segue-limites-definidos-pelo-professor.md |
 | BK-MF8-01 | MF8 | IA evita enviesamentos e respostas inseguras. | Natalia | Guilherme | P0 | TODO | M | - | RNF34 | Fase 3 | S12 | Reforco | BK-MF8-02 | docs/planificacao/guias-bk/MF8/BK-MF8-01-ia-evita-enviesamentos-e-respostas-inseguras.md |
 | BK-MF8-02 | MF8 | IA não pode inventar informação factual. | Natalia | Guilherme | P0 | TODO | M | - | RNF35 | Fase 3 | S11 | Reforco | BK-MF8-03 | docs/planificacao/guias-bk/MF8/BK-MF8-02-ia-nao-pode-inventar-informacao-factual.md |
 | BK-MF8-03 | MF8 | IA adapta explicações ao nível do aluno. | Daniel | Natalia | P1 | TODO | S | - | RNF36 | Fase 3 | S12 | Core | BK-MF8-04 | docs/planificacao/guias-bk/MF8/BK-MF8-03-ia-adapta-explicacoes-ao-nivel-do-aluno.md |
-| BK-MF8-04 | MF8 | IA externa segue políticas e filtros próprios. | Guilherme | Kaua | P0 | TODO | M | - | RNF37 | Fase 3 | S11 | Reforco | BK-MF8-05 | docs/planificacao/guias-bk/MF8/BK-MF8-04-ia-externa-segue-politicas-e-filtros-proprios.md |
-| BK-MF8-05 | MF8 | Compatível com Chrome, Edge, Firefox, Safari. | Natalia | Natalia | P0 | TODO | M | - | RNF38 | Fase 3 | S11 | Reforco | BK-MF8-06 | docs/planificacao/guias-bk/MF8/BK-MF8-05-compativel-com-chrome-edge-firefox-safari.md |
-| BK-MF8-06 | MF8 | Suporte a importação UTF-8 e PT-PT. | Natalia | Guilherme | P0 | TODO | M | - | RNF39 | Fase 3 | S12 | Reforco | BK-MF8-07 | docs/planificacao/guias-bk/MF8/BK-MF8-06-suporte-a-importacao-utf-8-e-pt-pt.md |
-| BK-MF8-07 | MF8 | Exportação de resumos/quizzes em PDF/MD. | Guilherme | Guilherme | P1 | TODO | S | - | RNF40 | Fase 3 | S12 | Core | BK-MF8-08 | docs/planificacao/guias-bk/MF8/BK-MF8-07-exportacao-de-resumos-quizzes-em-pdf-md.md |
-| BK-MF8-08 | MF8 | Preparado para integrações com Drive/ICS/LMS. | Kaua | Guilherme | P2 | TODO | S | - | RNF41 | Fase 3 | S11 | Core | BK-MF8-09 | docs/planificacao/guias-bk/MF8/BK-MF8-08-preparado-para-integracoes-com-drive-ics-lms.md |
-| BK-MF8-09 | MF8 | Interface em português (Portugal). | Natalia | Guilherme | P0 | TODO | M | - | RNF42 | Fase 3 | S08 | Reforco | BK-MF8-10 | docs/planificacao/guias-bk/MF8/BK-MF8-09-interface-em-portugues-portugal.md |
-| BK-MF8-10 | MF8 | Datas no formato dd/mm/aaaa. | Daniel | Kaua | P0 | TODO | M | - | RNF43 | Fase 3 | S07 | Reforco | BK-MF8-11 | docs/planificacao/guias-bk/MF8/BK-MF8-10-datas-no-formato-dd-mm-aaaa.md |
-| BK-MF8-11 | MF8 | Preparado para futura tradução i18n. | Guilherme | Kaua | P2 | TODO | S | - | RNF44 | Fase 3 | S03 | Core | - | docs/planificacao/guias-bk/MF8/BK-MF8-11-preparado-para-futura-traducao-i18n.md |
-
+| BK-MF8-04 | MF8 | IA externa segue políticas e filtros próprios. | Kaua | Guilherme | P0 | TODO | M | - | RNF37 | Fase 3 | S11 | Reforco | BK-MF8-05 | docs/planificacao/guias-bk/MF8/BK-MF8-04-ia-externa-segue-politicas-e-filtros-proprios.md |
+| BK-MF8-05 | MF8 | Aproximação da UI à UI do mockup. | Guilherme | Natalia | P0 | TODO | M | - | RNF38 | Fase 3 | S12 | Reforco | BK-MF8-06 | docs/planificacao/guias-bk/MF8/BK-MF8-05-aproximacao-da-ui-a-ui-do-mockup.md |
+| BK-MF8-06 | MF8 | Suporte a importação UTF-8 e PT-PT. | Kaua | Natalia | P0 | TODO | M | - | RNF39 | Fase 3 | S12 | Reforco | BK-MF8-07 | docs/planificacao/guias-bk/MF8/BK-MF8-06-suporte-a-importacao-utf-8-e-pt-pt.md |
+| BK-MF8-07 | MF8 | Exportação de resumos/quizzes em PDF/MD. | Kaua | Guilherme | P1 | TODO | S | - | RNF40 | Fase 3 | S12 | Core | BK-MF8-08 | docs/planificacao/guias-bk/MF8/BK-MF8-07-exportacao-de-resumos-quizzes-em-pdf-md.md |
+| BK-MF8-08 | MF8 | Datas no formato dd/mm/aaaa. | Daniel | Kaua | P0 | TODO | M | - | RNF43 | Fase 3 | S12 | Reforco | BK-MF8-09 | docs/planificacao/guias-bk/MF8/BK-MF8-08-datas-no-formato-dd-mm-aaaa.md |
+| BK-MF8-09 | MF8 | Preparado para futura tradução i18n. | Kaua | Guilherme | P2 | TODO | S | - | RNF44 | Fase 3 | S12 | Core | BK-MF8-10 | docs/planificacao/guias-bk/MF8/BK-MF8-09-preparado-para-futura-traducao-i18n.md |
+| BK-MF8-10 | MF8 | Histórico privado dos chats IA da sala. | Guilherme | Natalia | P1 | TODO | M | BK-MF1-04 | RF16, RF42, RNF20, RNF23 | Fase 3 | S12 | Core | BK-MF8-11 | docs/planificacao/guias-bk/MF8/BK-MF8-10-historico-privado-dos-chats-ia-da-sala.md |
+| BK-MF8-11 | MF8 | Partilha read-only e fork privado de chat IA da sala. | Natalia | Guilherme | P1 | TODO | M | BK-MF8-10 | RF16, RF42, RNF20 | Fase 3 | S12 | Core | BK-MF8-12 | docs/planificacao/guias-bk/MF8/BK-MF8-11-partilha-read-only-e-fork-privado-de-chat-ia-da-sala.md |
+| BK-MF8-12 | MF8 | Realização de mini-testes oficiais por aluno. | Guilherme | Natalia | P0 | TODO | M | BK-MF2-04 | RF28 | Fase 3 | S12 | Reforco | BK-MF8-13 | docs/planificacao/guias-bk/MF8/BK-MF8-12-realizacao-de-mini-testes-oficiais-por-aluno.md |
+| BK-MF8-13 | MF8 | Rankings dos mini-testes oficiais. | Natalia | Guilherme | P1 | TODO | S | BK-MF8-12 | RF28, RF30 | Fase 3 | S12 | Core | BK-MF8-14 | docs/planificacao/guias-bk/MF8/BK-MF8-13-rankings-dos-mini-testes-oficiais.md |
+| BK-MF8-14 | MF8 | Flashcards em modo de exercício e revisão. | Daniel | Guilherme | P1 | TODO | S | BK-MF0-12 | RF12 | Fase 3 | S12 | Core | BK-MF8-15 | docs/planificacao/guias-bk/MF8/BK-MF8-14-flashcards-em-modo-de-exercicio-e-revisao.md |
+| BK-MF8-15 | MF8 | Verificação dos testes atuais e criação dos testes em falta. | Natalia | Guilherme | P0 | TODO | M | BK-MF8-14 | RNF41 | Fase 3 | S12 | Reforco | BK-MF8-16 | docs/planificacao/guias-bk/MF8/BK-MF8-15-verificacao-dos-testes-atuais-e-criacao-dos-testes-em-falta.md |
+| BK-MF8-16 | MF8 | Execução final de testes. | Guilherme | Natalia | P0 | TODO | M | BK-MF8-15 | RNF42 | Fase 3 | S12 | Reforco | BK-MF8-17 | docs/planificacao/guias-bk/MF8/BK-MF8-16-execucao-final-de-testes.md |
+| BK-MF8-17 | MF8 | Correção de erros. | Daniel | Guilherme | P0 | TODO | M | BK-MF8-16 | RNF45 | Fase 3 | S12 | Reforco | - | docs/planificacao/guias-bk/MF8/BK-MF8-17-correcao-de-erros.md |
 ## Validacao inicial
 - BK duplicado: nao detetado.
 - BK orfao: nao detetado.
 - Dependencias invalidas: nao detetadas.
 
 ## Changelog
+- `2026-06-30`: ownership MF8 redistribuido para carga equilibrada 5/4/4/4 entre Natalia, Guilherme, Kaua e Daniel.
 - `2026-04-19`: matriz expandida com `sprint`, `core_or_reforco` e `guia_path` para contrato canónico completo.

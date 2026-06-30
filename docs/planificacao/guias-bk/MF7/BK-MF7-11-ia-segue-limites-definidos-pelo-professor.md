@@ -1,4 +1,4 @@
-# BK-MF7-11 - IA segue limites definidos pelo professor.
+# BK-MF7-11 - IA segue limites definidos pelo professor, incluindo voz herdada.
 
 ## Header
 
@@ -27,7 +27,7 @@ No fim, a equipa consegue demonstrar `RNF33` com código, validação e evidence
 
 #### Importância
 
-`RNF33` dá controlo pedagógico ao professor. A IA deve ajudar dentro dos limites de disciplina, materiais oficiais e voz docente, não ultrapassar regras para produzir respostas maiores ou fora de âmbito.
+`RNF33` dá controlo pedagógico ao professor. A IA deve ajudar dentro dos limites de turma/disciplina, materiais oficiais e voz docente efetiva, não ultrapassar regras para produzir respostas maiores ou fora de âmbito.
 
 Este BK é incremental: consome contratos já fechados nas MFs anteriores e entrega uma peça pequena, testável e explicável para o próximo BK.
 
@@ -49,7 +49,7 @@ Este BK é incremental: consome contratos já fechados nas MFs anteriores e entr
 
 #### Estado antes e depois
 
-- Estado antes: MF6 deixa segurança, recuperação, guardrails e isolamento de IA preparados, e a app já tem políticas de modelo, quotas e voz docente, mas ainda falta explicitar a ordem segura que aplica limites antes do provider IA.
+- Estado antes: MF6 deixa segurança, recuperação, guardrails e isolamento de IA preparados, e a app já tem políticas de modelo, quotas e voz docente herdada, mas ainda falta explicitar a ordem segura que aplica limites antes do provider IA.
 - Estado depois: a app passa a ter a sequência `resolveForUse("CLASS_AI")`, `assertPromptWithinLimit(...)`, `reserveUsage(...)` e `generateClassAnswer(...)`, preparando `BK-MF8-01`.
 
 #### Pre-requisitos
@@ -84,10 +84,12 @@ Este BK é incremental: consome contratos já fechados nas MFs anteriores e entr
 - **Fonte processável:** texto extraído e autorizado que pode sustentar uma resposta IA.
 - **Evidence:** prova objetiva de funcionamento e falha controlada, usada em PR e defesa PAP.
 - **Limites docentes de IA:** foco técnico deste BK para cumprir `RNF33`.
+- **Voz docente efetiva:** voz calculada por `SUBJECT_OVERRIDE -> CLASS_BASE -> DEFAULT` e aplicada apenas no contexto de turma/disciplina.
 
 #### Conceitos teóricos essenciais
 
-- **Limite docente:** regra configurada para manter a IA dentro do objetivo pedagógico da disciplina.
+- **Limite docente:** regra configurada para manter a IA dentro do objetivo pedagógico da turma/disciplina.
+- **Voz base e override:** a turma define a base pedagógica; a disciplina pode restringir ou especializar por override.
 - **Política de modelo:** configuração que controla provider, modelo, timeout e tamanho de contexto.
 - **Quota:** limite de uso para evitar consumo excessivo e abuso.
 - **Falhar cedo:** interromper o fluxo antes de quota, provider ou persistência quando o limite não permite a chamada.
@@ -101,11 +103,11 @@ Este BK é incremental: consome contratos já fechados nas MFs anteriores e entr
 
 - Endpoint(s): `POST /api/student/subjects/:subjectId/ai/answers` consome limites resolvidos.
 - Modelo/schema: `AiModelPolicy` e `AiQuotaPolicy` já definem limites administrativos.
-- Service(s): `AiModelPoliciesService`, `AiQuotasService` e `ClassAiService`.
+- Service(s): `AiModelPoliciesService`, `AiQuotasService`, `TeacherAiVoiceService.resolveTeacherVoice` e `ClassAiService`.
 - Controller/route: controllers existentes mantêm sessão e delegam no service.
 - Guard/middleware: reutiliza `SessionGuard` quando o endpoint for privado; health e operação pública nunca expõem dados pessoais.
 - Cliente API: usa clientes existentes com `credentials: 'include'` quando houver frontend autenticado.
-- Segurança/autorização: limites são aplicados no backend, depois de membership e antes do provider IA.
+- Segurança/autorização: limites e voz efetiva são aplicados no backend, depois de membership e antes do provider IA.
 - Testes: unitário de `assertPromptWithinLimit(...)`, teste de service para caminho principal e três negativos P0 antes do provider.
 - Handoff para o próximo BK: `BK-MF8-01` passa a trabalhar segurança e enviesamento sobre IA já limitada.
 
@@ -332,7 +334,10 @@ async askClassAi(
         });
     }
 
-    const voice = await this.voiceService.findVoiceForSubject(subject._id);
+    const voice = await this.voiceService.resolveTeacherVoice({
+        classId: subject.classId.toString(),
+        subjectId: subject._id.toString(),
+    });
     const limitedMaterials = materials.slice(0, policy.maxSourceCount);
     const prompt = buildClassAiPrompt({
         subjectName: subject.name,
@@ -720,6 +725,7 @@ Se a evidence disser apenas 'funciona', sem output, request/response, teste ou s
 - Cada passo tem objetivo, ficheiros, instruções, código ou justificação sem código, explicação, validação e negativo.
 - O código apresentado tem JSDoc nos elementos relevantes e comentários didáticos junto das decisões importantes.
 - `ClassAiService.askClassAi(...)` aplica contexto, consentimento, política, limite de prompt e quota antes do provider.
+- `ClassAiService.askClassAi(...)` aplica voz docente efetiva resolvida antes do provider e guarda as regras usadas.
 - Os testes P0 incluem caminho principal, unit, service e três negativos.
 - Não existe decisão de sessão, ownership, membership, role, quota, fonte IA ou privacidade feita apenas no frontend.
 - Não há exposição de cookies, passwords, prompts privados, respostas IA completas, materiais privados ou dados de outro contexto em logs/evidence.
@@ -732,6 +738,7 @@ Se a evidence disser apenas 'funciona', sem output, request/response, teste ou s
 - Executar `bash scripts/validate-planificacao.sh`.
 - Executar `npm --prefix apps/api run build`.
 - Executar `npm --prefix apps/api run test:unit -- ai-model-policies.service class-ai.service`.
+- Confirmar cenário sem override de disciplina, cenário com override e remoção de override.
 - Executar pesquisa de logs sensíveis nos módulos alterados.
 - Resultado esperado: comandos verdes ou falha externa registada com caminho, comando e erro observado.
 
@@ -741,16 +748,18 @@ Se a evidence disser apenas 'funciona', sem output, request/response, teste ou s
 - `proof_tecnico`: comando executado, output relevante ou request/response do caminho principal.
 - `proof_negativos`: três erros controlados P0, cada um com prova de provider não chamado.
 - `proof_fontes`: para IA da disciplina, confirmação de que só entram materiais oficiais processados depois de membership.
+- `proof_voz_docente`: confirmação de herança da turma, precedência do override e registo das regras efetivas.
 - `proof_privacidade`: confirmação de que não há dados pessoais ou privados em logs/evidence.
 - `proof_pedagogico`: explicação curta de como `RNF33` melhora a aplicação para alunos, professores ou operação.
 
 #### Handoff
 
-`BK-MF8-01` passa a trabalhar segurança e enviesamento sobre IA já limitada por perfil, política, tamanho de prompt e quota.
+`BK-MF8-01` passa a trabalhar segurança e enviesamento sobre IA já limitada por perfil, voz efetiva, política, tamanho de prompt e quota.
 
 O próximo BK deve reutilizar os ficheiros e decisões deste guia, sem criar outro contrato para a mesma responsabilidade.
 
 #### Changelog
 
 - `2026-06-27`: corrigida a prova P0 com integração em `ClassAiService.askClassAi(...)`, três negativos antes do provider, validação por camada e evidence objetiva.
+- `2026-06-30`: documentada aplicação de voz efetiva herdada nos limites docentes.
 - `2026-06-26`: contrato de limites docentes de IA documentado com tutorial técnico linear, código completo, validação, negativos, evidence e caminhos públicos `apps/...`.

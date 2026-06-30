@@ -4,14 +4,14 @@
   "constraints_file": "scripts/plan_constraints_studyflow.json",
   "status": "feasible",
   "summary": {
-    "total_bk": 101,
-    "total_effort_u": 153,
-    "core_effort_u": 127,
-    "support_effort_u": 26,
-    "global_core_dual_percent": 83.0,
-    "reclassified_count": 1,
-    "owner_changes": 9,
-    "sprint_changes": 12
+    "total_bk": 107,
+    "total_effort_u": 164,
+    "core_effort_u": 134,
+    "support_effort_u": 30,
+    "global_core_dual_percent": 81.7,
+    "reclassified_count": 0,
+    "owner_changes": 4,
+    "sprint_changes": 16
   },
   "assignments": [
     {
@@ -167,10 +167,10 @@
     {
       "bk_id": "BK-MF1-04",
       "owner": "Daniel",
-      "sprint": "S03",
+      "sprint": "S04",
       "classe_core_dual": "CORE-HIBRIDO",
       "owner_changed": false,
-      "sprint_changed": false,
+      "sprint_changed": true,
       "class_changed": false,
       "reclass_reason": ""
     },
@@ -199,7 +199,7 @@
       "owner": "Kaua",
       "sprint": "S03",
       "classe_core_dual": "CORE-COM",
-      "owner_changed": true,
+      "owner_changed": false,
       "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
@@ -487,10 +487,10 @@
     {
       "bk_id": "BK-MF4-02",
       "owner": "Guilherme",
-      "sprint": "S07",
+      "sprint": "S06",
       "classe_core_dual": "CORE-HIBRIDO",
       "owner_changed": false,
-      "sprint_changed": false,
+      "sprint_changed": true,
       "class_changed": false,
       "reclass_reason": ""
     },
@@ -519,7 +519,7 @@
       "owner": "Daniel",
       "sprint": "S08",
       "classe_core_dual": "CORE-HIBRIDO",
-      "owner_changed": true,
+      "owner_changed": false,
       "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
@@ -557,17 +557,17 @@
     {
       "bk_id": "BK-MF4-09",
       "owner": "Kaua",
-      "sprint": "S07",
+      "sprint": "S06",
       "classe_core_dual": "SUPORTE",
       "owner_changed": false,
-      "sprint_changed": false,
+      "sprint_changed": true,
       "class_changed": false,
       "reclass_reason": ""
     },
     {
       "bk_id": "BK-MF4-10",
-      "owner": "Natalia",
-      "sprint": "S08",
+      "owner": "Daniel",
+      "sprint": "S07",
       "classe_core_dual": "SUPORTE",
       "owner_changed": true,
       "sprint_changed": true,
@@ -580,7 +580,7 @@
       "sprint": "S09",
       "classe_core_dual": "CORE-HIBRIDO",
       "owner_changed": false,
-      "sprint_changed": true,
+      "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
     },
@@ -619,18 +619,18 @@
       "owner": "Kaua",
       "sprint": "S08",
       "classe_core_dual": "CORE-HIBRIDO",
-      "owner_changed": true,
+      "owner_changed": false,
       "sprint_changed": false,
-      "class_changed": true,
-      "reclass_reason": "repair_sprint_core_ratio"
+      "class_changed": false,
+      "reclass_reason": ""
     },
     {
       "bk_id": "BK-MF5-07",
       "owner": "Natalia",
-      "sprint": "S08",
+      "sprint": "S04",
       "classe_core_dual": "SUPORTE",
       "owner_changed": false,
-      "sprint_changed": false,
+      "sprint_changed": true,
       "class_changed": false,
       "reclass_reason": ""
     },
@@ -650,7 +650,7 @@
       "sprint": "S11",
       "classe_core_dual": "CORE-HIBRIDO",
       "owner_changed": false,
-      "sprint_changed": true,
+      "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
     },
@@ -659,7 +659,7 @@
       "owner": "Guilherme",
       "sprint": "S09",
       "classe_core_dual": "CORE-HIBRIDO",
-      "owner_changed": true,
+      "owner_changed": false,
       "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
@@ -670,7 +670,7 @@
       "sprint": "S07",
       "classe_core_dual": "CORE-HIBRIDO",
       "owner_changed": false,
-      "sprint_changed": true,
+      "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
     },
@@ -680,7 +680,7 @@
       "sprint": "S10",
       "classe_core_dual": "CORE-HIBRIDO",
       "owner_changed": false,
-      "sprint_changed": true,
+      "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
     },
@@ -700,7 +700,7 @@
       "sprint": "S11",
       "classe_core_dual": "SUPORTE",
       "owner_changed": false,
-      "sprint_changed": true,
+      "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
     },
@@ -749,7 +749,7 @@
       "owner": "Daniel",
       "sprint": "S10",
       "classe_core_dual": "CORE-HIBRIDO",
-      "owner_changed": true,
+      "owner_changed": false,
       "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
@@ -820,7 +820,7 @@
       "sprint": "S10",
       "classe_core_dual": "SUPORTE",
       "owner_changed": false,
-      "sprint_changed": true,
+      "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
     },
@@ -847,7 +847,7 @@
     {
       "bk_id": "BK-MF7-05",
       "owner": "Guilherme",
-      "sprint": "S06",
+      "sprint": "S03",
       "classe_core_dual": "SUPORTE",
       "owner_changed": false,
       "sprint_changed": true,
@@ -866,21 +866,21 @@
     },
     {
       "bk_id": "BK-MF7-07",
-      "owner": "Daniel",
-      "sprint": "S12",
+      "owner": "Kaua",
+      "sprint": "S04",
       "classe_core_dual": "SUPORTE",
-      "owner_changed": false,
-      "sprint_changed": false,
+      "owner_changed": true,
+      "sprint_changed": true,
       "class_changed": false,
       "reclass_reason": ""
     },
     {
       "bk_id": "BK-MF7-08",
       "owner": "Kaua",
-      "sprint": "S12",
+      "sprint": "S11",
       "classe_core_dual": "SUPORTE",
       "owner_changed": false,
-      "sprint_changed": false,
+      "sprint_changed": true,
       "class_changed": false,
       "reclass_reason": ""
     },
@@ -937,10 +937,10 @@
     {
       "bk_id": "BK-MF8-03",
       "owner": "Daniel",
-      "sprint": "S12",
+      "sprint": "S09",
       "classe_core_dual": "CORE-IA",
       "owner_changed": false,
-      "sprint_changed": false,
+      "sprint_changed": true,
       "class_changed": false,
       "reclass_reason": ""
     },
@@ -949,17 +949,17 @@
       "owner": "Guilherme",
       "sprint": "S11",
       "classe_core_dual": "CORE-HIBRIDO",
-      "owner_changed": true,
+      "owner_changed": false,
       "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
     },
     {
       "bk_id": "BK-MF8-05",
-      "owner": "Natalia",
-      "sprint": "S11",
+      "owner": "Guilherme",
+      "sprint": "S12",
       "classe_core_dual": "SUPORTE",
-      "owner_changed": true,
+      "owner_changed": false,
       "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
@@ -970,24 +970,24 @@
       "sprint": "S12",
       "classe_core_dual": "SUPORTE",
       "owner_changed": false,
-      "sprint_changed": true,
+      "sprint_changed": false,
       "class_changed": false,
       "reclass_reason": ""
     },
     {
       "bk_id": "BK-MF8-07",
       "owner": "Guilherme",
-      "sprint": "S12",
+      "sprint": "S07",
       "classe_core_dual": "CORE-IA",
-      "owner_changed": true,
-      "sprint_changed": false,
+      "owner_changed": false,
+      "sprint_changed": true,
       "class_changed": false,
       "reclass_reason": ""
     },
     {
       "bk_id": "BK-MF8-08",
-      "owner": "Kaua",
-      "sprint": "S11",
+      "owner": "Daniel",
+      "sprint": "S12",
       "classe_core_dual": "CORE-HIBRIDO",
       "owner_changed": false,
       "sprint_changed": false,
@@ -996,18 +996,18 @@
     },
     {
       "bk_id": "BK-MF8-09",
-      "owner": "Natalia",
-      "sprint": "S08",
+      "owner": "Kaua",
+      "sprint": "S07",
       "classe_core_dual": "SUPORTE",
       "owner_changed": false,
-      "sprint_changed": false,
+      "sprint_changed": true,
       "class_changed": false,
       "reclass_reason": ""
     },
     {
       "bk_id": "BK-MF8-10",
-      "owner": "Daniel",
-      "sprint": "S07",
+      "owner": "Guilherme",
+      "sprint": "S12",
       "classe_core_dual": "CORE-HIBRIDO",
       "owner_changed": false,
       "sprint_changed": false,
@@ -1016,10 +1016,70 @@
     },
     {
       "bk_id": "BK-MF8-11",
+      "owner": "Natalia",
+      "sprint": "S12",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-12",
       "owner": "Guilherme",
-      "sprint": "S03",
+      "sprint": "S12",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-13",
+      "owner": "Natalia",
+      "sprint": "S12",
+      "classe_core_dual": "CORE-COM",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-14",
+      "owner": "Daniel",
+      "sprint": "S12",
+      "classe_core_dual": "CORE-HIBRIDO",
+      "owner_changed": false,
+      "sprint_changed": false,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-15",
+      "owner": "Natalia",
+      "sprint": "S11",
       "classe_core_dual": "SUPORTE",
       "owner_changed": false,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-16",
+      "owner": "Natalia",
+      "sprint": "S08",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": true,
+      "sprint_changed": true,
+      "class_changed": false,
+      "reclass_reason": ""
+    },
+    {
+      "bk_id": "BK-MF8-17",
+      "owner": "Natalia",
+      "sprint": "S08",
+      "classe_core_dual": "SUPORTE",
+      "owner_changed": true,
       "sprint_changed": true,
       "class_changed": false,
       "reclass_reason": ""
@@ -1045,18 +1105,18 @@
     {
       "sprint": "S03",
       "capacity_u": 16.5,
-      "load_u": 14.0,
-      "core_u": 13.0,
+      "load_u": 13.0,
+      "core_u": 12.0,
       "support_u": 1.0,
-      "core_dual_percent": 92.9
+      "core_dual_percent": 92.3
     },
     {
       "sprint": "S04",
       "capacity_u": 19.0,
-      "load_u": 4.0,
-      "core_u": 4.0,
-      "support_u": 0.0,
-      "core_dual_percent": 100.0
+      "load_u": 7.0,
+      "core_u": 5.0,
+      "support_u": 2.0,
+      "core_dual_percent": 71.4
     },
     {
       "sprint": "S05",
@@ -1069,18 +1129,18 @@
     {
       "sprint": "S06",
       "capacity_u": 16.5,
-      "load_u": 11.0,
-      "core_u": 8.0,
+      "load_u": 12.0,
+      "core_u": 9.0,
       "support_u": 3.0,
-      "core_dual_percent": 72.7
+      "core_dual_percent": 75.0
     },
     {
       "sprint": "S07",
       "capacity_u": 16.5,
-      "load_u": 15.0,
-      "core_u": 12.0,
-      "support_u": 3.0,
-      "core_dual_percent": 80.0
+      "load_u": 14.0,
+      "core_u": 10.0,
+      "support_u": 4.0,
+      "core_dual_percent": 71.4
     },
     {
       "sprint": "S08",
@@ -1093,10 +1153,10 @@
     {
       "sprint": "S09",
       "capacity_u": 16.5,
-      "load_u": 14.0,
-      "core_u": 10.0,
+      "load_u": 15.0,
+      "core_u": 11.0,
       "support_u": 4.0,
-      "core_dual_percent": 71.4
+      "core_dual_percent": 73.3
     },
     {
       "sprint": "S10",
@@ -1110,50 +1170,50 @@
       "sprint": "S11",
       "capacity_u": 16.5,
       "load_u": 15.0,
-      "core_u": 12.0,
-      "support_u": 3.0,
-      "core_dual_percent": 80.0
+      "core_u": 11.0,
+      "support_u": 4.0,
+      "core_dual_percent": 73.3
     },
     {
       "sprint": "S12",
       "capacity_u": 19.0,
-      "load_u": 14.0,
-      "core_u": 10.0,
+      "load_u": 22.0,
+      "core_u": 18.0,
       "support_u": 4.0,
-      "core_dual_percent": 71.4
+      "core_dual_percent": 81.8
     }
   ],
   "per_owner": [
     {
       "owner": "Natalia",
       "capacity_weekly_u": 6.0,
-      "total_effort_u": 61.0,
-      "p0": 25,
-      "p1": 10,
+      "total_effort_u": 65.0,
+      "p0": 26,
+      "p1": 11,
       "p2": 1
     },
     {
       "owner": "Guilherme",
       "capacity_weekly_u": 4.5,
-      "total_effort_u": 43.0,
-      "p0": 13,
-      "p1": 13,
-      "p2": 4
+      "total_effort_u": 48.0,
+      "p0": 15,
+      "p1": 14,
+      "p2": 3
     },
     {
       "owner": "Kaua",
       "capacity_weekly_u": 3.5,
-      "total_effort_u": 31.0,
+      "total_effort_u": 32.0,
       "p0": 9,
-      "p1": 12,
+      "p1": 13,
       "p2": 1
     },
     {
       "owner": "Daniel",
       "capacity_weekly_u": 2.5,
-      "total_effort_u": 18.0,
+      "total_effort_u": 19.0,
       "p0": 5,
-      "p1": 6,
+      "p1": 7,
       "p2": 2
     }
   ]

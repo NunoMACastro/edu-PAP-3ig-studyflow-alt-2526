@@ -107,13 +107,19 @@
 | MF8/BK-MF8-02.md | MF8/BK-MF8-02-ia-nao-pode-inventar-informacao-factual.md |
 | MF8/BK-MF8-03.md | MF8/BK-MF8-03-ia-adapta-explicacoes-ao-nivel-do-aluno.md |
 | MF8/BK-MF8-04.md | MF8/BK-MF8-04-ia-externa-segue-politicas-e-filtros-proprios.md |
-| MF8/BK-MF8-05.md | MF8/BK-MF8-05-compativel-com-chrome-edge-firefox-safari.md |
+| MF8/BK-MF8-05.md | MF8/BK-MF8-05-aproximacao-da-ui-a-ui-do-mockup.md |
 | MF8/BK-MF8-06.md | MF8/BK-MF8-06-suporte-a-importacao-utf-8-e-pt-pt.md |
 | MF8/BK-MF8-07.md | MF8/BK-MF8-07-exportacao-de-resumos-quizzes-em-pdf-md.md |
-| MF8/BK-MF8-08.md | MF8/BK-MF8-08-preparado-para-integracoes-com-drive-ics-lms.md |
-| MF8/BK-MF8-09.md | MF8/BK-MF8-09-interface-em-portugues-portugal.md |
-| MF8/BK-MF8-10.md | MF8/BK-MF8-10-datas-no-formato-dd-mm-aaaa.md |
-| MF8/BK-MF8-11.md | MF8/BK-MF8-11-preparado-para-futura-traducao-i18n.md |
+| MF8/BK-MF8-08.md | MF8/BK-MF8-08-datas-no-formato-dd-mm-aaaa.md |
+| MF8/BK-MF8-09.md | MF8/BK-MF8-09-preparado-para-futura-traducao-i18n.md |
+| MF8/BK-MF8-10.md | MF8/BK-MF8-10-historico-privado-dos-chats-ia-da-sala.md |
+| MF8/BK-MF8-11.md | MF8/BK-MF8-11-partilha-read-only-e-fork-privado-de-chat-ia-da-sala.md |
+| MF8/BK-MF8-12.md | MF8/BK-MF8-12-realizacao-de-mini-testes-oficiais-por-aluno.md |
+| MF8/BK-MF8-13.md | MF8/BK-MF8-13-rankings-dos-mini-testes-oficiais.md |
+| MF8/BK-MF8-14.md | MF8/BK-MF8-14-flashcards-em-modo-de-exercicio-e-revisao.md |
+| MF8/BK-MF8-15.md | MF8/BK-MF8-15-verificacao-dos-testes-atuais-e-criacao-dos-testes-em-falta.md |
+| MF8/BK-MF8-16.md | MF8/BK-MF8-16-execucao-final-de-testes.md |
+| MF8/BK-MF8-17.md | MF8/BK-MF8-17-correcao-de-erros.md |
 
 ## Changelog
 - `2026-04-19`: migracao de naming concluida.

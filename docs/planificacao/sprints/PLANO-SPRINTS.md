@@ -23,28 +23,28 @@
 | Total equipa | 16.5 |
 
 ## Carga global planeada (modelo normalizado)
-- BK totais: `101`
-- `esforco_unico_total_u`: `153` (cada BK conta 1x com `S=1`, `M=2`, `L=3`)
+- BK totais: `107`
+- `esforco_unico_total_u`: `164` (cada BK conta 1x com `S=1`, `M=2`, `L=3`)
 - `carga_planeada_sprint_u`: distribuicao do esforco pelas janelas declaradas (`Sxx-Syy`)
 - Janela de execucao: `12` sprints (`2026-04-13` a `2026-07-05`)
 - Capacidade total da janela: `205.5` unidades
-- Margem operacional global (capacidade - esforco_unico_total_u): `52.5` unidades
+- Margem operacional global (capacidade - esforco_unico_total_u): `41.5` unidades
 
 ## Linha temporal oficial (12 sprints)
 | sprint | periodo | foco_macro | objetivo_operacional | carga_planeada_u | gate |
 | --- | --- | --- | --- | --- | --- |
 | S01 | 2026-04-13 a 2026-04-19 | MF0 | Carga planeada e entrega com evidence completa | 15 | NAO |
 | S02 | 2026-04-20 a 2026-04-26 | MF0 | Carga planeada e entrega com evidence completa | 7 | NAO |
-| S03 | 2026-04-27 a 2026-05-03 | MF1 | Carga planeada e entrega com evidence completa | 14 | NAO |
+| S03 | 2026-04-27 a 2026-05-03 | MF1 | Carga planeada e entrega com evidence completa | 13 | NAO |
 | S04 | 2026-05-04 a 2026-05-10 | MF1 | Carga planeada e entrega com evidence completa | 4 | SIM |
 | S05 | 2026-05-11 a 2026-05-17 | MF2 | Carga planeada e entrega com evidence completa | 15 | NAO |
 | S06 | 2026-05-18 a 2026-05-24 | MF2 | Carga planeada e entrega com evidence completa | 11 | NAO |
-| S07 | 2026-05-25 a 2026-05-31 | MF3 | Carga planeada e entrega com evidence completa | 15 | NAO |
-| S08 | 2026-06-01 a 2026-06-07 | MF3/MF4 | Carga planeada e entrega com evidence completa | 14 | SIM |
+| S07 | 2026-05-25 a 2026-05-31 | MF3 | Carga planeada e entrega com evidence completa | 13 | NAO |
+| S08 | 2026-06-01 a 2026-06-07 | MF3/MF4 | Carga planeada e entrega com evidence completa | 12 | SIM |
 | S09 | 2026-06-08 a 2026-06-14 | MF4/MF5 | Carga planeada e entrega com evidence completa | 14 | NAO |
 | S10 | 2026-06-15 a 2026-06-21 | MF5/MF6 | Carga planeada e entrega com evidence completa | 15 | NAO |
-| S11 | 2026-06-22 a 2026-06-28 | MF6/MF7 | Carga planeada e entrega com evidence completa | 15 | NAO |
-| S12 | 2026-06-29 a 2026-07-05 | MF7/MF8 | Carga planeada e entrega com evidence completa | 14 | SIM |
+| S11 | 2026-06-22 a 2026-06-28 | MF6/MF7 | Carga planeada e entrega com evidence completa | 12 | NAO |
+| S12 | 2026-06-29 a 2026-07-05 | MF7/MF8 | Fecho de produto, funcionalidades MF8 expandidas, testes finais e evidence completa | 33 | SIM |
 
 ## Regra de replaneamento
 1. Replaneamento apenas no fecho da sprint, exceto bloqueio critico.

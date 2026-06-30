@@ -33,10 +33,10 @@ Rastreabilidade bidirecional `RNF -> BK` gerada automaticamente.
 | RNF17 | 1 | BK-MF6-07 |
 | RNF18 | 1 | BK-MF6-08 |
 | RNF19 | 1 | BK-MF6-09 |
-| RNF20 | 1 | BK-MF6-10 |
+| RNF20 | 3 | BK-MF6-10, BK-MF8-10, BK-MF8-11 |
 | RNF21 | 1 | BK-MF6-11 |
 | RNF22 | 1 | BK-MF6-12 |
-| RNF23 | 1 | BK-MF7-01 |
+| RNF23 | 2 | BK-MF7-01, BK-MF8-10 |
 | RNF24 | 1 | BK-MF7-02 |
 | RNF25 | 1 | BK-MF7-03 |
 | RNF26 | 1 | BK-MF7-04 |
@@ -54,10 +54,10 @@ Rastreabilidade bidirecional `RNF -> BK` gerada automaticamente.
 | RNF38 | 1 | BK-MF8-05 |
 | RNF39 | 1 | BK-MF8-06 |
 | RNF40 | 1 | BK-MF8-07 |
-| RNF41 | 1 | BK-MF8-08 |
-| RNF42 | 1 | BK-MF8-09 |
-| RNF43 | 1 | BK-MF8-10 |
-| RNF44 | 1 | BK-MF8-11 |
-
+| RNF41 | 1 | BK-MF8-15 |
+| RNF42 | 1 | BK-MF8-16 |
+| RNF43 | 1 | BK-MF8-08 |
+| RNF44 | 1 | BK-MF8-09 |
+| RNF45 | 1 | BK-MF8-17 |
 ## Changelog
 - `2026-04-19`: anexo RNF gerado automaticamente.

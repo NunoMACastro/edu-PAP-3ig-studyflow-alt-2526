@@ -32,7 +32,7 @@
 | S09 | PLANEADA | - | - | - | - | - | S=1,M=2,L=3 + split 50/50 | 14 | 71.4 | SIM | - | - | N/A | - |
 | S10 | PLANEADA | - | - | - | - | - | S=1,M=2,L=3 + split 50/50 | 15 | 86.7 | SIM | - | - | N/A | - |
 | S11 | PLANEADA | - | - | - | - | - | S=1,M=2,L=3 + split 50/50 | 15 | 80 | SIM | - | - | N/A | - |
-| S12 | PLANEADA | - | - | - | - | - | S=1,M=2,L=3 + split 50/50 | 14 | 71.4 | SIM | - | - | N/A | - |
+| S12 | PLANEADA | - | - | - | - | - | S=1,M=2,L=3 + split 50/50 | 33 | 75.8 | SIM | - | - | N/A | - |
 
 ## Regra de preenchimento
 1. `estado_sprint` so pode ser `PLANEADA`, `EM_CURSO` ou `FECHADA`.

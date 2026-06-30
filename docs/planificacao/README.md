@@ -55,7 +55,7 @@ Normalizar a planificacao da StudyFlow ao padrao OPSA/FaithFlix com governanca c
 
 ## Contagem oficial de requisitos
 - Total RF: **57**
-- Total RNF: **44**
+- Total RNF: **45**
 
 ## Meta documental oficial
 - Meta: `>=97/100`

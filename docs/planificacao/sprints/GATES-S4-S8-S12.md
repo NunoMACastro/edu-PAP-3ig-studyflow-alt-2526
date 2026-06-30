@@ -16,7 +16,7 @@ Estabelecer baseline oficial de validacao para os gates S4, S8 e S12.
 | --- | --- | --- | --- | --- |
 | S4 | 2026-05-10 | MF0-MF1 | Cobertura RF sem orfaos + 100% guias com header canónico | PENDING |
 | S8 | 2026-06-07 | MF0-MF4 | Coerencia matriz/backlog/guias + score >=97/100 | PENDING |
-| S12 | 2026-07-05 | MF0-MF8 | Auditoria automatica PASS + pacote final de defesa | PENDING |
+| S12 | 2026-07-05 | MF0-MF8 | Funcionalidades MF8 expandidas antes dos testes finais + testes finais executados + erros corrigidos + auditoria automatica PASS | PENDING |
 
 ## Evidencias obrigatorias por gate
 - JSON da auditoria automatica (`scripts/latest-audit.json`).

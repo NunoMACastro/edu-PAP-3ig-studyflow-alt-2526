@@ -25,6 +25,7 @@
 - `MF0` fecha a fundação comum: `SessionGuard`, `AuthenticatedUser`, `StudyAreasService`, `MaterialsService`, `AiModule` e `AI_PROVIDER`.
 - `BK-MF0-12` é o fecho técnico da fundação de IA: `AiModule` deve preservar `AiAreaProfileService`, `SummariesService`, `StudyToolsService` e exportar `AI_PROVIDER`.
 - `MF1` deve acrescentar capacidades sobre estes contratos, não substituir módulos partilhados. `ai.module.ts` e `study-rooms.module.ts` são ficheiros acumulativos.
+- Decisão transversal ativa: [Herança da voz IA docente](DECISAO-ARQUITETURA-VOZ-IA-DOCENTE.md). A voz base pertence à turma; a disciplina tem override opcional; salas guiadas podem associar disciplina, mas não têm override próprio.
 - Fases futuras devem importar os módulos/serviços herdados e só alterar contratos partilhados quando o BK anterior da cadeia já estiver merged.
 - PRs paralelos só são aceitáveis entre cadeias que não editem o mesmo módulo partilhado.
 
@@ -51,12 +52,12 @@
 - [BK-MF1-07 - Criar turmas.](MF1/BK-MF1-07-criar-turmas.md)
 - [BK-MF1-08 - Criar disciplinas e associá-las às turmas.](MF1/BK-MF1-08-criar-disciplinas-e-associa-las-as-turmas.md)
 - [BK-MF1-09 - Submeter materiais da disciplina (versão oficial).](MF1/BK-MF1-09-submeter-materiais-da-disciplina-versao-oficial.md)
-- [BK-MF1-10 - Configurar “voz da IA” docente.](MF1/BK-MF1-10-configurar-voz-da-ia-docente.md)
+- [BK-MF1-10 - Configurar voz da IA docente por turma, com override opcional por disciplina.](MF1/BK-MF1-10-configurar-voz-da-ia-docente.md)
 - [BK-MF1-11 - O aluno inscrito numa turma recebe versão limitada da IA.](MF1/BK-MF1-11-o-aluno-inscrito-numa-turma-recebe-versao-limitada-da-ia.md)
 - [BK-MF1-12 - Professores podem enviar avisos e publicações.](MF1/BK-MF1-12-professores-podem-enviar-avisos-e-publicacoes.md)
 
 ### MF2
-- [BK-MF2-01 - Professores podem criar salas de estudo guiado.](MF2/BK-MF2-01-professores-podem-criar-salas-de-estudo-guiado.md)
+- [BK-MF2-01 - Professores podem criar salas de estudo guiado com disciplina opcional.](MF2/BK-MF2-01-professores-podem-criar-salas-de-estudo-guiado.md)
 - [BK-MF2-02 - Professores podem criar projetos para a turma.](MF2/BK-MF2-02-professores-podem-criar-projetos-para-a-turma.md)
 - [BK-MF2-03 - A IA deve ajudar o aluno a elaborar projetos de forma gradual.](MF2/BK-MF2-03-a-ia-deve-ajudar-o-aluno-a-elaborar-projetos-de-forma-gradual.md)
 - [BK-MF2-04 - Criar testes/mini-testes oficiais.](MF2/BK-MF2-04-criar-testes-mini-testes-oficiais.md)
@@ -67,7 +68,7 @@
 - [BK-MF2-09 - Manter versões dos materiais.](MF2/BK-MF2-09-manter-versoes-dos-materiais.md)
 - [BK-MF2-10 - Separar materiais entre “aluno”, “professor” e “turma”.](MF2/BK-MF2-10-separar-materiais-entre-aluno-professor-e-turma.md)
 - [BK-MF2-11 - Assistente IA privado por Área de Estudo.](MF2/BK-MF2-11-assistente-ia-privado-por-area-de-estudo.md)
-- [BK-MF2-12 - Assistente IA da disciplina/turma com voz docente.](MF2/BK-MF2-12-assistente-ia-da-disciplina-turma-com-voz-docente.md)
+- [BK-MF2-12 - Assistente IA da disciplina/turma com voz docente herdada.](MF2/BK-MF2-12-assistente-ia-da-disciplina-turma-com-voz-docente.md)
 
 ### MF3
 - [BK-MF3-01 - Guardrails distintos para aluno solo, grupo e turma.](MF3/BK-MF3-01-guardrails-distintos-para-aluno-solo-grupo-e-turma.md)
@@ -132,21 +133,24 @@
 - [BK-MF7-07 - Deploy com rollback.](MF7/BK-MF7-07-deploy-com-rollback.md)
 - [BK-MF7-08 - Endpoint de health-check.](MF7/BK-MF7-08-endpoint-de-health-check.md)
 - [BK-MF7-09 - IA explica fontes dos conteúdos (páginas/secções).](MF7/BK-MF7-09-ia-explica-fontes-dos-conteudos-paginas-seccoes.md)
-- [BK-MF7-10 - IA respeita perfis distintos (aluno, turma, professor).](MF7/BK-MF7-10-ia-respeita-perfis-distintos-aluno-turma-professor.md)
-- [BK-MF7-11 - IA segue limites definidos pelo professor.](MF7/BK-MF7-11-ia-segue-limites-definidos-pelo-professor.md)
+- [BK-MF7-10 - IA respeita perfis distintos (aluno, sala, turma, disciplina, professor).](MF7/BK-MF7-10-ia-respeita-perfis-distintos-aluno-turma-professor.md)
+- [BK-MF7-11 - IA segue limites definidos pelo professor, incluindo voz herdada.](MF7/BK-MF7-11-ia-segue-limites-definidos-pelo-professor.md)
 
 ### MF8
 - [BK-MF8-01 - IA evita enviesamentos e respostas inseguras.](MF8/BK-MF8-01-ia-evita-enviesamentos-e-respostas-inseguras.md)
 - [BK-MF8-02 - IA não pode inventar informação factual.](MF8/BK-MF8-02-ia-nao-pode-inventar-informacao-factual.md)
 - [BK-MF8-03 - IA adapta explicações ao nível do aluno.](MF8/BK-MF8-03-ia-adapta-explicacoes-ao-nivel-do-aluno.md)
 - [BK-MF8-04 - IA externa segue políticas e filtros próprios.](MF8/BK-MF8-04-ia-externa-segue-politicas-e-filtros-proprios.md)
-- [BK-MF8-05 - Compatível com Chrome, Edge, Firefox, Safari.](MF8/BK-MF8-05-compativel-com-chrome-edge-firefox-safari.md)
+- [BK-MF8-05 - Aproximação da UI à UI do mockup.](MF8/BK-MF8-05-aproximacao-da-ui-a-ui-do-mockup.md)
 - [BK-MF8-06 - Suporte a importação UTF-8 e PT-PT.](MF8/BK-MF8-06-suporte-a-importacao-utf-8-e-pt-pt.md)
 - [BK-MF8-07 - Exportação de resumos/quizzes em PDF/MD.](MF8/BK-MF8-07-exportacao-de-resumos-quizzes-em-pdf-md.md)
-- [BK-MF8-08 - Preparado para integrações com Drive/ICS/LMS.](MF8/BK-MF8-08-preparado-para-integracoes-com-drive-ics-lms.md)
-- [BK-MF8-09 - Interface em português (Portugal).](MF8/BK-MF8-09-interface-em-portugues-portugal.md)
-- [BK-MF8-10 - Datas no formato dd/mm/aaaa.](MF8/BK-MF8-10-datas-no-formato-dd-mm-aaaa.md)
-- [BK-MF8-11 - Preparado para futura tradução i18n.](MF8/BK-MF8-11-preparado-para-futura-traducao-i18n.md)
-
-## Changelog
-- `2026-04-19`: indice regenerado com naming semantico e layout canónico.
+- [BK-MF8-08 - Datas no formato dd/mm/aaaa.](MF8/BK-MF8-08-datas-no-formato-dd-mm-aaaa.md)
+- [BK-MF8-09 - Preparado para futura tradução i18n.](MF8/BK-MF8-09-preparado-para-futura-traducao-i18n.md)
+- [BK-MF8-10 - Histórico privado dos chats IA da sala.](MF8/BK-MF8-10-historico-privado-dos-chats-ia-da-sala.md)
+- [BK-MF8-11 - Partilha read-only e fork privado de chat IA da sala.](MF8/BK-MF8-11-partilha-read-only-e-fork-privado-de-chat-ia-da-sala.md)
+- [BK-MF8-12 - Realização de mini-testes oficiais por aluno.](MF8/BK-MF8-12-realizacao-de-mini-testes-oficiais-por-aluno.md)
+- [BK-MF8-13 - Rankings dos mini-testes oficiais.](MF8/BK-MF8-13-rankings-dos-mini-testes-oficiais.md)
+- [BK-MF8-14 - Flashcards em modo de exercício e revisão.](MF8/BK-MF8-14-flashcards-em-modo-de-exercicio-e-revisao.md)
+- [BK-MF8-15 - Verificação dos testes atuais e criação dos testes em falta.](MF8/BK-MF8-15-verificacao-dos-testes-atuais-e-criacao-dos-testes-em-falta.md)
+- [BK-MF8-16 - Execução final de testes.](MF8/BK-MF8-16-execucao-final-de-testes.md)
+- [BK-MF8-17 - Correção de erros.](MF8/BK-MF8-17-correcao-de-erros.md)

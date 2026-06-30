@@ -73,10 +73,10 @@
 | RF19   | Criar turmas.                                             | Professor | Must       | -            |
 | RF20   | Criar disciplinas e associá-las às turmas.                | Professor | Must       | RF19         |
 | RF21   | Submeter materiais da disciplina (versão oficial).        | Professor | Must       | RF20         |
-| RF22   | Configurar “voz da IA” docente.                           | Professor | Should     | RF21         |
+| RF22   | Configurar voz da IA docente por turma, com override opcional por disciplina. | Professor | Should     | RF21         |
 | RF23   | O aluno inscrito numa turma recebe versão limitada da IA. | Sistema   | Must       | RF22         |
 | RF24   | Professores podem enviar avisos e publicações.            | Professor | Should     | RF19         |
-| RF25   | Professores podem criar salas de estudo guiado.           | Professor | Could      | RF19         |
+| RF25   | Professores podem criar salas de estudo guiado, opcionalmente associadas a uma disciplina. | Professor | Could      | RF19         |
 
 ---
 
@@ -108,13 +108,15 @@
 | Código | Requisito                                                            | Atores  | Prioridade | Dep. |
 | ------ | -------------------------------------------------------------------- | ------- | ---------- | ---- |
 | RF35   | Assistente IA privado por Área de Estudo.                            | Sistema | Must       | RF10 |
-| RF36   | Assistente IA da disciplina/turma com voz docente.                   | Sistema | Must       | RF22 |
+| RF36   | Assistente IA da disciplina/turma com voz docente herdada.           | Sistema | Must       | RF22 |
 | RF37   | Guardrails distintos para aluno solo, grupo e turma.                 | Sistema | Must       | RF35 |
 | RF38   | IA não pode inventar conteúdo (citações obrigatórias).               | Sistema | Must       | RF31 |
 | RF39   | IA pode recorrer a conhecimento externo (limitado) quando permitido. | Sistema | Should     | RF35 |
 | RF40   | IA deve ajustar explicações ao perfil do aluno.                      | Sistema | Should     | RF13 |
 
 ---
+
+Nota RF22/RF36: a voz docente é resolvida por herança: override da disciplina -> voz base da turma -> predefinição. Salas guiadas docentes podem referenciar uma disciplina para herdar esse contexto, mas não têm override próprio nesta fase.
 
 ### 8. Comunidade - Grupos, Salas e Co-Estudo
 

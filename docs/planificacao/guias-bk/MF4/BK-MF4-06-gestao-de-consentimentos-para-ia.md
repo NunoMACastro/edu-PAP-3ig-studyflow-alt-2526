@@ -736,7 +736,7 @@ private async assertClassAiConsent(actor: AuthenticatedUser): Promise<void> {
 }
 ```
 
-No método `askClassAi`, a chamada entra depois de confirmar que o actor é aluno e que está inscrito na disciplina, mas antes de `listProcessedForSubject` e antes de `findVoiceForSubject`:
+No método `askClassAi`, a chamada entra depois de confirmar que o actor é aluno e que está inscrito na disciplina, mas antes de `listProcessedForSubject` e antes de `resolveTeacherVoice`:
 
 ```ts
 if (actor.role !== "STUDENT") {

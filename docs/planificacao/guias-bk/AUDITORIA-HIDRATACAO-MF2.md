@@ -30,7 +30,7 @@ Os BKs actuais ja apresentam guias lineares com passos numerados, blocos de codi
 
 ## BKs analisados
 
-- `BK-MF2-01` - Professores podem criar salas de estudo guiado.
+- `BK-MF2-01` - Professores podem criar salas de estudo guiado com disciplina opcional.
 - `BK-MF2-02` - Professores podem criar projetos para a turma.
 - `BK-MF2-03` - A IA deve ajudar o aluno a elaborar projetos de forma gradual.
 - `BK-MF2-04` - Criar testes/mini-testes oficiais.
@@ -41,13 +41,13 @@ Os BKs actuais ja apresentam guias lineares com passos numerados, blocos de codi
 - `BK-MF2-09` - Manter versoes dos materiais.
 - `BK-MF2-10` - Separar materiais entre aluno, professor e turma.
 - `BK-MF2-11` - Assistente IA privado por area de estudo.
-- `BK-MF2-12` - Assistente IA da disciplina/turma com voz docente.
+- `BK-MF2-12` - Assistente IA da disciplina/turma com voz docente herdada.
 
 ## Classificacao por BK
 
 | BK | Estado | Passos | Minimo esperado | Codigo em fences `~~~ts` | Observacao principal |
 | --- | --- | ---: | ---: | ---: | --- |
-| `BK-MF2-01` | `OK` | 7 | 6 | 7 | Usa `ClassesService.findOwnedClass` e `ensureStudentEnrollment`; endpoints professor/aluno separados para salas guiadas. |
+| `BK-MF2-01` | `OK` | 7 | 6 | 7 | Usa `ClassesService.findOwnedClass`, `SubjectsService` quando existe `subjectId` e `ensureStudentEnrollment`; endpoints professor/aluno separados para salas guiadas. |
 | `BK-MF2-02` | `OK` | 7 | 6 | 7 | Usa turma validada por `ClassesService`; separa criacao docente e leitura discente de projetos. |
 | `BK-MF2-03` | `OK` | 7 | 6 | 7 | Reutiliza `ClassProjectsService` e `AI_PROVIDER`; produz plano gradual para projeto publicado. |
 | `BK-MF2-04` | `OK` | 8 | 8 | 8 | Testes oficiais associados a disciplina validada por `SubjectsService.findOwnedSubject`. |
@@ -58,7 +58,7 @@ Os BKs actuais ja apresentam guias lineares com passos numerados, blocos de codi
 | `BK-MF2-09` | `OK` | 7 | 6 | 7 | Versionamento cria snapshots a partir de jobs concluidos e permite reposicao. |
 | `BK-MF2-10` | `OK` | 8 | 8 | 8 | Separa contextos privado, disciplina do aluno e material oficial docente. |
 | `BK-MF2-11` | `OK` | 8 | 8 | 8 | IA privada valida area do aluno, recolhe fontes privadas e bloqueia sem fontes. |
-| `BK-MF2-12` | `OK` | 8 | 8 | 8 | IA de disciplina valida inscricao, usa materiais oficiais e voz docente. |
+| `BK-MF2-12` | `OK` | 8 | 8 | 8 | IA de disciplina valida inscricao, usa materiais oficiais e voz docente efetiva resolvida. |
 
 ## Decisoes tecnicas confirmadas
 
@@ -66,6 +66,7 @@ Os BKs actuais ja apresentam guias lineares com passos numerados, blocos de codi
 - `CANONICO`: prioridades, owners, apoios, dependencias, sprints e `core_or_reforco` permanecem alinhados com `BACKLOG-MVP.md`, `MATRIZ-CANONICA-BK.md` e `CONTRATO-CAMPOS-BK.md`.
 - `CANONICO`: a linha temporal coloca a MF2 na janela `S04-S05`/foco `S05`, com continuidade para MF3.
 - `CANONICO`: IA privada, IA da disciplina/turma, materiais oficiais, materiais privados, turma e sala de estudo continuam separados por contexto.
+- `CANONICO`: a voz docente herda por `SUBJECT_OVERRIDE -> CLASS_BASE -> DEFAULT`; salas guiadas podem apontar para disciplina, mas nao têm override proprio.
 - `DERIVADO`: os nomes de modulos/services/DTOs/schemas/paginas documentados nos BKs sao decisoes tecnicas de implementacao para concretizar RFs canonicos sem contrariar a matriz.
 - `DERIVADO`: `pdf-parse` e `mammoth` em `BK-MF2-07` sao dependencias tecnicas justificadas para extracao textual minima de PDF/DOCX, sem prometer OCR, embeddings ou RAG.
 - `DERIVADO`: validacao DNS e redirect manual em `BK-MF2-07` sao medida minima de seguranca para reduzir SSRF nesta fase, sem substituir o sandbox completo de RNFs posteriores.
@@ -74,7 +75,7 @@ Os BKs actuais ja apresentam guias lineares com passos numerados, blocos de codi
 
 | BK | Exports produzidos | Imports/contratos consumidos de BKs anteriores | Endpoints documentados | BKs seguintes dependentes |
 | --- | --- | --- | --- | --- |
-| `BK-MF2-01` | `GuidedStudyRoomsModule`, `GuidedStudyRoomsService` | `ClassesService.findOwnedClass`, `ensureStudentEnrollment`, sessao MF0 | `/api/teacher/classes/:classId/guided-study-rooms`, `/api/student/classes/:classId/guided-study-rooms` | `BK-MF2-02` |
+| `BK-MF2-01` | `GuidedStudyRoomsModule`, `GuidedStudyRoomsService`, `GuidedStudyRoom.subjectId?` | `ClassesService.findOwnedClass`, `SubjectsService.findOwnedSubject`, `ensureStudentEnrollment`, sessao MF0 | `/api/teacher/classes/:classId/guided-study-rooms`, `/api/student/classes/:classId/guided-study-rooms` | `BK-MF2-02`, `BK-MF2-12` |
 | `BK-MF2-02` | `ClassProjectsModule`, projetos publicados | `ClassesService`, ownership docente e membership discente | `/api/teacher/classes/:classId/projects`, `/api/student/classes/:classId/projects` | `BK-MF2-03` |
 | `BK-MF2-03` | `ProjectAiModule`, plano gradual IA | `ClassProjectsService`, `AiModule`, `AI_PROVIDER` | `/api/student/classes/:classId/projects/:projectId/ai-plan` | `BK-MF2-04`, MF3 guardrails |
 | `BK-MF2-04` | `OfficialTestsModule`, testes oficiais | `SubjectsService.findOwnedSubject` | `/api/teacher/subjects/:subjectId/tests` | `BK-MF2-05` |
@@ -85,7 +86,7 @@ Os BKs actuais ja apresentam guias lineares com passos numerados, blocos de codi
 | `BK-MF2-09` | `MaterialVersionsModule`, historico de versoes | jobs concluidos do `MaterialIndexService` | `/api/material-index/jobs/:jobId/versions` | `BK-MF2-10` |
 | `BK-MF2-10` | `MaterialContextsModule`, separacao de contextos | `MaterialsService`, `SubjectsService`, `OfficialMaterialsService` | `/api/material-contexts/student/:studyAreaId`, `/api/material-contexts/subjects/:subjectId`, `/api/teacher/material-contexts/subjects/:subjectId` | `BK-MF2-11`, `BK-MF2-12` |
 | `BK-MF2-11` | `PrivateAreaAiModule`, respostas privadas com fontes | `StudyAreasService`, `MaterialsService`, `AiModule`, `AI_PROVIDER` | `/api/study-areas/:studyAreaId/private-ai/answers` | `BK-MF2-12`, `BK-MF3-01`, `BK-MF3-03`, `BK-MF4-02`, `BK-MF4-09` |
-| `BK-MF2-12` | `ClassAiModule`, respostas de disciplina com voz docente | `SubjectsService.findSubjectForStudent`, `OfficialMaterialsService.findProcessedBySubject`, `TeacherAiVoiceService.findForSubject`, `AI_PROVIDER` | `/api/student/subjects/:subjectId/ai/answers` | `BK-MF3-01` |
+| `BK-MF2-12` | `ClassAiModule`, respostas de disciplina com voz docente herdada | `SubjectsService.findSubjectForStudent`, `OfficialMaterialsService.findProcessedBySubject`, `TeacherAiVoiceService.resolveTeacherVoice`, `AI_PROVIDER` | `/api/student/subjects/:subjectId/ai/answers` | `BK-MF3-01` |
 
 ## Coerencia global da macrofase
 

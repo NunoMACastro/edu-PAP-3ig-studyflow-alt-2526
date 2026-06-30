@@ -37,7 +37,7 @@ SPRINTS = [
     ("S09", "2026-06-08", "2026-06-14", "MF4/MF5", "Governanca, privacidade e UX"),
     ("S10", "2026-06-15", "2026-06-21", "MF5/MF6", "Performance, acessibilidade e seguranca"),
     ("S11", "2026-06-22", "2026-06-28", "MF6/MF7", "Robustez tecnica e operacao"),
-    ("S12", "2026-06-29", "2026-07-05", "MF7/MF8", "Fecho documental e Gate S12"),
+    ("S12", "2026-06-29", "2026-07-05", "MF7/MF8", "Fecho de produto, funcionalidades MF8 expandidas, testes finais e Gate S12"),
 ]
 
 MACRO_LABEL = {
@@ -49,7 +49,7 @@ MACRO_LABEL = {
     "MF5": "Operacao e UX transversal",
     "MF6": "Qualidade, seguranca e performance",
     "MF7": "Operacao, modularidade e compliance",
-    "MF8": "Compatibilidade e fecho PAP",
+    "MF8": "Fecho de produto, qualidade da IA e validação final",
 }
 
 MACRO_ORDER = [f"MF{i}" for i in range(0, 9)]
@@ -239,7 +239,7 @@ def classify_domain(row: dict[str, str]) -> str:
 
     if req in {"RNF38"} or any(k in titulo for k in ["chrome", "firefox", "safari", "edge", "compat"]):
         return "compatibility_browser"
-    if req in {"RNF39", "RNF42", "RNF43", "RNF44"} or any(k in titulo for k in ["pt-pt", "portugu", "datas", "i18n", "utf-8"]):
+    if req in {"RNF39", "RNF43", "RNF44"} or any(k in titulo for k in ["pt-pt", "portugu", "datas", "i18n", "utf-8"]):
         return "localization"
     if req in {"RNF14", "RNF15", "RNF16", "RNF17", "RNF18", "RNF19", "RNF20"} or any(
         k in titulo for k in ["https", "tls", "hashing", "password", "xss", "csrf", "injection", "brute", "sandbox seguro", "cookies"]
@@ -249,8 +249,19 @@ def classify_domain(row: dict[str, str]) -> str:
         k in titulo for k in ["backup", "recovery", "downtime", "health-check", "deploy", "rollback", "logs"]
     ):
         return "reliability_ops"
-    if req in {"RNF25", "RNF26", "RNF27", "RNF28"} or any(
-        k in titulo for k in ["backend modular", "frontend componentizado", "documentação técnica", "testes automatizados"]
+    if req in {"RNF25", "RNF26", "RNF27", "RNF28", "RNF41", "RNF42", "RNF45"} or any(
+        k in titulo
+        for k in [
+            "backend modular",
+            "frontend componentizado",
+            "documentação técnica",
+            "testes automatizados",
+            "testes atuais",
+            "testes finais",
+            "execução final de testes",
+            "correção de erros",
+            "revalidação final",
+        ]
     ):
         return "quality_architecture"
     if req in {"RNF08", "RNF09", "RNF10", "RNF11", "RNF12", "RNF13"} or any(
@@ -277,8 +288,18 @@ def classify_domain(row: dict[str, str]) -> str:
         k in titulo for k in ["assistente ia", "guardrails", "citações obrigatórias", "não pode inventar", "conhecimento externo", "adapta explicações"]
     ):
         return "ai_orchestration"
-    if req in {"RNF01", "RNF02", "RNF03", "RNF04", "RNF05", "RNF06", "RNF07"} or any(
-        k in titulo for k in ["interface intuitiva", "layout responsivo", "acessibilidade", "feedback imediato", "validação de formulários", "navegação consistente"]
+    if req in {"RNF01", "RNF02", "RNF03", "RNF04", "RNF05", "RNF06", "RNF07", "RNF38"} or any(
+        k in titulo
+        for k in [
+            "interface intuitiva",
+            "layout responsivo",
+            "acessibilidade",
+            "feedback imediato",
+            "validação de formulários",
+            "navegação consistente",
+            "mockup",
+            "ui do mockup",
+        ]
     ):
         return "ux_accessibility"
     if req in {"RF61", "RNF41"} or any(k in titulo for k in ["drive", "onedrive", "ics", "lms", "integração"]):
@@ -1141,7 +1162,7 @@ def write_plano_implementacao(plan_root: Path, rows: list[dict[str, str]]) -> No
             "## Entregaveis obrigatorios por gate",
             "- Gate S4: backlog/matriz/guias sincronizados para MF0-MF1.",
             "- Gate S8: rastreabilidade completa MF0-MF4 com evidencias de validacao.",
-            "- Gate S12: pacote final de defesa com auditoria automatica em PASS.",
+            "- Gate S12: pacote final de defesa com UI alinhada ao mockup, funcionalidades MF8 expandidas antes dos testes finais, testes finais executados, erros corrigidos e auditoria automatica em PASS.",
             "",
             "## Changelog",
             f"- `{TODAY}`: plano reescrito para horizonte canónico de 12 sprints com gates S4/S8/S12.",
@@ -1226,12 +1247,15 @@ def write_plano_sprints(plan_root: Path, rows: list[dict[str, str]], constraints
     for sprint, start, end, foco, _ in SPRINTS:
         total_capacity += cap_gate if sprint in gate_set else cap_default
         gate = "SIM" if sprint in {"S04", "S08", "S12"} else "NAO"
+        descricao = "Carga planeada e entrega com evidence completa"
+        if sprint == "S12":
+            descricao = "Fecho de produto, funcionalidades MF8 expandidas, testes finais e evidence completa"
         table_rows.append(
             [
                 sprint,
                 f"{start} a {end}",
                 foco,
-                "Carga planeada e entrega com evidence completa",
+                descricao,
                 format_number(sprint_loads.get(sprint, 0.0)),
                 gate,
             ]
@@ -1432,7 +1456,7 @@ Estabelecer baseline oficial de validacao para os gates S4, S8 e S12.
 | --- | --- | --- | --- | --- |
 | S4 | 2026-05-10 | MF0-MF1 | Cobertura RF sem orfaos + 100% guias com header canónico | PENDING |
 | S8 | 2026-06-07 | MF0-MF4 | Coerencia matriz/backlog/guias + score >=97/100 | PENDING |
-| S12 | 2026-07-05 | MF0-MF8 | Auditoria automatica PASS + pacote final de defesa | PENDING |
+| S12 | 2026-07-05 | MF0-MF8 | Funcionalidades MF8 expandidas antes dos testes finais + testes finais executados + erros corrigidos + auditoria automatica PASS | PENDING |
 
 ## Evidencias obrigatorias por gate
 - JSON da auditoria automatica (`scripts/latest-audit.json`).

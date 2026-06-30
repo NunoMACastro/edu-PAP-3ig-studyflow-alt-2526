@@ -20,7 +20,7 @@
 
 ## Contexto do BK
 - Entrega alvo: `IA evita enviesamentos e respostas inseguras.` com rastreabilidade direta para `RNF34`.
-- Foco da macro `MF8`: Compatibilidade e fecho PAP.
+- Foco da macro `MF8`: Fecho de produto, qualidade da IA e validação final.
 - Dominio semântico aplicado: `learning_foundation`.
 
 ## Bloco pedagogico

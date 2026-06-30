@@ -25,7 +25,7 @@ Fornecer guiao semanal para acompanhamento docente da execucao BK por alunos do 
 | S09 | MF4/MF5 | Governanca, privacidade e UX | Rever 3 BK criticos + 1 negativo por BK | Pendente |
 | S10 | MF5/MF6 | Performance, acessibilidade e seguranca | Rever 3 BK criticos + 1 negativo por BK | Pendente |
 | S11 | MF6/MF7 | Robustez tecnica e operacao | Rever 3 BK criticos + 1 negativo por BK | Pendente |
-| S12 | MF7/MF8 | Fecho documental e Gate S12 | Rever 3 BK criticos + 1 negativo por BK | Pendente |
+| S12 | MF7/MF8 | Fecho de produto, funcionalidades finais, testes finais e Gate S12 | Rever funcionalidades MF8, UI/mockup, rankings/flashcards/partilhas, testes finais, correções e evidence por BK | Pendente |
 
 ## Checklist docente obrigatoria
 - Verificar se os guias BK usados na semana têm `Bloco pedagogico` e `Bloco operacional` completos.

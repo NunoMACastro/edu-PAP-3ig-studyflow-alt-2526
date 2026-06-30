@@ -25,10 +25,10 @@
 
 ## Evidencias quantitativas
 - RF detectados: `57`
-- RNF detectados: `44`
-- BK na matriz: `101`
-- BK no backlog: `101`
-- Guias BK: `101`
+- RNF detectados: `45`
+- BK na matriz: `107`
+- BK no backlog: `107`
+- Guias BK: `107`
 - Missing artifacts: `0`
 - Broken links: `0`
 - Issues de guias: `0`

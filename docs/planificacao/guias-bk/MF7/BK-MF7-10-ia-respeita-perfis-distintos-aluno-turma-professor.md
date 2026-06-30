@@ -1,4 +1,4 @@
-# BK-MF7-10 - IA respeita perfis distintos (aluno, turma, professor).
+# BK-MF7-10 - IA respeita perfis distintos (aluno, sala, turma, disciplina, professor).
 
 ## Header
 
@@ -85,16 +85,17 @@ Este BK é incremental: consome a explicabilidade de fontes de `BK-MF7-09`, resp
 - **Professor:** utilizador que gere turmas, disciplinas, materiais oficiais, voz docente e limites pedagógicos.
 - **IA privada:** IA associada à área pessoal de estudo do aluno.
 - **IA de sala/grupo:** IA associada a um espaço partilhado entre participantes autorizados.
-- **IA da turma/disciplina:** IA associada a uma disciplina concreta, materiais oficiais e regras docentes.
+- **IA da turma/disciplina:** IA associada a uma turma/disciplina concreta, materiais oficiais e regras docentes herdadas.
+- **Voz docente herdada:** voz efetiva calculada por `SUBJECT_OVERRIDE -> CLASS_BASE -> DEFAULT`, sem atravessar para IA privada nem salas livres de alunos.
 - **Fonte processável:** texto extraído e autorizado que pode sustentar uma resposta IA.
 - **Evidence:** prova objetiva de funcionamento e falha controlada, usada em PR e defesa PAP.
 - **Separação de perfis IA:** regra técnica deste BK para cumprir `RNF32`.
 
 #### Conceitos teóricos essenciais
 
-- **Perfil IA privado:** preferências e fontes da área do aluno autenticado; não herda voz docente de uma disciplina.
-- **Perfil IA de sala/grupo:** contexto partilhado por membros autorizados; não substitui a IA privada nem a IA da disciplina.
-- **Perfil IA de turma/disciplina:** regras e voz docente definidas pelo professor para uma disciplina concreta.
+- **Perfil IA privado:** preferências e fontes da área do aluno autenticado; não herda voz docente de turma ou disciplina.
+- **Perfil IA de sala/grupo:** contexto partilhado por membros autorizados; não substitui a IA privada nem a IA da disciplina e não herda voz docente.
+- **Perfil IA de turma/disciplina:** regras e voz docente definidas pelo professor para a turma, com override opcional por disciplina.
 - **Contexto ativo:** alvo técnico da pergunta IA, sempre validado no backend.
 - **Falhar cedo:** bloquear a operação antes de listar fontes, construir prompt, reservar quota ou chamar o provider.
 - **Segurança no backend:** sessão, role, ownership e membership são validados por controllers/services, não por componentes visuais.
@@ -109,9 +110,9 @@ Este BK é incremental: consome a explicabilidade de fontes de `BK-MF7-09`, resp
 - Controller/route: não altera controller; continua a depender dos guards existentes.
 - Guard/middleware: reutiliza `SessionGuard` e validações já existentes.
 - Cliente API: não altera frontend; a decisão de perfil fica no backend.
-- Segurança/autorização: bloqueia mistura de contexto depois de membership e antes de materiais oficiais, prompt, quota e provider.
+- Segurança/autorização: bloqueia mistura de contexto depois de membership e antes de materiais oficiais, resolvedor de voz, prompt, quota e provider.
 - Testes: unitários da policy e teste de service para ordem de bloqueio.
-- Handoff para o próximo BK: `BK-MF7-11` aplica limites do professor apenas depois de este BK garantir contexto `CLASS_SUBJECT` com perfil `TEACHER_CLASS`.
+- Handoff para o próximo BK: `BK-MF7-11` aplica limites do professor apenas depois de este BK garantir contexto `CLASS_SUBJECT` com perfil `TEACHER_CLASS` e sem vazamento para IA privada/sala de alunos.
 
 #### Ficheiros a criar/editar/rever
 
@@ -338,7 +339,10 @@ async askClassAi(
         });
     }
 
-    const voice = await this.voiceService.findVoiceForSubject(subject._id);
+    const voice = await this.voiceService.resolveTeacherVoice({
+        classId: subject.classId.toString(),
+        subjectId: subject._id.toString(),
+    });
     await this.aiConsentsService.assertGranted(actor.id, "CLASS_AI");
     const policy = await this.aiModelPoliciesService.resolveForUse("CLASS_AI");
     const limitedMaterials = materials.slice(0, policy.maxSourceCount);
@@ -647,6 +651,8 @@ Se a evidence disser apenas "funciona", sem output, request/response, teste ou s
 - O código apresentado tem JSDoc nos elementos relevantes e comentários didáticos junto das decisões importantes.
 - `apps/api/src/modules/class-ai/class-ai.service.ts` fica marcado como `EDITAR` e contém a chamada real da policy.
 - Os testes incluem caminho principal, três negativos de policy e teste de service antes de materiais, quota, provider e persistência.
+- Os testes confirmam que IA privada, IA de sala/grupo e IA da turma/disciplina não partilham voz docente indevidamente.
+- A voz docente da turma/disciplina só é resolvida no contexto `CLASS_SUBJECT`/`TEACHER_CLASS`.
 - Não existe decisão de sessão, ownership, membership, role, quota, fonte IA ou privacidade feita apenas no frontend.
 - Não há exposição de cookies, passwords, prompts privados, respostas IA completas, materiais privados ou dados de outro contexto em logs/evidence.
 
@@ -665,16 +671,18 @@ Se a evidence disser apenas "funciona", sem output, request/response, teste ou s
 - `proof_tecnico`: comando executado, output relevante ou request/response do caminho principal.
 - `proof_negativos`: três erros controlados da policy e bloqueio do service antes de materiais/provider.
 - `proof_fontes`: confirmação de que a IA da disciplina só usa materiais oficiais processados depois de membership e policy.
+- `proof_voz_docente`: confirmação de que a voz docente não atravessa para IA privada nem salas livres de alunos.
 - `proof_privacidade`: confirmação de que não há dados pessoais ou privados em logs/evidence.
 - `proof_pedagogico`: explicação curta de como `RNF32` melhora a aplicação para alunos, professores e operação.
 
 #### Handoff
 
-`BK-MF7-11` pode reutilizar `assertAiContextProfile("CLASS_SUBJECT", "TEACHER_CLASS")` como pré-condição para aplicar limites docentes apenas ao contexto de turma/disciplina.
+`BK-MF7-11` pode reutilizar `assertAiContextProfile("CLASS_SUBJECT", "TEACHER_CLASS")` como pré-condição para aplicar limites docentes e voz efetiva apenas ao contexto de turma/disciplina.
 
 O próximo BK deve reutilizar os ficheiros e decisões deste guia, sem criar outro contrato para a mesma responsabilidade.
 
 #### Changelog
 
 - `2026-06-27`: guia corrigido para incluir integração real em `ClassAiService.askClassAi(...)`, três negativos P0, teste de service antes de materiais/provider e handoff explícito para `BK-MF7-11`.
+- `2026-06-30`: documentada separação entre voz docente herdada e perfis de IA privada/sala.
 - `2026-06-26`: contrato de separação de perfis IA documentado com tutorial técnico linear, código completo, validação, negativos, evidence e caminhos públicos `apps/...`.

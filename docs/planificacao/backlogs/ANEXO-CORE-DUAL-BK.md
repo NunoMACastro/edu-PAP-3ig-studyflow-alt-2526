@@ -119,13 +119,18 @@ Classificar cada BK no contrato de core dual da StudyFlow e ligar cada item a KP
 | BK-MF8-02 | CORE-IA | AprendizagemInteligente | taxa_resposta_util | tempo_resposta_p95 | impacto direto no tutor de IA e personalizacao academica |
 | BK-MF8-03 | CORE-IA | AprendizagemInteligente | taxa_resposta_util | tempo_resposta_p95 | impacto direto no tutor de IA e personalizacao academica |
 | BK-MF8-04 | CORE-HIBRIDO | AprendizagemComEngajamento | tempo_estudo_semana | taxa_retencao_30d | fundacao funcional com impacto simultaneo em aprendizagem e uso recorrente |
-| BK-MF8-05 | SUPORTE | FundacaoQualidade | taxa_incidentes_criticos | taxa_conformidade_gates | compatibilidade multi-browser e requisito transversal de sustentacao |
-| BK-MF8-06 | SUPORTE | FundacaoQualidade | taxa_incidentes_criticos | taxa_conformidade_gates | localizacao e i18n como habilitador operacional da experiencia |
-| BK-MF8-07 | CORE-IA | AprendizagemInteligente | taxa_resposta_util | tempo_resposta_p95 | materiais indexados alimentam diretamente a qualidade das respostas |
-| BK-MF8-08 | CORE-HIBRIDO | AprendizagemComEngajamento | tempo_estudo_semana | taxa_retencao_30d | integracoes ampliam utilidade real da app no fluxo de estudo |
-| BK-MF8-09 | SUPORTE | FundacaoQualidade | taxa_incidentes_criticos | taxa_conformidade_gates | localizacao e i18n como habilitador operacional da experiencia |
-| BK-MF8-10 | CORE-HIBRIDO | AprendizagemComEngajamento | tempo_estudo_semana | taxa_retencao_30d | reclassificacao deterministica para core dual no dominio localization |
-| BK-MF8-11 | SUPORTE | FundacaoQualidade | taxa_incidentes_criticos | taxa_conformidade_gates | localizacao e i18n como habilitador operacional da experiencia |
-
+| BK-MF8-05 | SUPORTE | FundacaoQualidade | taxa_incidentes_criticos | taxa_conformidade_gates | qualidade visual e aderencia ao mockup como suporte direto a defesa controlada |
+| BK-MF8-06 | SUPORTE | FundacaoQualidade | taxa_incidentes_criticos | taxa_conformidade_gates | localizacao e encoding como habilitadores operacionais da experiencia |
+| BK-MF8-07 | CORE-IA | AprendizagemInteligente | taxa_resposta_util | tempo_resposta_p95 | materiais exportados reforcam estudo e reutilizacao das respostas geradas |
+| BK-MF8-08 | CORE-HIBRIDO | AprendizagemComEngajamento | tempo_estudo_semana | taxa_retencao_30d | formato de datas consistente reduz friccao no fluxo de estudo e apresentacao |
+| BK-MF8-09 | SUPORTE | FundacaoQualidade | taxa_incidentes_criticos | taxa_conformidade_gates | preparo i18n futuro como suporte tecnico pos-MVP |
+| BK-MF8-10 | CORE-HIBRIDO | AprendizagemComEngajamento | tempo_estudo_semana | taxa_retencao_30d | historico privado de IA da sala reforca continuidade de estudo sem quebrar privacidade |
+| BK-MF8-11 | CORE-HIBRIDO | AprendizagemComEngajamento | tempo_estudo_semana | taxa_retencao_30d | partilha controlada e fork privado aumentam colaboracao sem contaminar contexto pessoal |
+| BK-MF8-12 | CORE-COM | OperacaoPedagogica | adesao_turma_semana | taxa_tarefas_concluidas | realizacao de mini-testes oficiais fecha o ciclo de avaliacao criado pelo professor |
+| BK-MF8-13 | CORE-COM | OperacaoPedagogica | adesao_turma_semana | taxa_tarefas_concluidas | ranking de mini-testes transforma resultados em acompanhamento pedagogico visivel |
+| BK-MF8-14 | CORE-HIBRIDO | AprendizagemComEngajamento | tempo_estudo_semana | taxa_retencao_30d | flashcards em modo exercicio reforcam revisao ativa e uso recorrente dos artefactos IA |
+| BK-MF8-15 | SUPORTE | FundacaoQualidade | taxa_incidentes_criticos | taxa_conformidade_gates | testes em falta sustentam qualidade final e reduzem regressao |
+| BK-MF8-16 | SUPORTE | FundacaoQualidade | taxa_incidentes_criticos | taxa_conformidade_gates | execucao final de testes como gate tecnico de defesa |
+| BK-MF8-17 | SUPORTE | FundacaoQualidade | taxa_incidentes_criticos | taxa_conformidade_gates | correcao e revalidacao fecham erros encontrados antes da entrega final |
 ## Changelog
 - `2026-04-19`: anexo atualizado com rubrica deterministica e coluna `justificacao_classe`.

@@ -19,8 +19,8 @@ from urllib.parse import unquote
 
 EXPECTED_PROJECT = "studyflow"
 EXPECTED_RF_COUNT = 57
-EXPECTED_RNF_COUNT = 44
-EXPECTED_BK_COUNT = 101
+EXPECTED_RNF_COUNT = 45
+EXPECTED_BK_COUNT = 107
 SCORE_WEIGHTS = {
     "Cobertura/rastreabilidade": 25,
     "Coerencia documental": 20,

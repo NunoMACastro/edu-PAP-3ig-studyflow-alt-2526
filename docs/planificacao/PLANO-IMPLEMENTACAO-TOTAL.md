@@ -28,17 +28,17 @@ Definir a linha temporal canónica de 12 sprints para executar os BK da StudyFlo
 - `MF5` (Operacao e UX transversal): janela `S07-S11` com `11` BK.
 - `MF6` (Qualidade, seguranca e performance): janela `S08-S11` com `12` BK.
 - `MF7` (Operacao, modularidade e compliance): janela `S06-S12` com `11` BK.
-- `MF8` (Compatibilidade e fecho PAP): janela `S03-S12` com `11` BK.
+- `MF8` (Fecho de produto, qualidade da IA e validação final): janela `S11-S12` com `17` BK.
 
 ## Fases
 1. Fase 1 (S01-S06): fundacoes + nucleo funcional aluno/professor.
 2. Fase 2 (S07-S10): capacidades de produto, governanca e UX.
-3. Fase 3 (S10-S12): qualidade, seguranca, compliance e fecho documental.
+3. Fase 3 (S10-S12): qualidade, seguranca, compliance, testes finais e fecho de produto.
 
 ## Entregaveis obrigatorios por gate
 - Gate S4: backlog/matriz/guias sincronizados para MF0-MF1.
 - Gate S8: rastreabilidade completa MF0-MF4 com evidencias de validacao.
-- Gate S12: pacote final de defesa com auditoria automatica em PASS.
+- Gate S12: pacote final de defesa com UI alinhada ao mockup, funcionalidades MF8 expandidas antes dos testes finais, testes finais executados, erros corrigidos e auditoria automatica em PASS.
 
 ## Changelog
 - `2026-04-19`: plano reescrito para horizonte canónico de 12 sprints com gates S4/S8/S12.

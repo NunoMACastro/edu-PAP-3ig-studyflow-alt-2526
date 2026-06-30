@@ -59,7 +59,7 @@ BK-MF1-01, BK-MF1-02, BK-MF1-03, BK-MF1-04, BK-MF1-07, BK-MF1-08, BK-MF1-09, BK-
 - [BK-MF1-07 - Criar turmas.](../guias-bk/MF1/BK-MF1-07-criar-turmas.md)
 - [BK-MF1-08 - Criar disciplinas e associá-las às turmas.](../guias-bk/MF1/BK-MF1-08-criar-disciplinas-e-associa-las-as-turmas.md)
 - [BK-MF1-09 - Submeter materiais da disciplina (versão oficial).](../guias-bk/MF1/BK-MF1-09-submeter-materiais-da-disciplina-versao-oficial.md)
-- [BK-MF1-10 - Configurar “voz da IA” docente.](../guias-bk/MF1/BK-MF1-10-configurar-voz-da-ia-docente.md)
+- [BK-MF1-10 - Configurar voz da IA docente por turma, com override opcional por disciplina.](../guias-bk/MF1/BK-MF1-10-configurar-voz-da-ia-docente.md)
 - [BK-MF1-11 - O aluno inscrito numa turma recebe versão limitada da IA.](../guias-bk/MF1/BK-MF1-11-o-aluno-inscrito-numa-turma-recebe-versao-limitada-da-ia.md)
 - [BK-MF1-12 - Professores podem enviar avisos e publicações.](../guias-bk/MF1/BK-MF1-12-professores-podem-enviar-avisos-e-publicacoes.md)
 
@@ -85,7 +85,7 @@ BK-MF1-01, BK-MF1-02, BK-MF1-03, BK-MF1-04, BK-MF1-07, BK-MF1-08, BK-MF1-09, BK-
 BK-MF2-01, BK-MF2-02, BK-MF2-03, BK-MF2-04, BK-MF2-05, BK-MF2-06, BK-MF2-07, BK-MF2-08, BK-MF2-09, BK-MF2-10, BK-MF2-11, BK-MF2-12
 
 ### Guias disponiveis
-- [BK-MF2-01 - Professores podem criar salas de estudo guiado.](../guias-bk/MF2/BK-MF2-01-professores-podem-criar-salas-de-estudo-guiado.md)
+- [BK-MF2-01 - Professores podem criar salas de estudo guiado com disciplina opcional.](../guias-bk/MF2/BK-MF2-01-professores-podem-criar-salas-de-estudo-guiado.md)
 - [BK-MF2-02 - Professores podem criar projetos para a turma.](../guias-bk/MF2/BK-MF2-02-professores-podem-criar-projetos-para-a-turma.md)
 - [BK-MF2-03 - A IA deve ajudar o aluno a elaborar projetos de forma gradual.](../guias-bk/MF2/BK-MF2-03-a-ia-deve-ajudar-o-aluno-a-elaborar-projetos-de-forma-gradual.md)
 - [BK-MF2-04 - Criar testes/mini-testes oficiais.](../guias-bk/MF2/BK-MF2-04-criar-testes-mini-testes-oficiais.md)
@@ -96,7 +96,7 @@ BK-MF2-01, BK-MF2-02, BK-MF2-03, BK-MF2-04, BK-MF2-05, BK-MF2-06, BK-MF2-07, BK-
 - [BK-MF2-09 - Manter versões dos materiais.](../guias-bk/MF2/BK-MF2-09-manter-versoes-dos-materiais.md)
 - [BK-MF2-10 - Separar materiais entre “aluno”, “professor” e “turma”.](../guias-bk/MF2/BK-MF2-10-separar-materiais-entre-aluno-professor-e-turma.md)
 - [BK-MF2-11 - Assistente IA privado por Área de Estudo.](../guias-bk/MF2/BK-MF2-11-assistente-ia-privado-por-area-de-estudo.md)
-- [BK-MF2-12 - Assistente IA da disciplina/turma com voz docente.](../guias-bk/MF2/BK-MF2-12-assistente-ia-da-disciplina-turma-com-voz-docente.md)
+- [BK-MF2-12 - Assistente IA da disciplina/turma com voz docente herdada.](../guias-bk/MF2/BK-MF2-12-assistente-ia-da-disciplina-turma-com-voz-docente.md)
 
 ### Step-by-step macro
 1. Confirmar dependencias desbloqueadas antes de iniciar BK.
@@ -236,8 +236,8 @@ BK-MF7-01, BK-MF7-02, BK-MF7-03, BK-MF7-04, BK-MF7-05, BK-MF7-06, BK-MF7-07, BK-
 - [BK-MF7-07 - Deploy com rollback.](../guias-bk/MF7/BK-MF7-07-deploy-com-rollback.md)
 - [BK-MF7-08 - Endpoint de health-check.](../guias-bk/MF7/BK-MF7-08-endpoint-de-health-check.md)
 - [BK-MF7-09 - IA explica fontes dos conteúdos (páginas/secções).](../guias-bk/MF7/BK-MF7-09-ia-explica-fontes-dos-conteudos-paginas-seccoes.md)
-- [BK-MF7-10 - IA respeita perfis distintos (aluno, turma, professor).](../guias-bk/MF7/BK-MF7-10-ia-respeita-perfis-distintos-aluno-turma-professor.md)
-- [BK-MF7-11 - IA segue limites definidos pelo professor.](../guias-bk/MF7/BK-MF7-11-ia-segue-limites-definidos-pelo-professor.md)
+- [BK-MF7-10 - IA respeita perfis distintos (aluno, sala, turma, disciplina, professor).](../guias-bk/MF7/BK-MF7-10-ia-respeita-perfis-distintos-aluno-turma-professor.md)
+- [BK-MF7-11 - IA segue limites definidos pelo professor, incluindo voz herdada.](../guias-bk/MF7/BK-MF7-11-ia-segue-limites-definidos-pelo-professor.md)
 
 ### Step-by-step macro
 1. Confirmar dependencias desbloqueadas antes de iniciar BK.
@@ -250,22 +250,28 @@ BK-MF7-01, BK-MF7-02, BK-MF7-03, BK-MF7-04, BK-MF7-05, BK-MF7-06, BK-MF7-07, BK-
 - Todos os BK da macro com guia e evidence minima.
 - Sem dependencias invalidas para a macro seguinte.
 
-## MF8 - Compatibilidade e fecho PAP
+## MF8 - Fecho de produto, qualidade da IA e validação final
 ### Sequencia por macro
-BK-MF8-01, BK-MF8-02, BK-MF8-03, BK-MF8-04, BK-MF8-05, BK-MF8-06, BK-MF8-07, BK-MF8-08, BK-MF8-09, BK-MF8-10, BK-MF8-11
+BK-MF8-01, BK-MF8-02, BK-MF8-03, BK-MF8-04, BK-MF8-05, BK-MF8-06, BK-MF8-07, BK-MF8-08, BK-MF8-09, BK-MF8-10, BK-MF8-11, BK-MF8-12, BK-MF8-13, BK-MF8-14, BK-MF8-15, BK-MF8-16, BK-MF8-17
 
 ### Guias disponiveis
 - [BK-MF8-01 - IA evita enviesamentos e respostas inseguras.](../guias-bk/MF8/BK-MF8-01-ia-evita-enviesamentos-e-respostas-inseguras.md)
 - [BK-MF8-02 - IA não pode inventar informação factual.](../guias-bk/MF8/BK-MF8-02-ia-nao-pode-inventar-informacao-factual.md)
 - [BK-MF8-03 - IA adapta explicações ao nível do aluno.](../guias-bk/MF8/BK-MF8-03-ia-adapta-explicacoes-ao-nivel-do-aluno.md)
 - [BK-MF8-04 - IA externa segue políticas e filtros próprios.](../guias-bk/MF8/BK-MF8-04-ia-externa-segue-politicas-e-filtros-proprios.md)
-- [BK-MF8-05 - Compatível com Chrome, Edge, Firefox, Safari.](../guias-bk/MF8/BK-MF8-05-compativel-com-chrome-edge-firefox-safari.md)
+- [BK-MF8-05 - Aproximação da UI à UI do mockup.](../guias-bk/MF8/BK-MF8-05-aproximacao-da-ui-a-ui-do-mockup.md)
 - [BK-MF8-06 - Suporte a importação UTF-8 e PT-PT.](../guias-bk/MF8/BK-MF8-06-suporte-a-importacao-utf-8-e-pt-pt.md)
 - [BK-MF8-07 - Exportação de resumos/quizzes em PDF/MD.](../guias-bk/MF8/BK-MF8-07-exportacao-de-resumos-quizzes-em-pdf-md.md)
-- [BK-MF8-08 - Preparado para integrações com Drive/ICS/LMS.](../guias-bk/MF8/BK-MF8-08-preparado-para-integracoes-com-drive-ics-lms.md)
-- [BK-MF8-09 - Interface em português (Portugal).](../guias-bk/MF8/BK-MF8-09-interface-em-portugues-portugal.md)
-- [BK-MF8-10 - Datas no formato dd/mm/aaaa.](../guias-bk/MF8/BK-MF8-10-datas-no-formato-dd-mm-aaaa.md)
-- [BK-MF8-11 - Preparado para futura tradução i18n.](../guias-bk/MF8/BK-MF8-11-preparado-para-futura-traducao-i18n.md)
+- [BK-MF8-08 - Datas no formato dd/mm/aaaa.](../guias-bk/MF8/BK-MF8-08-datas-no-formato-dd-mm-aaaa.md)
+- [BK-MF8-09 - Preparado para futura tradução i18n.](../guias-bk/MF8/BK-MF8-09-preparado-para-futura-traducao-i18n.md)
+- [BK-MF8-10 - Histórico privado dos chats IA da sala.](../guias-bk/MF8/BK-MF8-10-historico-privado-dos-chats-ia-da-sala.md)
+- [BK-MF8-11 - Partilha read-only e fork privado de chat IA da sala.](../guias-bk/MF8/BK-MF8-11-partilha-read-only-e-fork-privado-de-chat-ia-da-sala.md)
+- [BK-MF8-12 - Realização de mini-testes oficiais por aluno.](../guias-bk/MF8/BK-MF8-12-realizacao-de-mini-testes-oficiais-por-aluno.md)
+- [BK-MF8-13 - Rankings dos mini-testes oficiais.](../guias-bk/MF8/BK-MF8-13-rankings-dos-mini-testes-oficiais.md)
+- [BK-MF8-14 - Flashcards em modo de exercício e revisão.](../guias-bk/MF8/BK-MF8-14-flashcards-em-modo-de-exercicio-e-revisao.md)
+- [BK-MF8-15 - Verificação dos testes atuais e criação dos testes em falta.](../guias-bk/MF8/BK-MF8-15-verificacao-dos-testes-atuais-e-criacao-dos-testes-em-falta.md)
+- [BK-MF8-16 - Execução final de testes.](../guias-bk/MF8/BK-MF8-16-execucao-final-de-testes.md)
+- [BK-MF8-17 - Correção de erros.](../guias-bk/MF8/BK-MF8-17-correcao-de-erros.md)
 
 ### Step-by-step macro
 1. Confirmar dependencias desbloqueadas antes de iniciar BK.
@@ -277,6 +283,5 @@ BK-MF8-01, BK-MF8-02, BK-MF8-03, BK-MF8-04, BK-MF8-05, BK-MF8-06, BK-MF8-07, BK-
 ### Pronto da macro
 - Todos os BK da macro com guia e evidence minima.
 - Sem dependencias invalidas para a macro seguinte.
-
 ## Changelog
 - `2026-04-19`: MF views sincronizadas com naming slug e contrato canónico de pronto pedagogico.

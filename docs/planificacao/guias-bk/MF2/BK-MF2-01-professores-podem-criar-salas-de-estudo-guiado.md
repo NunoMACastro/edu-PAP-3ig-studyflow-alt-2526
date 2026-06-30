@@ -1,4 +1,4 @@
-# BK-MF2-01 - Professores podem criar salas de estudo guiado.
+# BK-MF2-01 - Professores podem criar salas de estudo guiado com disciplina opcional.
 
 ## Header
 - `doc_id`: `GUIA-BK-MF2-01`
@@ -20,7 +20,7 @@
 
 ## Objetivo do BK
 
-Permitir que um professor crie salas de estudo guiado para uma turma sua e que apenas alunos inscritos nessa turma consigam consultar essas salas.
+Permitir que um professor crie salas de estudo guiado para uma turma sua, opcionalmente associadas a uma disciplina da mesma turma, e que apenas alunos inscritos nessa turma consigam consultar essas salas.
 
 ## Importância
 
@@ -29,6 +29,7 @@ Este BK acrescenta um espaço docente organizado para estudo acompanhado. Sem es
 ## Scope-in
 
 - Criar sala guiada associada a uma turma existente do professor.
+- Permitir `subjectId` opcional para associar a sala guiada a uma disciplina da mesma turma.
 - Listar salas do professor por turma.
 - Listar salas disponíveis para o aluno inscrito.
 - Validar papel, sessão e pertença à turma em todas as leituras.
@@ -37,6 +38,7 @@ Este BK acrescenta um espaço docente organizado para estudo acompanhado. Sem es
 
 - Chat em tempo real, chamadas vídeo e presença online.
 - IA dentro da sala guiada.
+- Override próprio de voz IA na sala guiada.
 - Agendamento avançado ou recorrência.
 
 ## Estado antes
@@ -45,11 +47,12 @@ Este BK acrescenta um espaço docente organizado para estudo acompanhado. Sem es
 
 ## Estado depois
 
-Existe `GuidedStudyRoomsModule` com schema, DTO, service, controller, cliente frontend e página React. O próximo BK pode criar projectos de turma sem duplicar validação de turma.
+Existe `GuidedStudyRoomsModule` com schema, DTO, service, controller, cliente frontend e página React. A sala pode ter `subjectId` opcional para herdar contexto/voz pela disciplina, mas continua sem override próprio. O próximo BK pode criar projectos de turma sem duplicar validação de turma.
 
 ## Pré-requisitos
 
 - `ClassesModule` exporta `ClassesService`.
+- `SubjectsModule` exporta validação de disciplina pertencente à turma/professor.
 - `SessionGuard`, `CurrentUser` e `AuthenticatedUser` estão disponíveis.
 - O actor autenticado tem papel `TEACHER` ou `STUDENT` conforme a rota.
 
@@ -57,13 +60,15 @@ Existe `GuidedStudyRoomsModule` com schema, DTO, service, controller, cliente fr
 
 - Sala guiada: espaço criado pelo professor para orientar estudo de uma turma.
 - Turma dona: turma que define quem pode ver a sala.
+- Disciplina associada opcional: disciplina da mesma turma usada como contexto herdado.
 - Objectivo da sala: descrição curta do foco de estudo.
 
 ## Conceitos teóricos
 
-- **Autorização por pertença.** o professor só gere turmas suas e o aluno só lê turmas onde está inscrito. Este conceito vem de `RF25` e das dependências `BK-MF1-07`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-01 - Professores podem criar salas de estudo guiado.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
-- **Separação de responsabilidades.** o controller expõe HTTP; o service decide regras de negócio. Este conceito vem de `RF25` e das dependências `BK-MF1-07`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-01 - Professores podem criar salas de estudo guiado.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
-- **Entidade de domínio.** a sala guiada é independente de publicações, porque tem calendário e objectivo próprios. Este conceito vem de `RF25` e das dependências `BK-MF1-07`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-01 - Professores podem criar salas de estudo guiado.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
+- **Autorização por pertença.** o professor só gere turmas suas e o aluno só lê turmas onde está inscrito. Este conceito vem de `RF25` e das dependências `BK-MF1-07`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-01 - Professores podem criar salas de estudo guiado com disciplina opcional.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
+- **Separação de responsabilidades.** o controller expõe HTTP; o service decide regras de negócio. Este conceito vem de `RF25` e das dependências `BK-MF1-07`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-01 - Professores podem criar salas de estudo guiado com disciplina opcional.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
+- **Entidade de domínio.** a sala guiada é independente de publicações, porque tem calendário e objectivo próprios. Este conceito vem de `RF25` e das dependências `BK-MF1-07`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-01 - Professores podem criar salas de estudo guiado com disciplina opcional.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
+- **Disciplina opcional.** a sala guiada pode apontar para uma disciplina da mesma turma para herdar contexto e voz docente efetiva; se não apontar, herda diretamente da turma.
 - **Backend, validação e segurança.** O backend recebe a identidade pela sessão autenticada, valida DTOs antes do service e confirma ownership ou membership nos services herdados. Esta regra vem da fundação MF0/MF1 e segue para os BKs seguintes como contrato de segurança. Serve para impedir leitura ou escrita entre alunos, professores, turmas e disciplinas diferentes.
 - **Frontend tipado e sessão real.** O frontend usa cliente API tipado em `apps/web/src/lib/api/...`, envia cookies com `credentials: "include"`, mostra estados de carregamento, erro, vazio e sucesso, e não guarda tokens em `localStorage`. Isto evita chamadas anónimas, dados de actor no body e payloads sem tipo claro.
 - **IA, fontes e guardrails.** Este BK só envolve provider de IA quando o próprio requisito o pede. Quando não há chamada de IA, o guia limita-se a preparar fontes, autorização ou contexto sem prometer geração automática; quando há chamada de IA, o provider vem de `AiModule`/`AI_PROVIDER`, as fontes são recolhidas antes da chamada e a resposta só é persistida depois de validação mínima.
@@ -71,13 +76,14 @@ Existe `GuidedStudyRoomsModule` com schema, DTO, service, controller, cliente fr
 ## Decisões documentais
 
 - `CANONICO`: `BK-MF2-01`, `RF25`, prioridade `P2`, owner `Guilherme`, apoio `Natalia`, sprint `S05`, dependências `BK-MF1-07` e próximo BK `BK-MF2-02` vêm da matriz, backlog e contrato de campos.
-- `CANONICO`: o domínio funcional é `BK-MF2-01 - Professores podem criar salas de estudo guiado.`; este BK preserva a sequência da MF2 e não altera IDs, RF/RNF, prioridades, owners ou dependências.
+- `CANONICO`: o domínio funcional é `BK-MF2-01 - Professores podem criar salas de estudo guiado com disciplina opcional.`; este BK preserva a sequência da MF2 e não altera IDs, RF/RNF, prioridades, owners ou dependências.
+- `CANONICO`: a associação a disciplina é opcional e não cria override de voz próprio na sala; a herança de voz fica definida em `DECISAO-ARQUITETURA-VOZ-IA-DOCENTE.md`.
 - `DERIVADO`: os nomes de módulos, services, DTOs, schemas, clientes API e páginas resultam dos passos deste guia e mantêm a convenção já usada no próprio código documentado.
 - `DERIVADO`: os caminhos frontend previstos usam `apps/web/src/lib/api/...` para clientes HTTP e `apps/web/src/pages/mf2/...` para páginas, porque essa é a localização usada nos passos de implementação.
 
 ## Arquitetura do BK
 
-`GuidedStudyRoomsController` chama `GuidedStudyRoomsService`. O service usa `ClassesService` para validar ownership ou inscrição antes de consultar MongoDB. O frontend usa um cliente tipado e não envia IDs de utilizador no body.
+`GuidedStudyRoomsController` chama `GuidedStudyRoomsService`. O service usa `ClassesService` para validar ownership ou inscrição antes de consultar MongoDB e usa `SubjectsService` quando o DTO traz `subjectId`. O frontend usa um cliente tipado, oferece a opção `Sem disciplina específica` e não envia IDs de utilizador no body.
 
 ## Ficheiros previstos
 
@@ -624,9 +630,13 @@ bash scripts/validate-planificacao.sh
 ## Expected results
 
 - Professor cria sala guiada numa turma sua e recebe `201`.
+- Professor cria sala guiada sem disciplina e o fluxo antigo continua válido.
+- Professor cria sala guiada com disciplina da mesma turma e o `subjectId` fica associado.
 - Professor lista salas da turma e vê apenas salas dessa turma.
 - Aluno inscrito lista salas disponíveis e não vê salas de outras turmas.
+- Aluno vê a disciplina associada quando existir, sem controlos de voz.
 - Actor com papel errado recebe erro controlado.
+- Disciplina de outra turma/professor é rejeitada.
 
 ## Critérios de aceite
 
@@ -634,25 +644,30 @@ bash scripts/validate-planificacao.sh
 - O module importa explicitamente controller e service.
 - O controller só declara parâmetros reais das rotas.
 - O service valida ownership ou membership antes de consultar dados.
+- O service valida que `subjectId`, quando existe, pertence à turma e ao professor autenticado.
 - A página usa cliente API tipado e cookies HttpOnly.
 
 ## Validação final
 
 - Confirmar que todas as rotas usam sessão autenticada.
 - Confirmar que `ClassesService` é chamado antes de ler ou escrever salas.
+- Confirmar que sala sem `subjectId` e sala com `subjectId` válido funcionam.
+- Confirmar que `subjectId` de outra turma/professor é rejeitado.
 - Executar teste positivo de professor, teste positivo de aluno e cenário negativo de turma fora do actor.
 
 ## Evidence para PR/defesa
 
 - Print ou log do caminho principal concluído.
+- Print ou log de sala guiada sem disciplina e com disciplina associada.
 - Log de pelo menos um cenário negativo controlado.
 - Resultado de `bash scripts/validate-planificacao.sh`.
 - Confirmação de que `git diff --check` não reporta espaços inválidos.
 
 ## Handoff
 
-BK-MF2-02
+BK-MF2-02; `BK-MF2-12` pode usar a disciplina associada à sala para explicar herança de voz, sem criar override próprio da sala.
 
 ## Changelog
 
 - `2026-06-08`: guia corrigido para contrato executável da MF2, com integração acumulativa, autorização explícita e validação do handoff.
+- `2026-06-30`: documentada disciplina opcional em sala guiada e herança de voz sem override próprio.

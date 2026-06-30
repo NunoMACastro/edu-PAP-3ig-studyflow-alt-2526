@@ -4,8 +4,8 @@
 - `doc_id`: `GUIA-BK-MF8-06`
 - `bk_id`: `BK-MF8-06`
 - `macro`: `MF8`
-- `owner`: `Natalia`
-- `apoio`: `Guilherme`
+- `owner`: `Kaua`
+- `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `TODO`
 - `esforco`: `M`
@@ -16,11 +16,11 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF8-07`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-06-suporte-a-importacao-utf-8-e-pt-pt.md`
-- `last_updated`: `2026-04-19`
+- `last_updated`: `2026-06-30`
 
 ## Contexto do BK
 - Entrega alvo: `Suporte a importação UTF-8 e PT-PT.` com rastreabilidade direta para `RNF39`.
-- Foco da macro `MF8`: Compatibilidade e fecho PAP.
+- Foco da macro `MF8`: Fecho de produto, qualidade da IA e validação final.
 - Dominio semântico aplicado: `localization`.
 
 ## Bloco pedagogico
@@ -117,4 +117,5 @@ Garante coerência de apresentação de datas em PT-PT.
 `BK-MF8-07`
 
 ## Changelog
+- `2026-06-30`: owner principal ajustado para Kaua no reequilibrio MF8; Natalia fica como apoio.
 - `2026-04-19`: guia semântico regenerado com passos, validação e snippet alinhados ao requisito.

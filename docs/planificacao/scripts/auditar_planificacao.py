@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 def run_canonical_validator() -> dict:
-    root = Path(__file__).resolve().parents[4]
+    root = Path(__file__).resolve().parents[3]
     validator = root / "scripts" / "validate_planificacao_canonica.py"
     if not validator.exists():
         raise FileNotFoundError(f"Validador canónico não encontrado: {validator}")

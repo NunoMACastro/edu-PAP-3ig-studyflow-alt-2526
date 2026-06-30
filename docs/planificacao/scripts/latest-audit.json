@@ -2,10 +2,10 @@
   "project": "studyflow",
   "counts": {
     "rf_docs": 57,
-    "rnf_docs": 44,
-    "matriz_bk": 101,
-    "backlog_bk": 101,
-    "guide_bk": 101
+    "rnf_docs": 45,
+    "matriz_bk": 107,
+    "backlog_bk": 107,
+    "guide_bk": 107
   },
   "coverage": {
     "missing_rf_matrix": [],
@@ -29,7 +29,8 @@
     "matrix_proximo_bk_issues": [],
     "declared_totals_issues": [],
     "rnf_index_anchor_issues": [],
-    "drift_critical_count": 0
+    "drift_critical_count": 0,
+    "drift_issues": []
   },
   "guides_quality": {
     "naming_issues": [],

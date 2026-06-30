@@ -4,7 +4,7 @@
 - `doc_id`: `GUIA-BK-MF8-07`
 - `bk_id`: `BK-MF8-07`
 - `macro`: `MF8`
-- `owner`: `Guilherme`
+- `owner`: `Kaua`
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
@@ -16,11 +16,11 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF8-08`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-07-exportacao-de-resumos-quizzes-em-pdf-md.md`
-- `last_updated`: `2026-04-19`
+- `last_updated`: `2026-06-30`
 
 ## Contexto do BK
 - Entrega alvo: `Exportação de resumos/quizzes em PDF/MD.` com rastreabilidade direta para `RNF40`.
-- Foco da macro `MF8`: Compatibilidade e fecho PAP.
+- Foco da macro `MF8`: Fecho de produto, qualidade da IA e validação final.
 - Dominio semântico aplicado: `materials_ingestion`.
 
 ## Bloco pedagogico
@@ -116,4 +116,5 @@ Separa validação e indexação para não bloquear o utilizador.
 `BK-MF8-08`
 
 ## Changelog
+- `2026-06-30`: owner principal ajustado para Kaua no reequilibrio MF8; Guilherme fica como apoio.
 - `2026-04-19`: guia semântico regenerado com passos, validação e snippet alinhados ao requisito.

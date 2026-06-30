@@ -47,8 +47,8 @@ Como o modo desta execução é `auditar_apenas`, nenhum BK foi reescrito. A cla
 | `BK-MF1-07` | `OK` | Cria a base docente de turmas, documenta `MONGODB_URI` local, seed bloqueada em produção, professor/aluno de validação e `ClassesService` exportado. |
 | `BK-MF1-08` | `OK` | Cria disciplinas dentro de turmas, valida ownership com `ClassesService.findOwnedClass` e prepara `findOwnedSubject`/`findSubjectForStudent`. |
 | `BK-MF1-09` | `OK` | Materiais oficiais ficam ligados à disciplina do professor, distinguem `PROCESSED` de `REFERENCE_ONLY` e exportam `OfficialMaterialsService`. |
-| `BK-MF1-10` | `OK` | Voz docente é estilo pedagógico textual, com `PUT` idempotente, ownership de disciplina e export de `TeacherAiVoiceService`. |
-| `BK-MF1-11` | `OK` | IA limitada valida inscrição, usa materiais oficiais `PROCESSED`, voz docente e `AI_PROVIDER` herdado via `AiModule`, sem duplicar provider. |
+| `BK-MF1-10` | `OK` | Voz docente é estilo pedagógico textual, com voz base por turma, override opcional por disciplina e export de `TeacherAiVoiceService`. |
+| `BK-MF1-11` | `OK` | IA limitada valida inscrição, usa materiais oficiais `PROCESSED`, voz docente efetiva resolvida e `AI_PROVIDER` herdado via `AiModule`, sem duplicar provider. |
 | `BK-MF1-12` | `OK` | Publicações oficiais validam professor dono ou aluno inscrito, usam `ClassPostsService` e preparam dependentes de notificações/painel. |
 
 ## BKs PARCIAL ou CRÍTICO
@@ -64,6 +64,7 @@ Não foram encontrados BKs `PARCIAL` ou `CRÍTICO` na MF1 nesta auditoria.
 - A cadeia docente é acumulada: `BK-MF1-07` turmas, `BK-MF1-08` disciplinas, `BK-MF1-09` materiais oficiais, `BK-MF1-10` voz docente, `BK-MF1-11` IA limitada e `BK-MF1-12` publicações.
 - `teacherId`, `studentId`, ownership e membership vêm da sessão/base de dados, não de IDs livres enviados pelo frontend.
 - Voz docente continua a ser estilo pedagógico textual, não áudio.
+- A voz docente segue herança `SUBJECT_OVERRIDE -> CLASS_BASE -> DEFAULT`: a turma tem voz base e a disciplina mantém override opcional.
 - Materiais oficiais `URL` ficam como `REFERENCE_ONLY`; só materiais `PROCESSED` alimentam IA factual.
 - IA privada, IA da sala e IA da turma/disciplina mantêm contextos separados.
 - Qualquer geração IA da MF1 bloqueia quando não existem fontes processáveis e autorizadas.
@@ -89,8 +90,8 @@ Itens históricos já aparecem resolvidos no estado atual:
 | `BK-MF1-07` | `.env` local documentado, seed local, `SchoolClass`, DTOs, service, controller, module, cliente API e páginas | `MONGODB_URI` local, contas de validação, `ClassesService`, `SchoolClass.studentIds` | `User`, `UserSchema`, `bcrypt`, `SessionGuard`, MongoDB Atlas | `POST/GET /api/teacher/classes`, `POST /api/teacher/classes/:classId/students`, `GET /api/student/classes` | `BK-MF1-08`, `BK-MF1-12`, `BK-MF2-01`, `BK-MF2-02` |
 | `BK-MF1-08` | `Subject`, DTO, service, controller, module, cliente API e página | `SubjectsService`, `findOwnedSubject`, `findSubjectForStudent` | `ClassesService.findOwnedClass`, `ClassesService.ensureStudentEnrollment` | `POST/GET /api/teacher/classes/:classId/subjects` | `BK-MF1-09`, `BK-MF1-10`, `BK-MF1-11`, `BK-MF2-04` |
 | `BK-MF1-09` | `OfficialMaterial`, DTO, service, controller, module, cliente API e página | `OfficialMaterialsService`, materiais `PROCESSED`/`REFERENCE_ONLY` | `SubjectsService.findOwnedSubject` | `POST/GET /api/teacher/subjects/:subjectId/materials` | `BK-MF1-10`, `BK-MF1-11`, `BK-MF2-05`, `BK-MF2-07` |
-| `BK-MF1-10` | `TeacherAiVoice`, DTO, service, controller, module, cliente API e página | `TeacherAiVoiceService`, voz docente textual | `SubjectsService.findOwnedSubject` | `PUT/GET /api/teacher/subjects/:subjectId/ai-voice` | `BK-MF1-11`, `BK-MF2-12` |
-| `BK-MF1-11` | `ClassAiInteraction`, DTO, prompt, service, controller, module, cliente API e página | `ClassAiService`, IA limitada por disciplina/turma | `SubjectsService`, `OfficialMaterialsService`, `TeacherAiVoiceService`, `AI_PROVIDER`, `AiModule` | `POST /api/student/subjects/:subjectId/ai/answers` | Fluxos de IA docente posteriores |
+| `BK-MF1-10` | `TeacherClassAiVoice`, `TeacherAiVoice`, DTO, service, controller, module, cliente API e páginas | `TeacherAiVoiceService`, resolvedor de voz efetiva | `ClassesService.findOwnedClass`, `SubjectsService.findOwnedSubject` | `GET/PUT /api/teacher/classes/:classId/ai-voice`, `GET/PUT/DELETE /api/teacher/subjects/:subjectId/ai-voice` | `BK-MF1-11`, `BK-MF2-12` |
+| `BK-MF1-11` | `ClassAiInteraction`, DTO, prompt, service, controller, module, cliente API e página | `ClassAiService`, IA limitada por disciplina/turma | `SubjectsService`, `OfficialMaterialsService`, `TeacherAiVoiceService.resolveTeacherVoice`, `AI_PROVIDER`, `AiModule` | `POST /api/student/subjects/:subjectId/ai/answers` | Fluxos de IA docente posteriores |
 | `BK-MF1-12` | `ClassPost`, DTO, service, controller, module, cliente API e páginas teacher/student | `ClassPostsService`, publicações oficiais da turma | `ClassesService.findOwnedClass`, `ClassesService.ensureStudentEnrollment` | `POST/GET /api/teacher/classes/:classId/posts`, `GET /api/student/classes/:classId/posts` | `BK-MF2-06`, `BK-MF4-01` |
 
 ## Gate de app funcional

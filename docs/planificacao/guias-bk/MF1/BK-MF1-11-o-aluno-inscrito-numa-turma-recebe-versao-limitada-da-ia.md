@@ -24,6 +24,12 @@ Implementar `RF23`: permitir que um aluno inscrito numa turma use uma IA limitad
 ## Importância
 Este é um dos pontos de maior risco da MF1. A IA não pode misturar disciplinas, turmas ou alunos. A resposta tem de usar apenas materiais oficiais `PROCESSED` e deve aplicar a voz docente sem ultrapassar as fontes.
 
+## Alteração extra-planificação - 2026-06-30
+
+A voz docente usada por este BK deve ser a voz efetiva resolvida por `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })`, seguindo `SUBJECT_OVERRIDE -> CLASS_BASE -> DEFAULT`.
+
+Snippets antigos deste guia que chamem `findForSubject` devem ser tratados como legado e substituídos pelo resolvedor quando implementados em `real_dev`.
+
 ## Scope-in
 - Criar interação de IA por disciplina.
 - Confirmar inscrição do aluno na turma da disciplina.
@@ -54,7 +60,7 @@ Este é um dos pontos de maior risco da MF1. A IA não pode misturar disciplinas
 - Professor e aluno de desenvolvimento criados pela seed local de `BK-MF1-07`.
 - `BK-MF1-08` com `SubjectsService.findSubjectForStudent`.
 - `BK-MF1-09` com `OfficialMaterialsService.findProcessedBySubject`.
-- `BK-MF1-10` com `TeacherAiVoiceService.findForSubject`.
+- `BK-MF1-10` com `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })`.
 - `AiModule` final da MF0 com `AI_PROVIDER` exportado e `AiAreaProfileService`, `SummariesService` e `StudyToolsService` preservados.
 
 ## Glossário
@@ -116,7 +122,7 @@ O código abaixo deve ser tratado como código final previsto, não como exemplo
 - Professor e aluno de desenvolvimento criados pela seed local de `BK-MF1-07`.
 - `BK-MF1-08` com `SubjectsService.findSubjectForStudent`.
 - `BK-MF1-09` com `OfficialMaterialsService.findProcessedBySubject`.
-- `BK-MF1-10` com `TeacherAiVoiceService.findForSubject`.
+- `BK-MF1-10` com `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })`.
 - `AiModule` final da MF0 com `AI_PROVIDER` exportado e services de IA da MF0 preservados.
 
 ### Passo 1 - Criar schema da interação
@@ -348,7 +354,10 @@ export class ClassAiService {
             );
         }
 
-        const voice = await this.teacherAiVoiceService.findForSubject(subject);
+        const voice = await this.teacherAiVoiceService.resolveTeacherVoice({
+            classId: subject.classId.toString(),
+            subjectId: subject._id.toString(),
+        });
         const prompt = buildClassAiPrompt({
             question: dto.question.trim(),
             materials,
@@ -420,7 +429,7 @@ export class ClassAiService {
 
 5. Explicação do código.
 
-    O service valida a cadeia docente inteira antes de chamar IA: `SubjectsService.findSubjectForStudent` confirma inscrição, `OfficialMaterialsService.findProcessedBySubject` limita fontes a materiais oficiais processados e `TeacherAiVoiceService.findForSubject` aplica a voz textual do professor. A resposta do provider é runtime não confiável: `answer` tem de ser não vazio e `sourceMaterialIds` têm de pertencer aos materiais autorizados. Sem fontes há `422`; falha ou resposta inválida do provider devolve `503`.
+    O service valida a cadeia docente inteira antes de chamar IA: `SubjectsService.findSubjectForStudent` confirma inscrição, `OfficialMaterialsService.findProcessedBySubject` limita fontes a materiais oficiais processados e `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })` aplica a voz efetiva do professor. A resposta do provider é runtime não confiável: `answer` tem de ser não vazio e `sourceMaterialIds` têm de pertencer aos materiais autorizados. Sem fontes há `422`; falha ou resposta inválida do provider devolve `503`.
 
 6. Como validar este passo.
 
@@ -729,7 +738,7 @@ Não há código novo neste passo. Usa-o para confirmar que os passos anteriores
 ## Critérios de aceite
 - Inscrição é validada via `SchoolClass.studentIds`.
 - Fontes oficiais vêm de `OfficialMaterialsService`.
-- Voz docente vem de `TeacherAiVoiceService`.
+- Voz docente vem de `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })`.
 - Sem materiais processados há `422`.
 - Resultado do provider é validado em runtime antes de persistir.
 - Resposta mostra fontes usadas.

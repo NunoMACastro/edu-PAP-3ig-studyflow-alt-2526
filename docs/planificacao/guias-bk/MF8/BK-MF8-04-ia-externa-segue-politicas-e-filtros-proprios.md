@@ -4,8 +4,8 @@
 - `doc_id`: `GUIA-BK-MF8-04`
 - `bk_id`: `BK-MF8-04`
 - `macro`: `MF8`
-- `owner`: `Guilherme`
-- `apoio`: `Kaua`
+- `owner`: `Kaua`
+- `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
 - `esforco`: `M`
@@ -16,11 +16,11 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF8-05`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-04-ia-externa-segue-politicas-e-filtros-proprios.md`
-- `last_updated`: `2026-04-19`
+- `last_updated`: `2026-06-30`
 
 ## Contexto do BK
 - Entrega alvo: `IA externa segue políticas e filtros próprios.` com rastreabilidade direta para `RNF37`.
-- Foco da macro `MF8`: Compatibilidade e fecho PAP.
+- Foco da macro `MF8`: Fecho de produto, qualidade da IA e validação final.
 - Dominio semântico aplicado: `learning_foundation`.
 
 ## Bloco pedagogico
@@ -120,4 +120,5 @@ Garante validação mínima de identidade no arranque do fluxo de conta.
 `BK-MF8-05`
 
 ## Changelog
+- `2026-06-30`: owner principal ajustado para Kaua no reequilibrio MF8; Guilherme fica como apoio.
 - `2026-04-19`: guia semântico regenerado com passos, validação e snippet alinhados ao requisito.
