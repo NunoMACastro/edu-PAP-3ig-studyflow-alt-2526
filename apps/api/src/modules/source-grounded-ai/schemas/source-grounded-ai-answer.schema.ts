@@ -1,17 +1,15 @@
-/**
- * Define o modelo persistido de IA com fontes obrigatórias usado pelo Mongoose.
- */
+// apps/api/src/modules/source-grounded-ai/schemas/source-grounded-ai-answer.schema.ts
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
 
 /**
- * Documento Mongoose de IA com fontes obrigatórias, usado apenas dentro da camada de persistência.
+ * Documento Mongoose de IA com fontes obrigatórias usado dentro da persistência.
  */
 export type SourceGroundedAiAnswerDocument =
     HydratedDocument<SourceGroundedAiAnswer>;
 
 /**
- * Classe SourceGroundedCitation usada no domínio de IA com fontes obrigatórias.
+ * Citação pública associada a uma resposta factual.
  */
 @Schema({ _id: false })
 export class SourceGroundedCitation {
@@ -41,6 +39,7 @@ export const SourceGroundedCitationSchema =
 export class SourceGroundedAiAnswer {
     _id!: { toString(): string };
 
+    // O actorId permite rastrear a resposta sem depender de dados enviados pelo frontend.
     @Prop({ required: true, type: Types.ObjectId, index: true })
     actorId!: Types.ObjectId;
 
@@ -53,6 +52,7 @@ export class SourceGroundedAiAnswer {
     @Prop({ required: true })
     answer!: string;
 
+    // As citações ficam persistidas para auditoria pedagógica e defesa do resultado.
     @Prop({ required: true, type: [SourceGroundedCitationSchema] })
     citations!: SourceGroundedCitation[];
 }

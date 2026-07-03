@@ -1,6 +1,4 @@
-/**
- * Define contratos de dados usados nas entradas e saídas de IA com fontes obrigatórias.
- */
+// apps/api/src/modules/source-grounded-ai/dto/ask-source-grounded-ai.dto.ts
 import {
     ArrayMaxSize,
     ArrayMinSize,

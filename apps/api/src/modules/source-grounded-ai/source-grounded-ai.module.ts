@@ -1,6 +1,4 @@
-/**
- * Regista providers, controllers e schemas necessários ao módulo de IA com fontes obrigatórias.
- */
+// apps/api/src/modules/source-grounded-ai/source-grounded-ai.module.ts
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AiModule } from "../ai/ai.module.js";
@@ -17,7 +15,7 @@ import { SourceGroundedAiController } from "./source-grounded-ai.controller.js";
 import { SourceGroundedAiService } from "./source-grounded-ai.service.js";
 
 /**
- * Módulo MF3 para respostas IA com citações internas obrigatórias.
+ * Módulo de respostas IA com citações internas obrigatórias.
  */
 @Module({
     imports: [
@@ -27,6 +25,7 @@ import { SourceGroundedAiService } from "./source-grounded-ai.service.js";
         AiModelPoliciesModule,
         AiQuotasModule,
         MaterialIndexModule,
+        // O schema fica registado no módulo para persistir respostas com rastreabilidade.
         MongooseModule.forFeature([
             {
                 name: SourceGroundedAiAnswer.name,

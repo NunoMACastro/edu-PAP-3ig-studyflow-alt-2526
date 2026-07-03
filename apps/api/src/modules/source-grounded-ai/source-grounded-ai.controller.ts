@@ -1,6 +1,4 @@
-/**
- * Expõe os endpoints HTTP de IA com fontes obrigatórias e delega regras de negócio para o service.
- */
+// apps/api/src/modules/source-grounded-ai/source-grounded-ai.controller.ts
 import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
@@ -14,24 +12,25 @@ import { SourceGroundedAiService } from "./source-grounded-ai.service.js";
 @UseGuards(SessionGuard)
 export class SourceGroundedAiController {
     /**
-     * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
+     * Recebe dependências por injeção para manter a classe testável.
      *
-     * @param sourceGroundedService Service injetado para reutilizar regras de source grounded sem duplicar validações.
+     * @param sourceGroundedService Service que aplica regras de domínio e segurança.
      */
     constructor(private readonly sourceGroundedService: SourceGroundedAiService) {}
 
     /**
-     * Cria uma resposta limitada ao job de indexação autorizado.
+     * Cria uma resposta limitada aos jobs de indexação autorizados.
      *
-     * @param request Pedido autenticado.
-     * @param body Job e pergunta.
-     * @returns Resposta com citações.
+     * @param request Pedido autenticado com utilizador resolvido pela sessão.
+     * @param body Jobs e pergunta validados pelo DTO.
+     * @returns Resposta factual com citações públicas.
      */
     @Post()
     ask(
         @Req() request: AuthenticatedRequest,
         @Body() body: AskSourceGroundedAiDto,
     ) {
+        // O user vem da sessão para impedir que o frontend peça respostas por outro aluno.
         return this.sourceGroundedService.ask(request.user!, body);
     }
 }
