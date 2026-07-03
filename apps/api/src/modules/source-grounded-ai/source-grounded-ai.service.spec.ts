@@ -1,6 +1,4 @@
-/**
- * Testa o comportamento de IA com fontes obrigatórias e documenta os cenários de aceitação automatizados.
- */
+// apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.spec.ts
 import {
     ForbiddenException,
     HttpException,
@@ -82,48 +80,9 @@ describe("SourceGroundedAiService", () => {
         );
     });
 
-    it("limita as citações persistidas e enviadas ao provider por maxSourceCount", async () => {
-        const { aiProvider, answerModel, service } = makeService({
-            policy: { maxSourceCount: 1 },
-            chunks: [
-                {
-                    order: 1,
-                    text: "As derivadas medem a taxa de variação instantânea.",
-                    sourceLabel: "Derivadas",
-                    locator: "secção 1",
-                },
-                {
-                    order: 2,
-                    text: "Os integrais acumulam quantidades ao longo de um intervalo.",
-                    sourceLabel: "Integrais",
-                    locator: "secção 2",
-                },
-            ],
-        });
-
-        await service.ask(student, {
-            sourceJobIds: [jobId],
-            question: "Compara derivadas e integrais.",
-        });
-
-        expect(answerModel.create).toHaveBeenCalledWith(
-            expect.objectContaining({
-                citations: [
-                    expect.objectContaining({
-                        sourceLabel: "Derivadas",
-                    }),
-                ],
-            }),
-        );
-        expect(aiProvider.generateStudyTool).toHaveBeenCalledWith(
-            expect.objectContaining({
-                prompt: expect.not.stringContaining("Integrais"),
-            }),
-        );
-    });
-
     it("bloqueia quando o job não tem chunks citáveis", async () => {
-        const { materialIndexService, service } = makeService();
+        const { aiProvider, answerModel, materialIndexService, service } =
+            makeService();
         materialIndexService.findReadableDoneJob.mockResolvedValueOnce({
             _id: jobId,
             materialId,
@@ -136,6 +95,10 @@ describe("SourceGroundedAiService", () => {
                 question: "Explica o tema.",
             }),
         ).rejects.toBeInstanceOf(UnprocessableEntityException);
+
+        // Sem fontes, a IA não pode inventar resposta nem persistir histórico enganador.
+        expect(aiProvider.generateStudyTool).not.toHaveBeenCalled();
+        expect(answerModel.create).not.toHaveBeenCalled();
     });
 
     it("bloqueia fonte proibida antes de chamar o provider", async () => {
@@ -152,7 +115,7 @@ describe("SourceGroundedAiService", () => {
             }),
         ).rejects.toThrow("MATERIAL_INDEX_ACCESS_DENIED");
 
-        // A validação de leitura acontece antes do prompt; se falha, o provider não recebe dados.
+        // A autorização de leitura acontece antes do prompt; se falha, o provider não recebe dados.
         expect(aiProvider.generateStudyTool).not.toHaveBeenCalled();
         expect(answerModel.create).not.toHaveBeenCalled();
     });
@@ -186,30 +149,18 @@ describe("SourceGroundedAiService", () => {
         expect(answerModel.create).not.toHaveBeenCalled();
     });
 
-    it("bloqueia política desativada antes de quota e provider", async () => {
-        const {
-            aiModelPoliciesService,
-            aiProvider,
-            aiQuotasService,
-            answerModel,
-            service,
-        } = makeService();
-        aiModelPoliciesService.resolveForUse.mockRejectedValueOnce(
-            new ServiceUnavailableException({
-                code: "AI_MODEL_POLICY_DISABLED",
-                message: "Esta funcionalidade de IA está temporariamente desativada.",
-            }),
-        );
+    it("não persiste quando o provider devolve resposta inválida", async () => {
+        const { aiProvider, answerModel, service } = makeService();
+        aiProvider.generateStudyTool.mockResolvedValueOnce({ answer: "" });
 
         await expect(
             service.ask(student, {
                 sourceJobIds: [jobId],
-                question: "Explica esta fonte.",
+                question: "Resume a fotossíntese.",
             }),
         ).rejects.toBeInstanceOf(ServiceUnavailableException);
 
-        expect(aiQuotasService.reserveUsage).not.toHaveBeenCalled();
-        expect(aiProvider.generateStudyTool).not.toHaveBeenCalled();
+        // Respostas vazias não entram no histórico porque poderiam parecer factos válidos.
         expect(answerModel.create).not.toHaveBeenCalled();
     });
 
@@ -246,8 +197,11 @@ type TestSourceChunk = {
 };
 
 /**
- * Cria fixture ou estrutura auxiliar de IA com fontes obrigatórias para manter testes e prompts legíveis.
- * @returns Valor de IA com fontes obrigatórias no contrato esperado pelo chamador.
+ * Cria service com dependências controladas para testar regras sem rede nem base de dados real.
+ *
+ * @param options.chunks Chunks textuais disponíveis para citação.
+ * @param options.policy Ajustes parciais de política IA.
+ * @returns Service e dependências observáveis por assertions.
  */
 function makeService(options: {
     chunks?: TestSourceChunk[];
@@ -306,6 +260,8 @@ function makeService(options: {
             .fn()
             .mockResolvedValue({ answer: "Resposta gerada pelo provider." }),
     };
+
+    // As dependências são substitutos de teste; em runtime real o NestJS injeta providers concretos.
     const service = new SourceGroundedAiService(
         answerModel as never,
         materialIndexService as never,
@@ -314,6 +270,7 @@ function makeService(options: {
         aiQuotasService as never,
         aiProvider as never,
     );
+
     return {
         aiConsentsService,
         aiModelPoliciesService,

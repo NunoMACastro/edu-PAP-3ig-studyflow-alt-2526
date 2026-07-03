@@ -1,6 +1,4 @@
-/**
- * Implementa as regras de negócio de IA com fontes obrigatórias e concentra validações do domínio.
- */
+// apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts
 import {
     GatewayTimeoutException,
     Inject,
@@ -28,13 +26,13 @@ import {
     MaterialIndexService,
     type MaterialTextChunk,
 } from "../material-index/material-index.service.js";
+import { normalizePublicCitation } from "./citation-policy.js";
 import { AskSourceGroundedAiDto } from "./dto/ask-source-grounded-ai.dto.js";
 import {
     SourceGroundedAiAnswer,
     SourceGroundedAiAnswerDocument,
     SourceGroundedCitation,
 } from "./schemas/source-grounded-ai-answer.schema.js";
-import { normalizePublicCitation } from "./citation-policy.js";
 
 const SOURCE_GROUNDED_AI_PURPOSE = "SOURCE_GROUNDED_AI";
 
@@ -52,22 +50,18 @@ export type SourceGroundedAiAnswerView = {
 
 /**
  * Serviço de respostas com citações obrigatórias.
- *
- * A resposta é pedida ao provider isolado de IA depois de o backend validar
- * fontes autorizadas. O prompt inclui apenas excertos processáveis e impede
- * conhecimento externo, preservando o contrato anti-alucinação do BK.
  */
 @Injectable()
 export class SourceGroundedAiService {
     /**
-     * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
+     * Recebe dependências por injeção para manter a classe testável.
      *
-     * @param answerModel Modelo Mongoose injetado para ler e persistir IA com fontes obrigatórias.
-     * @param materialIndexService Service injetado para reutilizar regras de indexação textual de materiais sem duplicar validações.
-     * @param aiConsentsService Service injetado para aplicar consentimento antes de chamar IA externa.
-     * @param aiModelPoliciesService Service injetado para aplicar política administrativa por finalidade.
-     * @param aiQuotasService Service injetado para reservar quota antes de consumir IA.
-     * @param aiProvider Provider injetado para isolar integração externa e facilitar testes.
+     * @param answerModel Modelo Mongoose de respostas fundamentadas.
+     * @param materialIndexService Service que valida fontes processáveis autorizadas.
+     * @param aiConsentsService Service de consentimento IA.
+     * @param aiModelPoliciesService Service de políticas de modelo IA.
+     * @param aiQuotasService Service de quotas IA.
+     * @param aiProvider Provider isolado de IA.
      */
     constructor(
         @InjectModel(SourceGroundedAiAnswer.name)
@@ -131,7 +125,7 @@ export class SourceGroundedAiService {
 
         const answer = await this.generateAnswer(prompt, policy);
 
-        // Persistir as citações junto da resposta permite auditoria posterior do output da IA.
+        // Persistir citações junto da resposta permite auditoria posterior sem guardar materiais completos.
         const document = await this.answerModel.create({
             actorId: new Types.ObjectId(actor.id),
             sourceJobIds: input.sourceJobIds.map((jobId) => new Types.ObjectId(jobId)),
@@ -161,7 +155,7 @@ export class SourceGroundedAiService {
         job: MaterialIndexJobView,
         question: string,
     ): MaterialTextChunk[] {
-        // A seleção lexical é simples de propósito: é explicável para alunos e não introduz recuperação externa.
+        // A seleção lexical é explicável para alunos e não introduz recuperação externa.
         const terms = question
             .toLowerCase()
             .split(/\W+/)
@@ -194,7 +188,7 @@ export class SourceGroundedAiService {
         job: MaterialIndexJobView,
         chunk: MaterialTextChunk,
     ): SourceGroundedCitation {
-        // A autorizacao ja aconteceu em findReadableDoneJob(...); aqui so normalizamos a parte publica.
+        // A autorização já aconteceu em findReadableDoneJob(...); aqui só normalizamos a parte pública.
         return normalizePublicCitation({
             sourceJobId: job._id,
             materialId: job.materialId,
@@ -231,12 +225,18 @@ export class SourceGroundedAiService {
         ].join("\n");
     }
 
+    /**
+     * Estima unidades de quota de forma simples e previsível.
+     *
+     * @param prompt Prompt final já limitado por política.
+     * @returns Número mínimo de unidades a reservar.
+     */
     private estimateUsageUnits(prompt: string): number {
         return Math.max(1, Math.ceil(prompt.length / 1000));
     }
 
     /**
-     * Chama o provider IA com um prompt limitado aos excertos citados e governado por política.
+     * Chama o provider IA com um prompt limitado aos excertos citados.
      *
      * @param prompt Prompt final já validado por consentimento, política e quota.
      * @param policy Política efetiva resolvida para a finalidade SOURCE_GROUNDED_AI.

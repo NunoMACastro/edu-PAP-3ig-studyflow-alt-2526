@@ -1,10 +1,8 @@
-/**
- * Implementa a funcionalidade frontend de IA com fontes obrigatórias e o respetivo contrato com a API.
- */
+// apps/web/src/features/source-grounded-ai/ask-source-grounded-ai.ts
 import { requestMf3Json } from "../mf3/request-mf3-json.js";
 
 /**
- * Contrato de IA com fontes obrigatórias que documenta a estrutura esperada em tempo de desenvolvimento.
+ * Contrato de IA com fontes obrigatórias que documenta a resposta esperada.
  */
 export type SourceGroundedAnswer = {
     _id: string;
@@ -31,6 +29,7 @@ export function askSourceGroundedAi(input: {
     sourceJobIds: string[];
     question: string;
 }): Promise<SourceGroundedAnswer> {
+    // requestMf3Json usa credentials include, por isso a sessão fica em cookie HttpOnly.
     return requestMf3Json<SourceGroundedAnswer>(
         "/api/ai/source-grounded-answers",
         {

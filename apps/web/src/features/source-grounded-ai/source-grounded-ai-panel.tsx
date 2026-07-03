@@ -1,6 +1,4 @@
-/**
- * Implementa a funcionalidade frontend de IA com fontes obrigatórias e o respetivo contrato com a API.
- */
+// apps/web/src/features/source-grounded-ai/source-grounded-ai-panel.tsx
 import { FormEvent, useState } from "react";
 import {
     askSourceGroundedAi,
@@ -20,16 +18,18 @@ export function SourceGroundedAiPanel() {
     const [error, setError] = useState<string | null>(null);
 
     /**
-     * Trata a acao do utilizador e sincroniza o estado da interface.
+     * Trata a ação do utilizador e sincroniza o estado da interface.
      *
-     * @param event Evento da interface que dispara a acao.
+     * @param event Evento da interface que dispara a ação.
      */
     async function handleSubmit(event: FormEvent): Promise<void> {
         event.preventDefault();
         setLoading(true);
         setError(null);
+        setAnswer(null);
+
         try {
-            // O frontend envia apenas ids de jobs e pergunta; o backend decide se as fontes sao legiveis.
+            // A UI envia apenas IDs e pergunta; o backend decide se as fontes são legíveis.
             setAnswer(
                 await askSourceGroundedAi({
                     sourceJobIds: sourceJobIds
@@ -40,29 +40,67 @@ export function SourceGroundedAiPanel() {
                 }),
             );
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : "Erro ao responder.");
+            setError(
+                caught instanceof Error
+                    ? caught.message
+                    : "Não foi possível obter uma resposta com fontes.",
+            );
         } finally {
             setLoading(false);
         }
     }
 
+    const canSubmit =
+        !loading &&
+        sourceJobIds
+            .split(",")
+            .map((sourceJobId) => sourceJobId.trim())
+            .filter(Boolean).length > 0 &&
+        question.trim().length >= 5;
+
     return (
         <section className="sf-panel space-y-4">
             <h2 className="text-lg font-semibold">Resposta com fontes</h2>
-            {error ? <p className="sf-error">{error}</p> : null}
+
+            {error ? (
+                <p className="sf-error" role="alert">
+                    {error}
+                </p>
+            ) : null}
+
             <form className="space-y-3" onSubmit={(event) => void handleSubmit(event)}>
                 <label className="block">
                     Jobs de indexação
-                    <input value={sourceJobIds} onChange={(event) => setSourceJobIds(event.target.value)} />
+                    <input
+                        aria-describedby="source-grounded-jobs-help"
+                        value={sourceJobIds}
+                        onChange={(event) => setSourceJobIds(event.target.value)}
+                    />
                 </label>
+                <p id="source-grounded-jobs-help" className="text-xs text-slate-600">
+                    Separa vários IDs por vírgula.
+                </p>
+
                 <label className="block">
                     Pergunta
-                    <textarea rows={3} value={question} onChange={(event) => setQuestion(event.target.value)} />
+                    <textarea
+                        rows={3}
+                        value={question}
+                        onChange={(event) => setQuestion(event.target.value)}
+                    />
                 </label>
-                <button className="sf-button-primary" disabled={loading || sourceJobIds.trim().length === 0 || question.trim().length < 5}>
-                    {loading ? "A responder..." : "Responder"}
+
+                <button className="sf-button-primary" disabled={!canSubmit}>
+                    {loading ? "A responder..." : "Responder com fontes"}
                 </button>
             </form>
+
+            {!answer && !error && !loading ? (
+                <p className="text-sm text-slate-600">
+                    Escolhe fontes processáveis antes de pedir uma resposta factual.
+                </p>
+            ) : null}
+
             {answer ? (
                 <div className="space-y-3 text-sm">
                     <p className="whitespace-pre-line text-slate-800">{answer.answer}</p>
