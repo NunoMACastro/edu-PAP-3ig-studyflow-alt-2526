@@ -138,6 +138,7 @@
 - [BK-MF7-11 - IA segue limites definidos pelo professor, incluindo voz herdada.](MF7/BK-MF7-11-ia-segue-limites-definidos-pelo-professor.md)
 
 ### MF8
+- [ARRANQUE-LOCAL - Guia de arranque local para a MF8.](MF8/ARRANQUE-LOCAL.md)
 - [BK-MF8-01 - IA evita enviesamentos e respostas inseguras.](MF8/BK-MF8-01-ia-evita-enviesamentos-e-respostas-inseguras.md)
 - [BK-MF8-02 - IA não pode inventar informação factual.](MF8/BK-MF8-02-ia-nao-pode-inventar-informacao-factual.md)
 - [BK-MF8-03 - IA adapta explicações ao nível do aluno.](MF8/BK-MF8-03-ia-adapta-explicacoes-ao-nivel-do-aluno.md)

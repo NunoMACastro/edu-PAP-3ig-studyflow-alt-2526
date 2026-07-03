@@ -70,6 +70,7 @@ Este BK também protege a privacidade: a evidence deve mostrar comandos, estados
 - `docs/planificacao/sprints/GATES-S4-S8-S12.md`
 - `docs/planificacao/guias-bk/README.md`
 - `docs/planificacao/guias-bk/_TEMPLATE-BK.md`
+- `docs/planificacao/guias-bk/MF8/ARRANQUE-LOCAL.md`
 - `docs/planificacao/guias-bk/MF8/BK-MF8-15-verificacao-dos-testes-atuais-e-criacao-dos-testes-em-falta.md`
 - `docs/planificacao/guias-bk/MF8/BK-MF8-16-execucao-final-de-testes.md`
 - `docs/evidence/MF8/TESTES-FINAIS.md`, gerado pelo `BK-MF8-16`
@@ -99,6 +100,7 @@ Este BK também protege a privacidade: a evidence deve mostrar comandos, estados
 
 - Requisito canónico: `RNF45`.
 - Entrada: `docs/evidence/MF8/TESTES-FINAIS.md`, criado no `BK-MF8-16`.
+- Ambiente local: confirmar `docs/planificacao/guias-bk/MF8/ARRANQUE-LOCAL.md` antes de revalidar erros.
 - Script local: `apps/api/src/scripts/mf8-error-register.ts`.
 - Teste do script: `apps/api/src/scripts/mf8-error-register.spec.ts`.
 - Comando: `cd apps/api && npm run mf8:error-register`.

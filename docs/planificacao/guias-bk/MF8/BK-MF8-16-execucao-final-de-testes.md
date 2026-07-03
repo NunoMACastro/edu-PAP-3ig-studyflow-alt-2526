@@ -69,6 +69,7 @@ Este BK também protege a defesa PAP. O aluno passa a conseguir mostrar uma tabe
 - `docs/planificacao/sprints/PLANO-SPRINTS.md`
 - `docs/planificacao/guias-bk/README.md`
 - `docs/planificacao/guias-bk/_TEMPLATE-BK.md`
+- `docs/planificacao/guias-bk/MF8/ARRANQUE-LOCAL.md`
 - `docs/planificacao/guias-bk/MF8/BK-MF8-15-verificacao-dos-testes-atuais-e-criacao-dos-testes-em-falta.md`
 - `docs/planificacao/guias-bk/MF8/BK-MF8-17-correcao-de-erros.md`
 - `apps/api/package.json`
@@ -103,6 +104,7 @@ Este BK também protege a defesa PAP. O aluno passa a conseguir mostrar uma tabe
 - Endpoint: nenhum.
 - Backend/API: script local em `apps/api/src/scripts/run-mf8-final-tests.ts`.
 - Frontend/web: sem UI nova; a web é validada por comandos existentes em `apps/web/package.json`.
+- Ambiente local: confirmar `docs/planificacao/guias-bk/MF8/ARRANQUE-LOCAL.md` antes de correr a bateria final.
 - Comando: `cd apps/api && npm run mf8:final-tests`.
 - Evidence de entrada: `docs/evidence/MF8/TESTES-EM-FALTA.md`, entregue por `BK-MF8-15`.
 - Evidence de saída: `docs/evidence/MF8/TESTES-FINAIS.md`.
