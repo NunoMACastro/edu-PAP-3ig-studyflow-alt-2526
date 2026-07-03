@@ -1,5 +1,6 @@
+// apps/api/src/modules/ai/prompts/adaptive-explanation.prompt.ts
 /**
- * Constrói prompts de ai mantendo o contexto pedagógico separado da lógica de serviço.
+ * Constrói prompts de IA mantendo o contexto pedagógico separado da lógica de serviço.
  */
 import { AiSource } from "../providers/ai-provider.js";
 import {
@@ -8,7 +9,7 @@ import {
 } from "../schemas/learning-profile.schema.js";
 
 /**
- * Contrato de artefactos de IA que documenta a estrutura esperada em tempo de desenvolvimento.
+ * Dados validados que entram no prompt adaptativo.
  */
 type BuildAdaptiveExplanationPromptInput = {
     areaName: string;
@@ -24,7 +25,7 @@ type BuildAdaptiveExplanationPromptInput = {
  * Constrói o prompt para uma explicação adaptada ao perfil do aluno.
  *
  * @param input Contexto validado pelo backend.
- * @returns Prompt com contrato JSON explícito.
+ * @returns Prompt com contrato JSON explícito para o provider.
  */
 export function buildAdaptiveExplanationPrompt(
     input: BuildAdaptiveExplanationPromptInput,
@@ -36,6 +37,7 @@ export function buildAdaptiveExplanationPrompt(
         )
         .join("\n\n");
 
+    // O prompt recebe apenas fontes autorizadas; o provider não pode procurar dados fora deste contexto.
     return [
         "És um assistente pedagógico da StudyFlow em português de Portugal.",
         "Responde apenas com base nas fontes autorizadas abaixo.",

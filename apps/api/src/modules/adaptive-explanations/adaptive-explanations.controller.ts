@@ -1,5 +1,6 @@
+// apps/api/src/modules/adaptive-explanations/adaptive-explanations.controller.ts
 /**
- * Expõe os endpoints HTTP de adaptive explanations e delega regras de negócio para o service.
+ * Expõe o endpoint HTTP de explicações adaptadas.
  */
 import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
@@ -8,23 +9,21 @@ import { AdaptiveExplanationsService } from "./adaptive-explanations.service.js"
 import { AskMf3AdaptiveExplanationDto } from "./dto/ask-adaptive-explanation.dto.js";
 
 /**
- * Endpoint MF3 de explicações adaptadas ao perfil do aluno.
+ * Controller do endpoint `POST /api/ai/adaptive-explanations`.
  */
 @Controller("api/ai/adaptive-explanations")
 @UseGuards(SessionGuard)
 export class AdaptiveExplanationsController {
     /**
-     * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
-     *
-     * @param adaptiveExplanationsService Service injetado para reutilizar regras de adaptive explanations sem duplicar validações.
+     * @param adaptiveExplanationsService Service que aplica regras de domínio.
      */
     constructor(private readonly adaptiveExplanationsService: AdaptiveExplanationsService) {}
 
     /**
-     * Delegação para o contrato acumulado de aprendizagem adaptativa.
+     * Recebe o pedido autenticado e delega a decisão no service.
      *
-     * @param request Pedido autenticado.
-     * @param body Área e pergunta.
+     * @param request Pedido com utilizador resolvido pela sessão.
+     * @param body Payload validado pelo DTO.
      * @returns Explicação adaptada.
      */
     @Post()
@@ -32,6 +31,7 @@ export class AdaptiveExplanationsController {
         @Req() request: AuthenticatedRequest,
         @Body() body: AskMf3AdaptiveExplanationDto,
     ) {
+        // O controller não calcula permissões; mantém transporte separado do domínio.
         return this.adaptiveExplanationsService.ask(request.user!, body);
     }
 }

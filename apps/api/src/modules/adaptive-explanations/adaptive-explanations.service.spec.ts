@@ -1,8 +1,10 @@
+// apps/api/src/modules/adaptive-explanations/adaptive-explanations.service.spec.ts
 /**
- * Testa o comportamento de adaptive explanations e documenta os cenários de aceitação automatizados.
+ * Testa a fachada de explicações adaptadas.
  */
 import { ForbiddenException } from "@nestjs/common";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
+import { AdaptiveLearningService } from "../ai/adaptive-learning.service.js";
 import { AdaptiveExplanationsService } from "./adaptive-explanations.service.js";
 
 describe("AdaptiveExplanationsService", () => {
@@ -18,7 +20,7 @@ describe("AdaptiveExplanationsService", () => {
     };
     const studyAreaId = "507f1f77bcf86cd799439014";
 
-    it("delegada no contrato MF1 com o aluno autenticado", async () => {
+    it("delegada no contrato de IA adaptativa com o aluno autenticado", async () => {
         const { adaptiveLearningService, service } = makeService();
 
         await expect(
@@ -27,6 +29,8 @@ describe("AdaptiveExplanationsService", () => {
                 question: "Explica derivadas devagar.",
             }),
         ).resolves.toMatchObject({ answer: "Explicação adaptada." });
+
+        // Este assert prova que o userId usado vem da sessão autenticada.
         expect(adaptiveLearningService.askAdaptiveExplanation).toHaveBeenCalledWith(
             student.id,
             studyAreaId,
@@ -40,24 +44,27 @@ describe("AdaptiveExplanationsService", () => {
         await expect(
             service.ask(teacher, {
                 studyAreaId,
-                question: "Explica.",
+                question: "Explica funções.",
             }),
         ).rejects.toBeInstanceOf(ForbiddenException);
     });
 });
 
 /**
- * Cria fixture ou estrutura auxiliar de explicações adaptativas para manter testes e prompts legíveis.
- * @returns Valor de explicações adaptativas no contrato esperado pelo chamador.
+ * Cria uma fachada com o service de IA adaptativa isolado.
+ *
+ * @returns Service testado e mock injetado.
  */
 function makeService() {
     const adaptiveLearningService = {
-        askAdaptiveExplanation: jest
-            .fn()
-            .mockResolvedValue({ answer: "Explicação adaptada." }),
+        askAdaptiveExplanation: jest.fn().mockResolvedValue({
+            answer: "Explicação adaptada.",
+            suggestedNextSteps: ["Resolver um exercício guiado."],
+            sourceMaterialIds: ["507f1f77bcf86cd799439015"],
+        }),
     };
     const service = new AdaptiveExplanationsService(
-        adaptiveLearningService as never,
+        adaptiveLearningService as unknown as AdaptiveLearningService,
     );
     return { adaptiveLearningService, service };
 }

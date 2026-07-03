@@ -1,5 +1,6 @@
+// apps/api/src/modules/adaptive-explanations/adaptive-explanations.module.ts
 /**
- * Regista providers, controllers e schemas necessários ao módulo de adaptive explanations.
+ * Regista a fachada de explicações adaptadas.
  */
 import { Module } from "@nestjs/common";
 import { AiModule } from "../ai/ai.module.js";
@@ -8,7 +9,7 @@ import { AdaptiveExplanationsController } from "./adaptive-explanations.controll
 import { AdaptiveExplanationsService } from "./adaptive-explanations.service.js";
 
 /**
- * Módulo MF3 que expõe o endpoint recomendado para explicações adaptadas.
+ * Módulo que liga autenticação, IA e endpoint público de explicações adaptadas.
  */
 @Module({
     imports: [AuthModule, AiModule],

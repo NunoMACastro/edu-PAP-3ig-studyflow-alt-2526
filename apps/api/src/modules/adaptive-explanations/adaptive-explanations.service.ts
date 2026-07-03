@@ -1,5 +1,6 @@
+// apps/api/src/modules/adaptive-explanations/adaptive-explanations.service.ts
 /**
- * Implementa as regras de negócio de adaptive explanations e concentra validações do domínio.
+ * Implementa a fachada de explicações adaptadas e concentra a regra de role.
  */
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
@@ -7,26 +8,21 @@ import { AdaptiveLearningService } from "../ai/adaptive-learning.service.js";
 import { AskMf3AdaptiveExplanationDto } from "./dto/ask-adaptive-explanation.dto.js";
 
 /**
- * Fachada MF3 para explicações adaptadas.
- *
- * O comportamento principal já foi entregue pela MF1; este service cria o
- * contrato pedido em MF3 sem duplicar validação de fontes, perfil ou persistência.
+ * Service de explicações adaptadas para o endpoint público da MF8.
  */
 @Injectable()
 export class AdaptiveExplanationsService {
     /**
-     * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
-     *
-     * @param adaptiveLearningService Service injetado para reutilizar regras de adaptive learning sem duplicar validações.
+     * @param adaptiveLearningService Service que valida área, perfil, fontes e provider.
      */
     constructor(private readonly adaptiveLearningService: AdaptiveLearningService) {}
 
     /**
-     * Gera uma explicação com o perfil de aprendizagem do aluno.
+     * Gera uma explicação adaptada para o aluno autenticado.
      *
-     * @param actor Aluno autenticado.
-     * @param input Área e pergunta.
-     * @returns Explicação produzida pelo contrato herdado.
+     * @param actor Utilizador autenticado pela sessão.
+     * @param input Área privada e pergunta do aluno.
+     * @returns Explicação adaptada persistida pelo contrato de IA.
      */
     async ask(actor: AuthenticatedUser, input: AskMf3AdaptiveExplanationDto) {
         if (actor.role !== "STUDENT") {
@@ -35,6 +31,8 @@ export class AdaptiveExplanationsService {
                 message: "Esta funcionalidade é exclusiva de alunos.",
             });
         }
+
+        // O userId vem da sessão; isto impede que o frontend peça explicações como outro aluno.
         return this.adaptiveLearningService.askAdaptiveExplanation(
             actor.id,
             input.studyAreaId,

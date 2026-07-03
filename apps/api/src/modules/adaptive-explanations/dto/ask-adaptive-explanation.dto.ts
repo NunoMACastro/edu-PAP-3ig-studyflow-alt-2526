@@ -1,20 +1,21 @@
+// apps/api/src/modules/adaptive-explanations/dto/ask-adaptive-explanation.dto.ts
 /**
- * Define contratos de dados usados nas entradas e saídas de adaptive explanations.
+ * Define o payload público de uma explicação adaptada.
  */
 import { IsMongoId, IsString, MaxLength, MinLength } from "class-validator";
 
 /**
- * Pedido MF3 para explicação adaptada ao perfil do aluno.
+ * Pedido para gerar explicação adaptada ao perfil da área do aluno.
  */
 export class AskMf3AdaptiveExplanationDto {
     /**
-     * Área de estudo privada do aluno.
+     * Área de estudo privada. O backend confirma ownership antes de gerar resposta.
      */
     @IsMongoId()
     studyAreaId!: string;
 
     /**
-     * Pergunta que deve respeitar o perfil de aprendizagem já existente.
+     * Pergunta do aluno. O nível e o ritmo vêm do perfil guardado, não deste body.
      */
     @IsString()
     @MinLength(5)
