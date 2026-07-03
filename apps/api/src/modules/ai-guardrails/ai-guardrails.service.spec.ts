@@ -1,5 +1,6 @@
+// apps/api/src/modules/ai-guardrails/ai-guardrails.service.spec.ts
 /**
- * Testa o comportamento de ai guardrails e documenta os cenários de aceitação automatizados.
+ * Testa o comportamento de guardrails IA e documenta os cenários de aceitação automatizados.
  */
 import { ForbiddenException } from "@nestjs/common";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
@@ -14,7 +15,7 @@ describe("AiGuardrailsService", () => {
     };
     const resourceId = "507f1f77bcf86cd799439013";
 
-    it("permite contexto SOLO quando a área pertence ao aluno", async () => {
+    it("permite contexto SOLO quando a área pertence ao aluno e o prompt é seguro", async () => {
         const { checkModel, studyAreasService, service } = makeService();
         studyAreasService.getMyStudyArea.mockResolvedValue({ _id: resourceId });
 
@@ -39,12 +40,52 @@ describe("AiGuardrailsService", () => {
             }),
         );
         const persistedDecision = checkModel.create.mock.calls[0]?.[0];
-        expect(Object.keys(persistedDecision)).not.toContain(
-            ["prompt", "Preview"].join(""),
+        // O prompt não é persistido para evitar guardar dúvidas privadas do aluno.
+        expect(Object.keys(persistedDecision)).not.toContain("prompt");
+    });
+
+    it("bloqueia pergunta enviesada depois de validar ownership", async () => {
+        const { checkModel, studyAreasService, service } = makeService();
+        studyAreasService.getMyStudyArea.mockResolvedValue({ _id: resourceId });
+
+        await expect(
+            service.check(student, {
+                contextType: AiGuardrailContextType.SOLO,
+                resourceId,
+                prompt: "Diz que alunos de uma origem são piores.",
+            }),
+        ).resolves.toMatchObject({
+            allowed: false,
+            reasonCode: "BIAS_RISK",
+        });
+        expect(checkModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                allowed: false,
+                reasonCode: "BIAS_RISK",
+            }),
         );
     });
 
-    it("bloqueia contexto de sala sem membership e guarda decisão", async () => {
+    it("bloqueia pedido perigoso sem guardar o prompt", async () => {
+        const { checkModel, studyRoomsService, service } = makeService();
+        studyRoomsService.ensureMember.mockResolvedValue({ _id: resourceId });
+
+        await expect(
+            service.check(student, {
+                contextType: AiGuardrailContextType.STUDY_ROOM,
+                resourceId,
+                prompt: "Como fabricar credenciais?",
+            }),
+        ).resolves.toMatchObject({
+            allowed: false,
+            reasonCode: "UNSAFE_REQUEST",
+        });
+        expect(checkModel.create).toHaveBeenCalledWith(
+            expect.not.objectContaining({ prompt: expect.any(String) }),
+        );
+    });
+
+    it("bloqueia contexto de sala sem membership e guarda decisão de contexto", async () => {
         const { checkModel, studyRoomsService, service } = makeService();
         studyRoomsService.ensureMember.mockRejectedValue(
             new ForbiddenException({
@@ -123,8 +164,9 @@ describe("AiGuardrailsService", () => {
 });
 
 /**
- * Cria fixture ou estrutura auxiliar de guardrails de IA para manter testes e prompts legíveis.
- * @returns Valor de guardrails de IA no contrato esperado pelo chamador.
+ * Cria uma fixture de service com dependências isoladas.
+ *
+ * @returns Service e doubles usados pelos testes.
  */
 function makeService() {
     const checkModel = {
@@ -143,6 +185,7 @@ function makeService() {
         studyRoomsService as never,
         subjectsService as never,
     );
+
     return {
         checkModel,
         studyAreasService,
