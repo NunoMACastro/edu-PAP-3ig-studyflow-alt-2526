@@ -101,7 +101,7 @@
 | RNF33  | IA segue limites definidos pelo professor, incluindo voz base da turma e overrides de disciplina. | Ética           | Must       |
 | RNF34  | IA evita enviesamentos e respostas inseguras.           | Ética           | Must       |
 | RNF35  | IA não pode inventar informação factual.                | Ética           | Must       |
-| RNF36  | IA adapta explicações ao nível do aluno.                | Personalização  | Should     |
+| RNF36  | IA adapta explicações ao nível do aluno, incluindo perfil pedagógico individual e ano escolar nas respostas da IA da sala. | Personalização  | Should     |
 | RNF37  | IA externa segue políticas e filtros próprios.          | Segurança IA    | Must       |
 
 ---

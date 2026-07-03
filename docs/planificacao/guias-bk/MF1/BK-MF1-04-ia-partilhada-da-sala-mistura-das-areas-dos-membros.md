@@ -16,7 +16,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF1-07`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-04-ia-partilhada-da-sala-mistura-das-areas-dos-membros.md`
-- `last_updated`: `2026-05-31`
+- `last_updated`: `2026-07-02`
 
 ## Objetivo
 Implementar `RF16`: permitir que membros de uma sala usem uma IA partilhada baseada apenas nas fontes textuais partilhadas nessa sala.
@@ -29,6 +29,7 @@ A IA da sala mistura contribuições dos membros, mas não pode consultar materi
 - Validar membership antes da chamada IA.
 - Usar apenas `RoomShare.usableByAi`.
 - Permitir filtrar fontes por `sourceIds`.
+- Adaptar a linguagem da resposta ao `StudentProfile.year` do aluno que pergunta, sem usar idade exata.
 - Guardar pergunta, resposta e fontes.
 
 ## Scope-out
@@ -36,6 +37,7 @@ A IA da sala mistura contribuições dos membros, mas não pode consultar materi
 - Materiais privados fora da sala.
 - Voz docente.
 - Respostas sem fontes.
+- Guardar ano escolar, idade ou perfil pedagógico dentro de `RoomAiInteraction`.
 
 ## Estado antes
 - `BK-MF1-02` criou salas.
@@ -44,12 +46,14 @@ A IA da sala mistura contribuições dos membros, mas não pode consultar materi
 ## Estado depois
 - Membro pergunta à IA da sala.
 - API responde com fontes da sala.
+- API adapta a forma da explicação ao ano escolar do aluno autenticado que perguntou.
 - Sala sem fontes devolve `422`.
 - Não membro recebe erro.
 
 ## Pré-requisitos
 - `StudyRoomsService.ensureMember`.
 - `RoomSharesService.findUsableSharesForRoom`.
+- `StudentProfileService.getMyProfile`.
 - `AiModule` com `AI_PROVIDER` exportado.
 - `BK-MF1-03` merged, porque a IA só pode responder sobre `RoomShare` validado.
 
@@ -57,6 +61,7 @@ A IA da sala mistura contribuições dos membros, mas não pode consultar materi
 - **Fonte da sala**: partilha textual com `usableByAi`.
 - **sourceIds**: lista opcional de partilhas escolhidas pelo aluno.
 - **Interação da sala**: registo de pergunta, resposta e fontes.
+- **Contexto pedagógico da sala**: etapa derivada do campo `Ano` do perfil do aluno que fez a pergunta.
 
 ## Conceitos teóricos
 **IA partilhada da sala.** Esta IA responde com base nas partilhas textuais feitas pelos membros da sala. Ela não usa materiais privados do aluno, materiais oficiais de turma nem conteúdo de outras salas.
@@ -72,6 +77,8 @@ A IA da sala mistura contribuições dos membros, mas não pode consultar materi
 **Porque `sourceIds` não são confiáveis.** Um aluno pode alterar o pedido no browser e enviar IDs de outra sala. Por isso, o backend cruza sempre os IDs recebidos com `roomId` e `usableByAi: true`. Se o ID não pertence à sala, não entra no prompt.
 
 **Resposta com fontes.** A resposta devolve `sources` com `shareId` e `title`. Isto permite ao aluno perceber que apontamentos sustentaram a explicação e ajuda a defender que a IA respeitou o contexto da sala.
+
+**Adaptação ao ano escolar.** A IA da sala usa o `StudentProfile.year` do aluno autenticado que faz a pergunta para ajustar linguagem, granularidade, exemplos e profundidade. O frontend não envia ano, idade ou nível no pedido da IA; o backend resolve o perfil pela sessão. Esta adaptação não altera fontes, permissões nem factos, e não é persistida em `RoomAiInteraction`.
 
 **Validação da resposta da IA.** O provider tem de devolver `answer` não vazia e `sourceShareIds` pertencentes às partilhas autorizadas da sala. Se o provider falhar ou devolver uma resposta inválida, o endpoint devolve `503`. Se não houver fontes processáveis antes da chamada, devolve `422`.
 

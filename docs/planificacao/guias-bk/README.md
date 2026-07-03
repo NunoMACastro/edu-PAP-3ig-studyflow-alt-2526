@@ -6,7 +6,7 @@
 - `area`: `project`
 - `owner`: `Nuno`
 - `status`: `ativo`
-- `last_updated`: `2026-05-31`
+- `last_updated`: `2026-07-02`
 
 ## Regra de naming oficial
 - Formato obrigatorio: `BK-MF*-**-slug-semantico.md`.
@@ -26,6 +26,7 @@
 - `BK-MF0-12` é o fecho técnico da fundação de IA: `AiModule` deve preservar `AiAreaProfileService`, `SummariesService`, `StudyToolsService` e exportar `AI_PROVIDER`.
 - `MF1` deve acrescentar capacidades sobre estes contratos, não substituir módulos partilhados. `ai.module.ts` e `study-rooms.module.ts` são ficheiros acumulativos.
 - Decisão transversal ativa: [Herança da voz IA docente](DECISAO-ARQUITETURA-VOZ-IA-DOCENTE.md). A voz base pertence à turma; a disciplina tem override opcional; salas guiadas podem associar disciplina, mas não têm override próprio.
+- Decisão transversal ativa: [IA da sala adapta explicações ao ano escolar](DECISAO-IA-SALA-ADAPTACAO-ANO-ESCOLAR.md). A IA da sala usa `StudentProfile.year` do aluno que pergunta, nunca idade exata enviada pelo frontend.
 - Fases futuras devem importar os módulos/serviços herdados e só alterar contratos partilhados quando o BK anterior da cadeia já estiver merged.
 - PRs paralelos só são aceitáveis entre cadeias que não editem o mesmo módulo partilhado.
 
