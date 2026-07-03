@@ -1,5 +1,6 @@
+// apps/api/src/modules/external-knowledge-ai/external-knowledge-ai.service.ts
 /**
- * Implementa as regras de negócio de IA com conhecimento externo limitado e concentra validações do domínio.
+ * Implementa as regras de negócio de IA com conhecimento externo limitado.
  */
 import {
     ForbiddenException,
@@ -15,6 +16,7 @@ import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider.js";
 import { MaterialsService } from "../materials/materials.service.js";
 import { StudyAreasService } from "../study-areas/study-areas.service.js";
 import { AskExternalKnowledgeAiDto } from "./dto/ask-external-knowledge-ai.dto.js";
+import { resolveExternalAiPolicy } from "./external-ai-policy.js";
 import {
     ExternalKnowledgeAiAnswer,
     ExternalKnowledgeAiAnswerDocument,
@@ -22,7 +24,7 @@ import {
 } from "./schemas/external-knowledge-ai-answer.schema.js";
 
 /**
- * Vista pública de IA com conhecimento externo limitado, sem detalhes internos de Mongoose.
+ * Vista pública devolvida à UI sem detalhes internos de Mongoose.
  */
 export type ExternalKnowledgeAiAnswerView = {
     _id: string;
@@ -36,17 +38,15 @@ export type ExternalKnowledgeAiAnswerView = {
 };
 
 /**
- * Serviço para conhecimento externo limitado e explicitamente marcado.
+ * Serviço responsável por respostas com fontes internas e contexto externo limitado.
  */
 @Injectable()
 export class ExternalKnowledgeAiService {
     /**
-     * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
-     *
-     * @param answerModel Modelo Mongoose injetado para ler e persistir IA com conhecimento externo limitado.
-     * @param studyAreasService Service injetado para reutilizar regras de áreas de estudo sem duplicar validações.
-     * @param materialsService Service injetado para reutilizar regras de materiais sem duplicar validações.
-     * @param aiProvider Provider injetado para isolar integração externa e facilitar testes.
+     * @param answerModel Modelo Mongoose usado para persistir respostas.
+     * @param studyAreasService Service que valida ownership da área.
+     * @param materialsService Service que lista fontes internas processáveis.
+     * @param aiProvider Provider isolado usado apenas depois das validações.
      */
     constructor(
         @InjectModel(ExternalKnowledgeAiAnswer.name)
@@ -60,12 +60,12 @@ export class ExternalKnowledgeAiService {
     /**
      * Cria resposta com citações internas e nota externa opcional.
      *
-     * @param actor Aluno autenticado.
-     * @param input Área, pergunta e permissão externa.
-     * @returns Resposta persistida.
-     * @throws ForbiddenException quando o actor não é aluno.
-     * @throws UnprocessableEntityException quando não existem fontes internas.
-     * @throws ServiceUnavailableException quando o provider falha ou devolve output inválido.
+     * @param actor Utilizador autenticado pela sessão.
+     * @param input Payload validado pelo DTO.
+     * @returns Resposta persistida e pronta para apresentação.
+     * @throws ForbiddenException quando o utilizador não é aluno.
+     * @throws UnprocessableEntityException quando não existem fontes internas processáveis.
+     * @throws ServiceUnavailableException quando o provider falha ou devolve formato inválido.
      */
     async ask(
         actor: AuthenticatedUser,
@@ -78,7 +78,7 @@ export class ExternalKnowledgeAiService {
             });
         }
 
-        // Ownership da área vem antes de qualquer citação para impedir leitura cruzada entre alunos.
+        // Ownership da área vem antes das fontes para impedir acesso cruzado entre alunos.
         const area = await this.studyAreasService.getMyStudyArea(
             actor.id,
             input.studyAreaId,
@@ -87,6 +87,7 @@ export class ExternalKnowledgeAiService {
             actor.id,
             input.studyAreaId,
         );
+
         if (materials.length === 0) {
             throw new UnprocessableEntityException({
                 code: "NO_INTERNAL_SOURCES",
@@ -95,22 +96,23 @@ export class ExternalKnowledgeAiService {
             });
         }
 
-        const citations = materials.slice(0, 3).map((material) => ({
+        const citations = materials.slice(0, 3).map((material: any) => ({
             materialId: String(material._id),
             title: material.title,
             excerpt: (material.contentText ?? "").trim().slice(0, 420),
         }));
-        const externalNotes = input.allowExternalKnowledge
-            ? [
-                  "Nota externa limitada: não foi feita navegação web nem importação automática; a resposta apenas acrescenta enquadramento pedagógico geral separado das fontes internas.",
-              ]
-            : [];
-        // O uso externo fica explícito e separado para não se confundir com citações internas verificáveis.
+        
+        const policy = resolveExternalAiPolicy({
+            allowExternalKnowledge: input.allowExternalKnowledge,
+            internalSourceCount: citations.length,
+        });
+
+        // O provider recebe a decisão final da policy, não o valor bruto vindo da UI.
         const answer = await this.generateAnswer(
             area.name,
             input.question,
             citations,
-            input.allowExternalKnowledge,
+            policy.externalAllowed,
         );
 
         const document = await this.answerModel.create({
@@ -118,11 +120,12 @@ export class ExternalKnowledgeAiService {
             studyAreaId: new Types.ObjectId(input.studyAreaId),
             question: input.question.trim(),
             answer,
-            externalUsed: input.allowExternalKnowledge,
+            externalUsed: policy.externalAllowed,
             internalCitations: citations,
-            externalNotes,
+            externalNotes: policy.externalNotes,
         });
         const created = document.toObject() as { createdAt?: Date };
+
         return {
             _id: String(document._id),
             studyAreaId: input.studyAreaId,
@@ -136,24 +139,24 @@ export class ExternalKnowledgeAiService {
     }
 
     /**
-     * Chama o provider IA mantendo fontes internas e nota externa separadas.
+     * Chama o provider IA mantendo fontes internas como verdade principal.
      *
-     * @param areaName Nome da área privada.
-     * @param question Pergunta do aluno.
+     * @param areaName Nome da área privada do aluno.
+     * @param question Pergunta validada do aluno.
      * @param citations Citações internas autorizadas.
-     * @param allowExternalKnowledge Permissão explícita para contexto externo.
-     * @returns Resposta validada.
+     * @param externalAllowed Decisão final da policy.
+     * @returns Texto validado devolvido pelo provider.
      */
     private async generateAnswer(
         areaName: string,
         question: string,
         citations: ExternalKnowledgeInternalCitation[],
-        allowExternalKnowledge: boolean,
+        externalAllowed: boolean,
     ): Promise<string> {
         const prompt = [
             "Responde em português de Portugal.",
             "Usa as fontes internas autorizadas como verdade principal.",
-            allowExternalKnowledge
+            externalAllowed
                 ? "Podes acrescentar contexto externo curto, geral e separado das fontes internas."
                 : "Não uses conhecimento externo.",
             `Área: ${areaName}`,
@@ -171,6 +174,7 @@ export class ExternalKnowledgeAiService {
 
         let providerResult: Record<string, unknown>;
         try {
+            // A chamada externa fica isolada para ser substituída por fixture nos testes.
             providerResult = await this.aiProvider.generateStudyTool({
                 prompt,
                 type: "EXPLANATION",
@@ -182,7 +186,7 @@ export class ExternalKnowledgeAiService {
             });
         }
 
-        const answer = providerResult.answer;
+        const answer = providerResult?.answer;
         if (typeof answer !== "string" || answer.trim().length === 0) {
             throw new ServiceUnavailableException({
                 code: "AI_PROVIDER_INVALID_RESPONSE",
