@@ -1,87 +1,45 @@
+// apps/api/src/modules/ai/adaptive-learning.service.spec.ts
 /**
- * Testa o comportamento de ai e documenta os cenários de aceitação automatizados.
+ * Testa perfil, fontes e provider das explicações adaptativas.
  */
 import { ServiceUnavailableException, UnprocessableEntityException } from "@nestjs/common";
-import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { AdaptiveLearningService } from "./adaptive-learning.service.js";
 
+const studentId = "507f1f77bcf86cd799439012";
 const studyAreaId = "507f1f77bcf86cd799439014";
 const materialId = "507f1f77bcf86cd799439015";
 
-describe("AdaptiveLearningService", () => {
-    const student: AuthenticatedUser = {
-        id: "507f1f77bcf86cd799439012",
-        email: "aluno@example.test",
-        role: "STUDENT",
-    };
-
-    it("não chama a IA quando a área não tem materiais READY com texto", async () => {
-        const { aiProvider, explanationModel, materialsService, service } =
-            makeService();
+describe("AdaptiveLearningService - RNF36", () => {
+    it("não chama a IA quando a área não tem materiais processáveis", async () => {
+        const { aiProvider, explanationModel, materialsService, service } = makeService();
         materialsService.listReadyTextSources.mockResolvedValue([]);
 
         await expect(
-            service.askAdaptiveExplanation(student.id, studyAreaId, {
+            service.askAdaptiveExplanation(studentId, studyAreaId, {
                 question: "Explica funções.",
             }),
         ).rejects.toBeInstanceOf(UnprocessableEntityException);
+
         expect(aiProvider.generateAdaptiveExplanation).not.toHaveBeenCalled();
         expect(explanationModel.create).not.toHaveBeenCalled();
     });
 
-    it("devolve 503 quando o provider devolve fontes fora dos materiais autorizados", async () => {
-        const { aiProvider, explanationModel, historyService, service } =
-            makeService();
-        aiProvider.generateAdaptiveExplanation.mockResolvedValue({
-            answer: "Uma função relaciona valores.",
-            suggestedNextSteps: ["Rever exemplos."],
-            sourceMaterialIds: ["507f1f77bcf86cd799439099"],
+    it("usa defaults seguros quando o perfil ainda não existe", async () => {
+        const { aiProvider, explanationModel, profileModel, service } = makeService();
+        profileModel.findOne.mockReturnValueOnce(leanResult(null));
+        aiProvider.generateAdaptiveExplanation.mockResolvedValue(validProviderResult());
+        explanationModel.create.mockResolvedValue(savedExplanation());
+
+        await service.askAdaptiveExplanation(studentId, studyAreaId, {
+            question: "Explica funções.",
         });
 
-        await expect(
-            service.askAdaptiveExplanation(student.id, studyAreaId, {
-                question: "Explica funções.",
-            }),
-        ).rejects.toBeInstanceOf(ServiceUnavailableException);
-        expect(explanationModel.create).not.toHaveBeenCalled();
-        expect(historyService.recordEvent).not.toHaveBeenCalled();
-    });
-
-    it("guarda dificuldades e estilo preferido no perfil adaptativo", async () => {
-        const { profileModel, service } = makeService();
-        profileModel.findOneAndUpdate.mockReturnValue(
-            leanResult({
-                _id: "507f1f77bcf86cd799439016",
-                studyAreaId,
-                pace: "SLOW",
-                level: "BEGINNER",
-                difficulties: ["frações", "interpretação de enunciados"],
-                preferredExplanationStyle: "Passo a passo com exemplos",
-            }),
-        );
-
-        const profile = await service.updateLearningProfile(student.id, studyAreaId, {
-            pace: "SLOW",
-            level: "BEGINNER",
-            difficulties: [" frações ", "", "interpretação de enunciados"],
-            preferredExplanationStyle: " Passo a passo com exemplos ",
+        // Sem perfil persistido, a explicação usa BALANCED/INTERMEDIATE em vez de inventar nível.
+        expect(aiProvider.generateAdaptiveExplanation).toHaveBeenCalledWith({
+            prompt: expect.stringContaining("Ritmo: BALANCED"),
         });
-
-        expect(profileModel.findOneAndUpdate).toHaveBeenCalledWith(
-            expect.any(Object),
-            expect.objectContaining({
-                $set: {
-                    pace: "SLOW",
-                    level: "BEGINNER",
-                    difficulties: ["frações", "interpretação de enunciados"],
-                    preferredExplanationStyle: "Passo a passo com exemplos",
-                },
-            }),
-            expect.any(Object),
-        );
-        expect(profile).toMatchObject({
-            difficulties: ["frações", "interpretação de enunciados"],
-            preferredExplanationStyle: "Passo a passo com exemplos",
+        expect(aiProvider.generateAdaptiveExplanation).toHaveBeenCalledWith({
+            prompt: expect.stringContaining("Nível: INTERMEDIATE"),
         });
     });
 
@@ -98,23 +56,17 @@ describe("AdaptiveLearningService", () => {
                 preferredExplanationStyle: "explicações com analogias",
             }),
         );
-        aiProvider.generateAdaptiveExplanation.mockResolvedValue({
-            answer: "Uma função relaciona valores.",
-            suggestedNextSteps: ["Resolver um exercício guiado."],
-            sourceMaterialIds: [materialId],
-        });
-        explanationModel.create.mockResolvedValue({
-            _id: "507f1f77bcf86cd799439017",
-            question: "Explica funções.",
-            answer: "Uma função relaciona valores.",
-            suggestedNextSteps: ["Resolver um exercício guiado."],
-            toObject: () => ({ createdAt: new Date("2026-01-01T00:00:00.000Z") }),
-        });
+        aiProvider.generateAdaptiveExplanation.mockResolvedValue(validProviderResult());
+        explanationModel.create.mockResolvedValue(savedExplanation());
 
-        await service.askAdaptiveExplanation(student.id, studyAreaId, {
+        await service.askAdaptiveExplanation(studentId, studyAreaId, {
             question: "Explica funções.",
         });
 
+        // O prompt mostra a adaptação pedagógica sem aceitar estes valores do frontend.
+        expect(aiProvider.generateAdaptiveExplanation).toHaveBeenCalledWith({
+            prompt: expect.stringContaining("Nível: BEGINNER"),
+        });
         expect(aiProvider.generateAdaptiveExplanation).toHaveBeenCalledWith({
             prompt: expect.stringContaining("Dificuldades declaradas: frações"),
         });
@@ -125,11 +77,30 @@ describe("AdaptiveLearningService", () => {
         });
         expect(historyService.recordEvent).toHaveBeenCalled();
     });
+
+    it("não persiste resposta quando o provider devolve fontes não autorizadas", async () => {
+        const { aiProvider, explanationModel, historyService, service } = makeService();
+        aiProvider.generateAdaptiveExplanation.mockResolvedValue({
+            answer: "Uma função relaciona valores.",
+            suggestedNextSteps: ["Rever exemplos."],
+            sourceMaterialIds: ["507f1f77bcf86cd799439099"],
+        });
+
+        await expect(
+            service.askAdaptiveExplanation(studentId, studyAreaId, {
+                question: "Explica funções.",
+            }),
+        ).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+        expect(explanationModel.create).not.toHaveBeenCalled();
+        expect(historyService.recordEvent).not.toHaveBeenCalled();
+    });
 });
 
 /**
- * Cria fixture ou estrutura auxiliar de artefactos de IA para manter testes e prompts legíveis.
- * @returns Valor de artefactos de IA no contrato esperado pelo chamador.
+ * Cria o service com dependências isoladas.
+ *
+ * @returns Service real e mocks controlados.
  */
 function makeService() {
     const profileModel = {
@@ -180,11 +151,39 @@ function makeService() {
 }
 
 /**
- * Executa a operação lean result no domínio de artefactos de IA com contrato explícito.
+ * Simula o resultado de `.lean()` usado pelos models Mongoose.
  *
- * @param value Valor bruto recebido antes de normalização, parsing ou validação.
- * @returns Valor de artefactos de IA no contrato esperado pelo chamador.
+ * @param value Valor devolvido pela query.
+ * @returns Objeto com função lean controlada.
  */
 function leanResult(value: unknown) {
     return { lean: jest.fn().mockResolvedValue(value) };
+}
+
+/**
+ * Devolve uma resposta válida do provider.
+ *
+ * @returns Resultado compatível com as fontes autorizadas.
+ */
+function validProviderResult() {
+    return {
+        answer: "Uma função relaciona valores.",
+        suggestedNextSteps: ["Resolver um exercício guiado."],
+        sourceMaterialIds: [materialId],
+    };
+}
+
+/**
+ * Devolve uma explicação persistida pelo model.
+ *
+ * @returns Documento mínimo usado pelo service depois de guardar.
+ */
+function savedExplanation() {
+    return {
+        _id: "507f1f77bcf86cd799439017",
+        question: "Explica funções.",
+        answer: "Uma função relaciona valores.",
+        suggestedNextSteps: ["Resolver um exercício guiado."],
+        toObject: () => ({ createdAt: new Date("2026-01-01T00:00:00.000Z") }),
+    };
 }

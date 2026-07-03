@@ -1,5 +1,6 @@
+// apps/api/src/modules/ai/dto/update-learning-profile.dto.ts
 /**
- * Define contratos de dados usados nas entradas e saídas de ai.
+ * Define os dados editáveis do perfil pedagógico.
  */
 import {
     ArrayMaxSize,
@@ -11,7 +12,7 @@ import {
 } from "class-validator";
 
 /**
- * Dados editáveis do perfil de aprendizagem.
+ * Payload usado quando o aluno ajusta ritmo, nível e preferências da IA.
  */
 export class UpdateLearningProfileDto {
     @IsOptional()

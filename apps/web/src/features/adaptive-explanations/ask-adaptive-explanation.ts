@@ -1,21 +1,30 @@
+// apps/web/src/features/adaptive-explanations/ask-adaptive-explanation.ts
 /**
- * Implementa a funcionalidade frontend de adaptive explanations e o respetivo contrato com a API.
+ * Cliente frontend para pedir explicações adaptadas.
  */
 import { AdaptiveExplanation } from "../../lib/apiClient.js";
 import { requestMf3Json } from "../mf3/request-mf3-json.js";
 
 /**
- * Pede explicação adaptada ao perfil do aluno.
- *
- * @param input Área e pergunta.
- * @returns Explicação adaptada.
+ * Payload permitido pelo endpoint público de explicações adaptadas.
  */
-export function askMf3AdaptiveExplanation(input: {
+export type AskMf3AdaptiveExplanationInput = {
     studyAreaId: string;
     question: string;
-}): Promise<AdaptiveExplanation> {
+};
+
+/**
+ * Pede uma explicação adaptada ao perfil pedagógico da área.
+ *
+ * @param input Área privada e pergunta do aluno.
+ * @returns Explicação adaptada devolvida pelo backend.
+ */
+export function askMf3AdaptiveExplanation(
+    input: AskMf3AdaptiveExplanationInput,
+): Promise<AdaptiveExplanation> {
     return requestMf3Json<AdaptiveExplanation>("/api/ai/adaptive-explanations", {
         method: "POST",
+        // O frontend envia apenas a área e a pergunta; o perfil vem do backend.
         body: JSON.stringify(input),
     });
 }

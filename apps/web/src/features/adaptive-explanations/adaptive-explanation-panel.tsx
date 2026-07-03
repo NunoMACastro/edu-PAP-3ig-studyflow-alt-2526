@@ -1,14 +1,15 @@
+// apps/web/src/features/adaptive-explanations/adaptive-explanation-panel.tsx
 /**
- * Implementa a funcionalidade frontend de adaptive explanations e o respetivo contrato com a API.
+ * Painel React para explicações adaptadas ao perfil do aluno.
  */
 import { FormEvent, useState } from "react";
 import { AdaptiveExplanation } from "../../lib/apiClient.js";
 import { askMf3AdaptiveExplanation } from "./ask-adaptive-explanation.js";
 
 /**
- * Painel MF3 de explicações adaptadas ao perfil.
+ * Formulário simples para pedir e apresentar uma explicação adaptada.
  *
- * @returns Formulário e explicação gerada.
+ * @returns Componente com estados de vazio, loading, erro e sucesso.
  */
 export function AdaptiveExplanationPanel() {
     const [studyAreaId, setStudyAreaId] = useState("");
@@ -17,52 +18,102 @@ export function AdaptiveExplanationPanel() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const canSubmit = studyAreaId.trim().length === 24 && question.trim().length >= 5;
+
     /**
-     * Trata a acao do utilizador e sincroniza o estado da interface.
+     * Envia o pedido ao backend e atualiza apenas estado visual.
      *
-     * @param event Evento da interface que dispara a acao.
+     * @param event Evento de submissão do formulário.
      */
     async function handleSubmit(event: FormEvent): Promise<void> {
         event.preventDefault();
+        if (!canSubmit) {
+            setError("Escolhe uma área válida e escreve uma pergunta com pelo menos 5 caracteres.");
+            return;
+        }
+
         setLoading(true);
         setError(null);
+        setAnswer(null);
+
         try {
-            setAnswer(await askMf3AdaptiveExplanation({ studyAreaId, question }));
+            // A autorização fica no backend; a UI só recolhe input e mostra o resultado.
+            setAnswer(
+                await askMf3AdaptiveExplanation({
+                    studyAreaId: studyAreaId.trim(),
+                    question: question.trim(),
+                }),
+            );
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : "Erro ao responder.");
+            setError(
+                caught instanceof Error
+                    ? caught.message
+                    : "Não foi possível gerar a explicação adaptada.",
+            );
         } finally {
             setLoading(false);
         }
     }
 
     return (
-        <section className="sf-panel space-y-4">
-            <h2 className="text-lg font-semibold">Explicação adaptada</h2>
-            {error ? <p className="sf-error">{error}</p> : null}
+        <section className="sf-panel space-y-4" aria-labelledby="adaptive-explanation-title">
+            <header>
+                <h2 id="adaptive-explanation-title" className="text-lg font-semibold">
+                    Explicação adaptada
+                </h2>
+                <p className="text-sm text-slate-600">
+                    A resposta usa o perfil pedagógico guardado para esta área.
+                </p>
+            </header>
+
             <form className="space-y-3" onSubmit={(event) => void handleSubmit(event)}>
-                <label className="block">
-                    Área
-                    <input value={studyAreaId} onChange={(event) => setStudyAreaId(event.target.value)} />
+                <label className="block text-sm font-medium" htmlFor="adaptive-study-area-id">
+                    Área de estudo
                 </label>
-                <label className="block">
+                <input
+                    id="adaptive-study-area-id"
+                    className="sf-input"
+                    value={studyAreaId}
+                    onChange={(event) => setStudyAreaId(event.target.value)}
+                    placeholder="ID da área de estudo"
+                />
+
+                <label className="block text-sm font-medium" htmlFor="adaptive-question">
                     Pergunta
-                    <textarea rows={3} value={question} onChange={(event) => setQuestion(event.target.value)} />
                 </label>
-                <button className="sf-button-primary" disabled={loading || question.trim().length < 5}>
-                    {loading ? "A responder..." : "Responder"}
+                <textarea
+                    id="adaptive-question"
+                    className="sf-input min-h-28"
+                    rows={4}
+                    value={question}
+                    onChange={(event) => setQuestion(event.target.value)}
+                    placeholder="Escreve a dúvida que queres esclarecer."
+                />
+
+                <button className="sf-button-primary" disabled={loading || !canSubmit}>
+                    {loading ? "A adaptar explicação..." : "Gerar explicação"}
                 </button>
             </form>
+
+            {error ? <p className="sf-error" role="alert">{error}</p> : null}
+
+            {!answer && !loading && !error ? (
+                <p className="text-sm text-slate-600">
+                    Ainda não existe uma explicação nesta sessão.
+                </p>
+            ) : null}
+
             {answer ? (
-                <div className="space-y-2 text-sm">
-                    <p className="whitespace-pre-line text-slate-800">{answer.answer}</p>
+                <article className="space-y-3 rounded border border-slate-200 p-4">
+                    <p className="whitespace-pre-line text-sm text-slate-800">{answer.answer}</p>
                     {answer.suggestedNextSteps.length > 0 ? (
-                        <ul className="list-disc space-y-1 pl-5">
+                        <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
                             {answer.suggestedNextSteps.map((step) => (
                                 <li key={step}>{step}</li>
                             ))}
                         </ul>
                     ) : null}
-                </div>
+                </article>
             ) : null}
         </section>
     );
