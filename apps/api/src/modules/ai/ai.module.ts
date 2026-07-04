@@ -1,3 +1,4 @@
+// apps/api/src/modules/ai/ai.module.ts
 /**
  * Regista providers, controllers e schemas necessários ao módulo de ai.
  */
@@ -11,6 +12,7 @@ import { AdaptiveLearningController } from "./adaptive-learning.controller.js";
 import { AdaptiveLearningService } from "./adaptive-learning.service.js";
 import { AiAreaProfileController } from "./ai-area-profile.controller.js";
 import { AiAreaProfileService } from "./ai-area-profile.service.js";
+import { ArtifactExportService } from "./artifact-export.service.js";
 import { AI_PROVIDER, createAiProvider } from "./providers/ai-provider.js";
 import { QuizGenerationJobsService } from "./quiz-generation-jobs.service.js";
 import {
@@ -74,6 +76,7 @@ import { SummariesService } from "./summaries.service.js";
         AiAreaProfileService,
         SummariesService,
         StudyToolsService,
+        ArtifactExportService,
         QuizGenerationJobsService,
         AdaptiveLearningService,
         { provide: AI_PROVIDER, useFactory: createAiProvider },
@@ -83,6 +86,7 @@ import { SummariesService } from "./summaries.service.js";
         AiAreaProfileService,
         SummariesService,
         StudyToolsService,
+        ArtifactExportService,
         QuizGenerationJobsService,
         AdaptiveLearningService,
     ],

@@ -433,6 +433,34 @@ export type MaterialIndexJob = {
         text: string;
         sourceLabel: string;
         locator: string;
+/**
+ * Formatos suportados para exportação de artefactos.
+ */
+export type ArtifactExportFormat = "md" | "pdf";
+
+/**
+ * Ficheiro textual devolvido pela API para exportação de artefactos.
+ */
+export type ArtifactExportFile = {
+    fileName: string;
+    contentType: string;
+    disposition: "attachment" | "inline";
+    body: string;
+};
+
+/**
+ * Pedido ao backend para exportar um artefacto da área de estudo.
+ * Roda via endpoint controlado no backend e devolve metadados e corpo.
+ */
+export function exportStudyToolArtifact(
+    studyAreaId: string,
+    artifactId: string,
+    format: ArtifactExportFormat,
+): Promise<ArtifactExportFile> {
+    return requestJson<ArtifactExportFile>(
+        `/api/study-areas/${studyAreaId}/study-tools/${artifactId}/export?format=${format}`,
+    );
+}
     }[];
     errorMessage?: string;
     createdAt?: string;
