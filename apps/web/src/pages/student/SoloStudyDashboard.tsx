@@ -1,8 +1,10 @@
+// apps/web/src/pages/student/SoloStudyDashboard.tsx
 /**
- * Implementa uma pagina React de student com estado, carregamento e ações do utilizador.
+ * Implementa uma página React de student com estado, carregamento e ações do utilizador.
  */
 import { useEffect, useState } from "react";
 import { PageHeader } from "../../components/PageHeader.js";
+import { MockupAlignmentPanel } from "../../features/mf8/mockup-alignment-panel.js";
 import {
     finishPerformanceBudget,
     formatPerformanceBudgetMessage,
@@ -105,6 +107,9 @@ export function SoloStudyDashboard() {
             <div className="flex flex-wrap gap-3">
                 <a className="sf-button-secondary" href="/app/rotinas">Organizar rotinas</a>
             </div>
+
+            {/* A checklist fica no dashboard para ser fácil recolher evidence no fecho da PAP. */}
+            <MockupAlignmentPanel />
         </section>
     );
 }
