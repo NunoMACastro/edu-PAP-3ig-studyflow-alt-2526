@@ -1,3 +1,4 @@
+// apps/api/src/modules/materials/materials.service.ts
 /**
  * Implementa as regras de negócio de materials e concentra validações do domínio.
  */
@@ -8,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
+import { normalizePortugueseStudyText } from "../../common/text/pt-text-normalization.js";
 import { AuditLogService } from "../audit-log/audit-log.service.js";
 import { HistoryService } from "../study/history.service.js";
 import { StudyAreasService } from "../study-areas/study-areas.service.js";
@@ -210,6 +212,8 @@ export class MaterialsService {
         materialId: string,
         contentText: string,
     ): Promise<void> {
+        const normalized = this.normalizeMaterialText(contentText);
+
         await this.materialModel.updateOne(
             {
                 _id: new Types.ObjectId(materialId),
@@ -218,7 +222,8 @@ export class MaterialsService {
             {
                 $set: {
                     status: "READY",
-                    contentText: contentText.slice(0, 10000),
+                    // Guardamos apenas texto normalizado e limitado para reduzir exposição de material privado.
+                    contentText: normalized.slice(0, 10000),
                 },
             },
         );
@@ -334,11 +339,11 @@ export class MaterialsService {
         }
 
         if (input.type === "TOPIC") {
-            const contentText = input.topicText?.trim();
-            if (!contentText || contentText.length < 10) {
+            const contentText = this.normalizeMaterialText(input.topicText ?? "");
+            if (contentText.length < 10) {
                 throw new BadRequestException({
                     code: "TOPIC_TEXT_REQUIRED",
-                    message: "Escreve pelo menos 10 caracteres.",
+                    message: "Escreve pelo menos 10 caracteres legíveis em português.",
                 });
             }
 
@@ -376,6 +381,25 @@ export class MaterialsService {
             code: "INVALID_MATERIAL_TYPE",
             message: "Tipo de material inválido.",
         });
+    }
+
+    /**
+     * Normaliza texto privado antes de o guardar como fonte processável.
+     *
+     * @param value Texto bruto recebido de formulário ou indexação.
+     * @returns Texto normalizado e legível.
+     */
+    private normalizeMaterialText(value: string): string {
+        const normalized = normalizePortugueseStudyText(value);
+        if (!normalized.hasReadableContent) {
+            // A mensagem é pública e não inclui excertos do material privado.
+            throw new BadRequestException({
+                code: "MATERIAL_TEXT_NOT_READABLE",
+                message: "O material não tem texto legível para estudar.",
+            });
+        }
+
+        return normalized.text;
     }
 
     /**

@@ -14,6 +14,7 @@ import https from "node:https";
 import mammoth from "mammoth";
 import { Model, Types } from "mongoose";
 import { isIP } from "net";
+import { normalizePortugueseStudyText } from "../../common/text/pt-text-normalization.js";
 import {
     isTransientNetworkError,
     retryWithRecovery,
@@ -582,10 +583,19 @@ export class MaterialIndexService {
     ): Promise<{ text?: string; errorMessage?: string }> {
         try {
             if (material.type === "TOPIC") {
-                return { text: material.contentText };
+                const normalized = normalizePortugueseStudyText(material.contentText ?? "");
+                if (!normalized.hasReadableContent) {
+                    return { errorMessage: "O material não tem texto legível para estudar." };
+                }
+                return { text: normalized.text };
             }
             if (material.type === "URL") {
-                return { text: await this.fetchTextFromUrl(material.url) };
+                const rawText = await this.fetchTextFromUrl(material.url);
+                const normalized = normalizePortugueseStudyText(rawText);
+                if (!normalized.hasReadableContent) {
+                    return { errorMessage: "O material não tem texto legível para estudar." };
+                }
+                return { text: normalized.text };
             }
             if (!material.storageKey) {
                 return { errorMessage: "O ficheiro do material não está disponível." };
@@ -600,25 +610,28 @@ export class MaterialIndexService {
                 declaredSizeBytes: material.sizeBytes,
                 title: material.title,
             });
+            let rawText: string;
             if (material.type === "PDF") {
-                return {
-                    text: await this.documentSafety.runWithTimeout({
-                        label: material.title,
-                        // O timeout impede que um PDF problemático prenda a fila de indexação.
-                        operation: () => this.extractPdfText(buffer),
-                    }),
-                };
+                rawText = await this.documentSafety.runWithTimeout({
+                    label: material.title,
+                    // O timeout impede que um PDF problemático prenda a fila de indexação.
+                    operation: () => this.extractPdfText(buffer),
+                });
+            } else if (material.type === "DOCX") {
+                rawText = await this.documentSafety.runWithTimeout({
+                    label: material.title,
+                    // DOCX usa o mesmo limite para manter comportamento previsível entre formatos.
+                    operation: () => this.extractDocxText(buffer),
+                });
+            } else {
+                return { errorMessage: "Tipo de material privado não suportado." };
             }
-            if (material.type === "DOCX") {
-                return {
-                    text: await this.documentSafety.runWithTimeout({
-                        label: material.title,
-                        // DOCX usa o mesmo limite para manter comportamento previsível entre formatos.
-                        operation: () => this.extractDocxText(buffer),
-                    }),
-                };
+
+            const normalized = normalizePortugueseStudyText(rawText);
+            if (!normalized.hasReadableContent) {
+                return { errorMessage: "O material não tem texto legível para estudar." };
             }
-            return { errorMessage: "Tipo de material privado não suportado." };
+            return { text: normalized.text };
         } catch (error) {
             return { errorMessage: this.toExtractionError(error) };
         }

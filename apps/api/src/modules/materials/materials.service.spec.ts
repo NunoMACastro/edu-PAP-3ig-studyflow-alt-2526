@@ -1,3 +1,4 @@
+// apps/api/src/modules/materials/materials.service.spec.ts
 /**
  * Testa o comportamento de materials e documenta os cenários de aceitação automatizados.
  */
@@ -117,6 +118,56 @@ describe("MaterialsService", () => {
         await expect(
             service.listReadyTextSources(userId, studyAreaId),
         ).resolves.toEqual(sources);
+    });
+
+    it("normaliza tópico PT-PT antes de persistir material privado", async () => {
+        const materialModel = {
+            create: jest.fn().mockResolvedValue({
+                toObject: () => ({
+                    _id: new Types.ObjectId("507f1f77bcf86cd799439010"),
+                    userId,
+                    studyAreaId,
+                    title: "Funções",
+                    type: "TOPIC",
+                    status: "READY",
+                    contentText: "função quadrática",
+                }),
+            }),
+        };
+        const { service } = makeService(materialModel);
+
+        await service.submitTextMaterial(userId, studyAreaId, {
+            type: "TOPIC",
+            title: "Funções",
+            topicText: "  func\u0327a\u0303o quadrática  ",
+        });
+
+        // O service guarda texto já normalizado; o frontend nunca decide ownership.
+        expect(materialModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                contentText: "função quadrática",
+                status: "READY",
+            }),
+        );
+    });
+
+    it("rejeita tópico sem texto legível", async () => {
+        const materialModel = { create: jest.fn() };
+        const { service } = makeService(materialModel);
+
+        await expect(
+            service.submitTextMaterial(userId, studyAreaId, {
+                type: "TOPIC",
+                title: "Ficheiro vazio",
+                topicText: "",
+            }),
+        ).rejects.toMatchObject({
+            response: {
+                code: "MATERIAL_TEXT_NOT_READABLE",
+                message: "O material não tem texto legível para estudar.",
+            },
+        });
+        expect(materialModel.create).not.toHaveBeenCalled();
     });
 });
 
