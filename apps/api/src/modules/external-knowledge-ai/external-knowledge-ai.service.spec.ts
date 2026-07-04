@@ -1,9 +1,19 @@
+// apps/api/src/modules/external-knowledge-ai/external-knowledge-ai.service.spec.ts
 /**
  * Testa o comportamento de IA com conhecimento externo limitado e documenta os cenários de aceitação automatizados.
  */
-import { ForbiddenException, UnprocessableEntityException } from "@nestjs/common";
+import {
+    ForbiddenException,
+    ServiceUnavailableException,
+    UnprocessableEntityException,
+} from "@nestjs/common";
+import { Model } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
+import { AiProvider } from "../ai/providers/ai-provider.js";
+import { MaterialsService } from "../materials/materials.service.js";
+import { StudyAreasService } from "../study-areas/study-areas.service.js";
 import { ExternalKnowledgeAiService } from "./external-knowledge-ai.service.js";
+import { ExternalKnowledgeAiAnswerDocument } from "./schemas/external-knowledge-ai-answer.schema.js";
 
 describe("ExternalKnowledgeAiService", () => {
     const student: AuthenticatedUser = {
@@ -31,9 +41,7 @@ describe("ExternalKnowledgeAiService", () => {
         ).resolves.toMatchObject({
             studyAreaId,
             externalUsed: true,
-            internalCitations: [
-                expect.objectContaining({ title: "Limites" }),
-            ],
+            internalCitations: [expect.objectContaining({ title: "Limites" })],
             externalNotes: [expect.stringContaining("Nota externa limitada")],
         });
         expect(studyAreasService.getMyStudyArea).toHaveBeenCalledWith(
@@ -58,35 +66,78 @@ describe("ExternalKnowledgeAiService", () => {
         );
     });
 
+    it("usa apenas fontes internas quando não há permissão externa", async () => {
+        const { aiProvider, answerModel, service } = makeService();
+
+        await expect(
+            service.ask(student, {
+                studyAreaId,
+                question: "Como estudar limites?",
+                allowExternalKnowledge: false,
+            }),
+        ).resolves.toMatchObject({
+            externalUsed: false,
+            externalNotes: [],
+        });
+        expect(answerModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                externalUsed: false,
+                externalNotes: [],
+            }),
+        );
+        expect(aiProvider.generateStudyTool).toHaveBeenCalledWith(
+            expect.objectContaining({
+                prompt: expect.stringContaining("Não uses conhecimento externo."),
+            }),
+        );
+    });
+
     it("bloqueia sem fontes internas processáveis", async () => {
-        const { materialsService, service } = makeService();
+        const { aiProvider, materialsService, service } = makeService();
         materialsService.listReadyTextSources.mockResolvedValueOnce([]);
 
         await expect(
             service.ask(student, {
                 studyAreaId,
                 question: "Explica o tema.",
-                allowExternalKnowledge: false,
+                allowExternalKnowledge: true,
             }),
         ).rejects.toBeInstanceOf(UnprocessableEntityException);
+        // O provider não pode ser chamado quando falta a base interna autorizada.
+        expect(aiProvider.generateStudyTool).not.toHaveBeenCalled();
     });
 
     it("bloqueia utilizadores que não sejam alunos", async () => {
-        const { service } = makeService();
+        const { service, studyAreasService } = makeService();
 
         await expect(
             service.ask(teacher, {
                 studyAreaId,
-                question: "Explica.",
+                question: "Explica limites.",
                 allowExternalKnowledge: false,
             }),
         ).rejects.toBeInstanceOf(ForbiddenException);
+        expect(studyAreasService.getMyStudyArea).not.toHaveBeenCalled();
+    });
+
+    it("devolve erro controlado quando o provider não devolve resposta válida", async () => {
+        const { aiProvider, service } = makeService();
+        aiProvider.generateStudyTool.mockResolvedValueOnce({ answer: "" });
+
+        await expect(
+            service.ask(student, {
+                studyAreaId,
+                question: "Como estudar limites?",
+                allowExternalKnowledge: true,
+            }),
+        ).rejects.toBeInstanceOf(ServiceUnavailableException);
     });
 });
 
 /**
- * Cria fixture ou estrutura auxiliar de IA com conhecimento externo limitado para manter testes e prompts legíveis.
- * @returns Valor de IA com conhecimento externo limitado no contrato esperado pelo chamador.
+ * Cria dependências de teste sem rede real, sem base de dados real e sem dados privados.
+ *
+ * @returns Service e dependências observáveis pelos testes.
  */
 function makeService() {
     const answerModel = {
@@ -95,13 +146,15 @@ function makeService() {
             ...input,
             toObject: () => ({ createdAt: new Date("2026-06-15T10:00:00Z") }),
         })),
-    };
+    } as unknown as jest.Mocked<Pick<Model<ExternalKnowledgeAiAnswerDocument>, "create">>;
+    
     const studyAreasService = {
         getMyStudyArea: jest.fn().mockResolvedValue({
             _id: "507f1f77bcf86cd799439014",
             name: "Matemática",
         }),
-    };
+    } as unknown as jest.Mocked<Pick<StudyAreasService, "getMyStudyArea">>;
+    
     const materialsService = {
         listReadyTextSources: jest.fn().mockResolvedValue([
             {
@@ -110,23 +163,26 @@ function makeService() {
                 contentText: "Um limite descreve o valor aproximado de uma função.",
             },
         ]),
-    };
+    } as unknown as jest.Mocked<Pick<MaterialsService, "listReadyTextSources">>;
+    
     const aiProvider = {
         generateStudyTool: jest
             .fn()
             .mockResolvedValue({ answer: "Resposta externa gerada pelo provider." }),
-    };
+    } as unknown as jest.Mocked<Pick<AiProvider, "generateStudyTool">>;
+
     const service = new ExternalKnowledgeAiService(
-        answerModel as never,
-        studyAreasService as never,
-        materialsService as never,
-        aiProvider as never,
+        answerModel as any,
+        studyAreasService as any,
+        materialsService as any,
+        aiProvider as any,
     );
+
     return {
-        aiProvider,
         answerModel,
-        materialsService,
-        service,
         studyAreasService,
+        materialsService,
+        aiProvider,
+        service,
     };
 }

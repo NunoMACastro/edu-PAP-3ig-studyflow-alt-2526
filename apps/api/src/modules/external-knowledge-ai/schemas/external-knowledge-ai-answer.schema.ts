@@ -1,17 +1,18 @@
+// apps/api/src/modules/external-knowledge-ai/schemas/external-knowledge-ai-answer.schema.ts
 /**
- * Define o modelo persistido de IA com conhecimento externo limitado usado pelo Mongoose.
+ * Define os documentos persistidos de IA com conhecimento externo limitado.
  */
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
 
 /**
- * Documento Mongoose de IA com conhecimento externo limitado, usado apenas dentro da camada de persistência.
+ * Documento Mongoose usado apenas pela camada de persistência.
  */
 export type ExternalKnowledgeAiAnswerDocument =
     HydratedDocument<ExternalKnowledgeAiAnswer>;
 
 /**
- * Classe ExternalKnowledgeInternalCitation usada no domínio de IA com conhecimento externo limitado.
+ * Excerto interno autorizado que sustenta a resposta.
  */
 @Schema({ _id: false })
 export class ExternalKnowledgeInternalCitation {
@@ -29,12 +30,13 @@ export const ExternalKnowledgeInternalCitationSchema =
     SchemaFactory.createForClass(ExternalKnowledgeInternalCitation);
 
 /**
- * Resposta de IA que distingue fontes internas de nota externa.
+ * Resposta persistida com separação entre fonte interna e nota externa.
  */
 @Schema({ timestamps: true })
 export class ExternalKnowledgeAiAnswer {
     _id!: { toString(): string };
 
+    // Índices por aluno e área ajudam a listar histórico sem varrer respostas de outros alunos.
     @Prop({ required: true, type: Types.ObjectId, index: true })
     studentId!: Types.ObjectId;
 
@@ -50,6 +52,7 @@ export class ExternalKnowledgeAiAnswer {
     @Prop({ required: true })
     externalUsed!: boolean;
 
+    // Citações internas e notas externas ficam em campos diferentes para a UI não misturar origens.
     @Prop({ required: true, type: [ExternalKnowledgeInternalCitationSchema] })
     internalCitations!: ExternalKnowledgeInternalCitation[];
 

@@ -12,7 +12,8 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "types": ["jest", "node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["dist", "node_modules"]

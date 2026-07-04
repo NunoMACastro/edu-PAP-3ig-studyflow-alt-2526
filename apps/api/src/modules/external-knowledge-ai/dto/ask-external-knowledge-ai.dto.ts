@@ -1,29 +1,21 @@
 /**
- * Define contratos de dados usados nas entradas e saídas de IA com conhecimento externo limitado.
+ * DTO para solicitar resposta de IA com conhecimento externo limitado.
  */
-import { IsBoolean, IsMongoId, IsString, MaxLength, MinLength } from "class-validator";
+
+import { IsBoolean, IsString, MinLength } from "class-validator";
 
 /**
- * Pedido de IA com opção explícita de conhecimento externo limitado.
+ * Payload enviado pelo frontend para obter resposta.
  */
 export class AskExternalKnowledgeAiDto {
-    /**
-     * Área privada que fornece ownership e fontes internas.
-     */
-    @IsMongoId()
+    @IsString()
+    @MinLength(1)
     studyAreaId!: string;
 
-    /**
-     * Pergunta do aluno.
-     */
     @IsString()
-    @MinLength(5)
-    @MaxLength(1200)
+    @MinLength(3)
     question!: string;
 
-    /**
-     * Permissão explícita para acrescentar nota externa geral.
-     */
     @IsBoolean()
     allowExternalKnowledge!: boolean;
 }
