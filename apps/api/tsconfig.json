@@ -13,7 +13,7 @@
     "skipLibCheck": true,
     "outDir": "dist",
     "rootDir": "./src",
-    "types": ["jest", "node"]
+    "types": ["jest", "node", "express", "multer"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["dist", "node_modules"]

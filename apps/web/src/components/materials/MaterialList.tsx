@@ -1,3 +1,4 @@
+// apps/web/src/components/materials/MaterialList.tsx
 /**
  * Implementa um componente React reutilizavel para materials.
  */
@@ -18,15 +19,13 @@ type MaterialListProps = {
 };
 
 /**
- * Lista materiais submetidos numa área.
+ * Lista materiais submetidos numa área de estudo privada.
  *
- * @param props Materiais carregados da API.
- * @returns Lista visual com estado de processamento.
+ * @param props Materiais carregados da API e área autenticada do aluno.
+ * @returns Lista visual com estado de processamento e erros PT-PT.
  */
 export function MaterialList({ materials, studyAreaId }: MaterialListProps) {
-    const [jobsByMaterial, setJobsByMaterial] = useState<
-        Record<string, MaterialIndexJob>
-    >({});
+    const [jobsByMaterial, setJobsByMaterial] = useState<Record<string, MaterialIndexJob>>({});
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -61,9 +60,10 @@ export function MaterialList({ materials, studyAreaId }: MaterialListProps) {
     }, [jobsByMaterial]);
 
     /**
-     * Trata a acao do utilizador e sincroniza o estado da interface.
+     * Inicia indexação e guarda o job devolvido pela API.
      *
-     * @param materialId Identificador usado para limitar a operação a material.
+     * @param materialId Material privado que o backend volta a validar por ownership.
+     * @returns Promise resolvida após atualizar estado local.
      */
     async function handleIndex(materialId: string): Promise<void> {
         setError(null);
@@ -72,7 +72,9 @@ export function MaterialList({ materials, studyAreaId }: MaterialListProps) {
             setJobsByMaterial((current) => ({ ...current, [materialId]: job }));
         } catch (caught) {
             setError(
-                caught instanceof Error ? caught.message : "Erro ao indexar material.",
+                caught instanceof Error
+                    ? caught.message
+                    : "Não foi possível indexar o material.",
             );
         }
     }
@@ -83,12 +85,13 @@ export function MaterialList({ materials, studyAreaId }: MaterialListProps) {
 
     return (
         <div className="space-y-3">
-            {error ? <p className="sf-error">{error}</p> : null}
+            {error ? <p className="sf-error" role="alert">{error}</p> : null}
             <ul className="space-y-3">
                 {materials.map((material) => {
                     const job = jobsByMaterial[material._id];
                     const isIndexing =
                         job?.status === "QUEUED" || job?.status === "PROCESSING";
+
                     return (
                         <li className="rounded-md border border-slate-200 bg-white p-4" key={material._id}>
                             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -115,15 +118,14 @@ export function MaterialList({ materials, studyAreaId }: MaterialListProps) {
                                     </p>
                                 ) : null}
                                 {job?.status === "DONE" ? (
-                                    <a
-                                        className="sf-button-secondary"
-                                        href={`/app/material-index-jobs/${job._id}/versoes`}
-                                    >
+                                    <a className="sf-button-secondary" href={`/app/material-index-jobs/${job._id}/versoes`}>
                                         Versões
                                     </a>
                                 ) : null}
                                 {job?.status === "FAILED" ? (
-                                    <p className="text-sm text-red-700">{job.errorMessage}</p>
+                                    <p className="text-sm text-red-700" role="alert">
+                                        {job.errorMessage ?? "O material não tem texto legível para estudar."}
+                                    </p>
                                 ) : null}
                             </div>
                         </li>
