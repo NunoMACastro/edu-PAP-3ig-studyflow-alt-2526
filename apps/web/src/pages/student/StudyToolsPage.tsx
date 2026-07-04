@@ -1,5 +1,6 @@
+// apps/web/src/pages/student/StudyToolsPage.tsx
 /**
- * Implementa uma pagina React de student com estado, carregamento e ações do utilizador.
+ * Implementa uma página React de student com estado, carregamento e ações do utilizador.
  */
 import { type FormEvent, useEffect, useState } from "react";
 import { ExplanationPanel } from "../../components/ai/ExplanationPanel.js";
@@ -9,12 +10,15 @@ import { SummaryPanel } from "../../components/ai/SummaryPanel.js";
 import { AsyncStateBlock } from "../../components/ui/AsyncStateBlock.js";
 import {
     createQuizGenerationJob,
+    exportStudyToolArtifact,
     generateStudyTool,
     generateSummary,
     getQuizGenerationJob,
     listStudyTools,
     listSummaries,
     type AiArtifact,
+    type ArtifactExportFile,
+    type ArtifactExportFormat,
     type QuizGenerationJob,
     type StudyToolType,
 } from "../../lib/apiClient.js";
@@ -246,6 +250,9 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
                     />
                 </div>
             </AsyncStateBlock>
+
+            <ArtifactExportPanel artifact={artifact} studyAreaId={studyAreaId} />
+
             {artifact?.type === "SUMMARY" ? <SummaryPanel artifact={artifact} /> : null}
             {artifact?.type === "EXPLANATION" ? <ExplanationPanel artifact={artifact} /> : null}
             {artifact?.type === "FLASHCARDS" ? <FlashcardsPanel artifact={artifact} /> : null}
@@ -254,6 +261,147 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
             ) : null}
         </section>
     );
+}
+
+type ArtifactExportPanelProps = {
+    artifact: AiArtifact | null;
+    studyAreaId: string;
+};
+
+/**
+ * Mostra ações de exportação para resumos e quizzes autorizados.
+ *
+ * @param props Artefacto selecionado e área privada.
+ * @returns Painel com ações e estados de exportação.
+ */
+function ArtifactExportPanel({
+    artifact,
+    studyAreaId,
+}: ArtifactExportPanelProps) {
+    const [exportError, setExportError] = useState<string | null>(null);
+    const [exportMessage, setExportMessage] = useState<string | null>(null);
+    const [isExporting, setIsExporting] = useState(false);
+    const isExportable =
+        artifact?.type === "SUMMARY" || artifact?.type === "QUIZ";
+
+    /**
+     * Executa exportação segura através do backend.
+     *
+     * @param format Formato pedido pelo aluno.
+     * @returns Promise resolvida depois da ação local.
+     */
+    async function handleExport(format: ArtifactExportFormat): Promise<void> {
+        if (!artifact || !isExportable || isExporting) return;
+        setExportError(null);
+        setExportMessage(null);
+        setIsExporting(true);
+
+        try {
+            const file = await exportStudyToolArtifact(
+                studyAreaId,
+                artifact._id,
+                format,
+            );
+            if (format === "pdf") {
+                openPrintableArtifact(file);
+                setExportMessage("Documento preparado para guardar como PDF.");
+            } else {
+                downloadArtifactFile(file);
+                setExportMessage("Markdown exportado com sucesso.");
+            }
+        } catch (caught) {
+            setExportError(
+                caught instanceof Error
+                    ? caught.message
+                    : "Não foi possível exportar o artefacto.",
+            );
+        } finally {
+            setIsExporting(false);
+        }
+    }
+
+    if (!artifact) {
+        return (
+            <div className="sf-panel space-y-2">
+                <h2 className="text-lg font-bold">Exportação</h2>
+                <p className="text-sm text-slate-600">
+                    Escolhe ou gera um resumo ou quiz para ativar a exportação.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="sf-panel space-y-3">
+            <h2 className="text-lg font-bold">Exportação</h2>
+            {!isExportable ? (
+                <p className="text-sm text-slate-600">
+                    Este tipo de artefacto não é exportado neste BK.
+                </p>
+            ) : (
+                <div className="flex flex-wrap gap-3">
+                    <button
+                        className="sf-button-secondary"
+                        disabled={isExporting}
+                        onClick={() => void handleExport("md")}
+                        type="button"
+                    >
+                        {isExporting ? "A exportar..." : "Exportar MD"}
+                    </button>
+                    <button
+                        className="sf-button-secondary"
+                        disabled={isExporting}
+                        onClick={() => void handleExport("pdf")}
+                        type="button"
+                    >
+                        {isExporting ? "A preparar..." : "Preparar PDF"}
+                    </button>
+                </div>
+            )}
+            {exportMessage ? (
+                <p className="text-sm text-studyflow-brand" aria-live="polite">
+                    {exportMessage}
+                </p>
+            ) : null}
+            {exportError ? <p className="sf-error">{exportError}</p> : null}
+        </div>
+    );
+}
+
+/**
+ * Descarrega ficheiro textual devolvido pelo backend.
+ *
+ * @param file Ficheiro exportado.
+ */
+function downloadArtifactFile(file: ArtifactExportFile): void {
+    const blob = new Blob([file.body], { type: file.contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = file.fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+}
+
+/**
+ * Abre documento de impressão preparado pela API.
+ *
+ * @param file HTML já escapado no backend.
+ */
+function openPrintableArtifact(file: ArtifactExportFile): void {
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (!printWindow) {
+        downloadArtifactFile(file);
+        return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(file.body);
+    printWindow.document.close();
+    printWindow.focus();
+    window.setTimeout(() => printWindow.print(), 350);
 }
 
 /**
@@ -290,7 +438,6 @@ function ArtifactList({
             >
                 <ul className="space-y-2">
                     {artifacts.map((item) => {
-                        // A API já filtra os artefactos pela área autenticada antes da lista renderizar.
                         return (
                             <li key={item._id}>
                                 <button
@@ -314,7 +461,7 @@ function ArtifactList({
 }
 
 /**
- * Obtém uma etiqueta curta para um artefacto.
+ * Obtém uma etiqueta corta para um artefacto.
  *
  * @param artifact Artefacto IA.
  * @returns Texto visível na lista.

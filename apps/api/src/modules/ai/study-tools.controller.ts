@@ -1,3 +1,4 @@
+// apps/api/src/modules/ai/study-tools.controller.ts
 /**
  * Expõe os endpoints HTTP de ai e delega regras de negócio para o service.
  */
@@ -9,10 +10,16 @@ import {
     Post,
     Query,
     Req,
+    Res,
     UseGuards,
 } from "@nestjs/common";
+import type { Response } from "express";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
+import {
+    ArtifactExportService,
+    buildArtifactExportContentDisposition,
+} from "./artifact-export.service.js";
 import { CreateQuizAttemptDto } from "./dto/create-quiz-attempt.dto.js";
 import { CreateQuizJobDto } from "./dto/create-quiz-job.dto.js";
 import { CreateStudyToolDto } from "./dto/create-study-tool.dto.js";
@@ -30,10 +37,12 @@ export class StudyToolsController {
      *
      * @param studyToolsService Service injetado para reutilizar regras de study tools sem duplicar validações.
      * @param quizJobsService Service de jobs persistidos para quizzes em background.
+     * @param artifactExportService Service de exportação segura para resumos e quizzes.
      */
     constructor(
         private readonly studyToolsService: StudyToolsService,
         private readonly quizJobsService: QuizGenerationJobsService,
+        private readonly artifactExportService: ArtifactExportService,
     ) {}
 
     /**
@@ -107,6 +116,38 @@ export class StudyToolsController {
         @Param("jobId") jobId: string,
     ) {
         return this.quizJobsService.findQuizJob(request.user!.id, id, jobId);
+    }
+
+    /**
+     * Exporta resumo ou quiz autorizado em Markdown ou HTML de impressão.
+     *
+     * @param request Pedido autenticado.
+     * @param id Área privada do aluno.
+     * @param artifactId Artefacto IA a exportar.
+     * @param format Formato pedido pela query.
+     * @param response Resposta HTTP usada para headers de ficheiro.
+     * @returns Corpo textual do ficheiro.
+     */
+    @Get(":artifactId/export")
+    async exportArtifact(
+        @Req() request: AuthenticatedRequest,
+        @Param("id") id: string,
+        @Param("artifactId") artifactId: string,
+        @Query("format") format: string | undefined,
+        @Res({ passthrough: true }) response: Response,
+    ): Promise<string> {
+        const file = await this.artifactExportService.exportArtifact(
+            request.user!.id,
+            id,
+            artifactId,
+            format,
+        );
+        response.setHeader("Content-Type", file.contentType);
+        response.setHeader(
+            "Content-Disposition",
+            buildArtifactExportContentDisposition(file),
+        );
+        return file.body;
     }
 
     /**
