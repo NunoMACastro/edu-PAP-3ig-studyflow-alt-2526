@@ -1,19 +1,19 @@
 // apps/web/src/features/ai-guardrails/ai-guardrails-panel.tsx
 /**
- * Mostra uma interface simples para validar guardrails IA antes do provider.
+ * Implementa a funcionalidade frontend de guardrails de IA e o respetivo contrato com a API.
  */
-import { FormEvent, useState } from "react";
+import { type FormEvent, useState } from "react";
+import { messageKeys, t } from "../../lib/messages.js";
 import {
     AiGuardrailContextType,
     AiGuardrailDecision,
     checkAiGuardrails,
-    isAiSafetyBlock,
 } from "./check-ai-guardrails.js";
 
 /**
- * Painel manual para validar guardrails IA.
+ * Painel manual para validar guardrails de IA.
  *
- * @returns Formulário e decisão do backend.
+ * @returns Formulário e decisão devolvida pelo backend.
  */
 export function AiGuardrailsPanel() {
     const [contextType, setContextType] =
@@ -25,9 +25,9 @@ export function AiGuardrailsPanel() {
     const [error, setError] = useState<string | null>(null);
 
     /**
-     * Trata a ação do utilizador e sincroniza o estado da interface.
+     * Envia o pedido ao backend e atualiza o estado visual do painel.
      *
-     * @param event Evento da interface que dispara a validação.
+     * @param event Submissão do formulário de guardrails.
      */
     async function handleSubmit(event: FormEvent): Promise<void> {
         event.preventDefault();
@@ -36,73 +36,71 @@ export function AiGuardrailsPanel() {
         setDecision(null);
 
         try {
-            // A UI envia o pedido, mas a decisão de segurança fica sempre no backend.
+            // A decisão continua a vir do backend; o catálogo só resolve texto visível.
             setDecision(await checkAiGuardrails({ contextType, resourceId, prompt }));
-        } catch (caught) {
-            setError(caught instanceof Error ? caught.message : "Erro ao validar.");
+        } catch {
+            setError(t(messageKeys.guardrailsError));
         } finally {
             setLoading(false);
         }
     }
 
-    const canSubmit = resourceId.trim().length >= 3 && prompt.trim().length >= 5;
-
     return (
         <section className="sf-panel space-y-4">
-            <h2 className="text-lg font-semibold">Guardrails IA</h2>
+            <h2 className="text-lg font-semibold">
+                {t(messageKeys.guardrailsTitle)}
+            </h2>
             {error ? <p className="sf-error">{error}</p> : null}
-            <form
-                className="space-y-3"
-                onSubmit={(event) => void handleSubmit(event)}
-            >
+            <form className="space-y-3" onSubmit={(event) => void handleSubmit(event)}>
                 <label className="block">
-                    Contexto
+                    {t(messageKeys.guardrailsContextLabel)}
                     <select
                         value={contextType}
                         onChange={(event) =>
                             setContextType(event.target.value as AiGuardrailContextType)
                         }
                     >
-                        <option value="SOLO">Área privada</option>
-                        <option value="STUDY_ROOM">Sala de estudo</option>
-                        <option value="CLASS_SUBJECT">Disciplina</option>
+                        <option value="SOLO">{t(messageKeys.guardrailsOptionSolo)}</option>
+                        <option value="STUDY_ROOM">
+                            {t(messageKeys.guardrailsOptionStudyRoom)}
+                        </option>
+                        <option value="CLASS_SUBJECT">
+                            {t(messageKeys.guardrailsOptionClassSubject)}
+                        </option>
                     </select>
                 </label>
                 <label className="block">
-                    Recurso
+                    {t(messageKeys.guardrailsResourceLabel)}
                     <input
                         value={resourceId}
                         onChange={(event) => setResourceId(event.target.value)}
                     />
                 </label>
                 <label className="block">
-                    Pedido
+                    {t(messageKeys.guardrailsPromptLabel)}
                     <textarea
                         rows={3}
                         value={prompt}
                         onChange={(event) => setPrompt(event.target.value)}
                     />
                 </label>
-                <button className="sf-button-primary" disabled={loading || !canSubmit}>
-                    {loading ? "A validar..." : "Validar"}
+                <button
+                    className="sf-button-primary"
+                    disabled={loading || prompt.trim().length < 5}
+                >
+                    {loading
+                        ? t(messageKeys.guardrailsLoading)
+                        : t(messageKeys.guardrailsSubmit)}
                 </button>
             </form>
             {decision ? (
                 <div className="rounded-md border border-slate-200 p-3 text-sm">
-                    <p
-                        className={
-                            decision.allowed ? "text-emerald-700" : "text-red-700"
-                        }
-                    >
-                        {decision.allowed ? "Permitido" : "Bloqueado"}
+                    <p className={decision.allowed ? "text-emerald-700" : "text-red-700"}>
+                        {decision.allowed
+                            ? t(messageKeys.guardrailsAllowed)
+                            : t(messageKeys.guardrailsBlocked)}
                     </p>
                     <p className="text-slate-700">{decision.reason}</p>
-                    {isAiSafetyBlock(decision) ? (
-                        <p className="mt-2 text-slate-600">
-                            Este bloqueio protege a segurança ética da IA antes de
-                            qualquer resposta ser gerada.
-                        </p>
-                    ) : null}
                 </div>
             ) : null}
         </section>
