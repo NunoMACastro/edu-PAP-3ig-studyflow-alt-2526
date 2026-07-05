@@ -1,21 +1,31 @@
+// apps/api/src/modules/study/history.service.spec.ts
 /**
  * Testa o comportamento de study e documenta os cenários de aceitação automatizados.
  */
 import { BadRequestException, ValidationPipe } from "@nestjs/common";
 import { Types } from "mongoose";
 import { HistoryQueryDto } from "./dto/history-query.dto.js";
+import { StudyEventDto, StudyEventType } from "./dto/study-event.dto.js";
 import { HistoryService } from "./history.service.js";
+
+type StudyHistoryFixture = {
+    _id: Types.ObjectId;
+    type: StudyEventType;
+    title: string;
+    description?: string;
+    occurredAt: Date;
+};
 
 describe("HistoryService", () => {
     const userId = "507f1f77bcf86cd799439012";
 
     /**
-     * Cria fixture ou estrutura auxiliar de rotinas e objetivos de estudo para manter testes e prompts legíveis.
+     * Cria um modelo Mongoose controlado para testar o service sem base de dados real.
      *
-     * @param events events necessário para executar make model sem depender de estado global.
-     * @returns Valor de rotinas e objetivos de estudo no contrato esperado pelo chamador.
+     * @param events Eventos devolvidos pela query `lean`.
+     * @returns Modelo mínimo e spies usados nas asserções.
      */
-    function makeModel(events: Array<Record<string, unknown>> = []) {
+    function makeModel(events: StudyHistoryFixture[] = []) {
         const lean = jest.fn().mockResolvedValue(events);
         const limit = jest.fn().mockReturnValue({ lean });
         const sort = jest.fn().mockReturnValue({ limit });
@@ -24,7 +34,7 @@ describe("HistoryService", () => {
     }
 
     it("usa limite default 50 quando não é passado limit", async () => {
-        const event = {
+        const event: StudyHistoryFixture = {
             _id: new Types.ObjectId(),
             type: "ROUTINE_CREATED",
             title: "Rotina criada",
@@ -44,6 +54,27 @@ describe("HistoryService", () => {
             },
         ]);
         expect(limit).toHaveBeenCalledWith(50);
+    });
+
+    it("preserva occurredAt como data técnica serializável para ISO", async () => {
+        const occurredAt = new Date("2026-01-01T10:00:00.000Z");
+        const event: StudyHistoryFixture = {
+            _id: new Types.ObjectId(),
+            type: "STUDY_AREA_CREATED",
+            title: "Área criada",
+            occurredAt,
+        };
+        const { model } = makeModel([event]);
+        const service = new HistoryService(model as never);
+
+        const [result] = await service.listMyEvents(userId);
+
+        // O backend preserva a data técnica; a UI decide como a apresentar.
+        expect(result).toMatchObject<Partial<StudyEventDto>>({
+            title: "Área criada",
+            occurredAt,
+        });
+        expect(result?.occurredAt.toISOString()).toBe("2026-01-01T10:00:00.000Z");
     });
 
     it("aplica o limit validado recebido pelo controller", async () => {

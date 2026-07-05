@@ -1,14 +1,18 @@
+// apps/web/src/components/study/StudyHistoryList.tsx
 /**
- * Props do componente React de rotinas e objetivos de estudo; mantêm explícitas as dependências vindas da página.
+ * Renderiza eventos de histórico de estudo com datas localizadas.
  */
+import type { StudyHistoryEvent } from "../../lib/apiClient.js";
+import { formatDatePt } from "../../lib/format-date-pt.js";
+
 type StudyHistoryListProps = {
-    events: unknown[];
+    events: StudyHistoryEvent[];
 };
 
 /**
  * Lista eventos de histórico de estudo.
  *
- * @param props Eventos carregados da API.
+ * @param props Eventos carregados da API para o aluno autenticado.
  * @returns Lista visual do histórico.
  */
 export function StudyHistoryList({ events }: StudyHistoryListProps) {
@@ -18,16 +22,18 @@ export function StudyHistoryList({ events }: StudyHistoryListProps) {
 
     return (
         <ul className="space-y-3">
-            {events.map((event, index) => {
-                const item = event as { title?: string; description?: string; occurredAt?: string };
-                return (
-                    <li className="rounded-md border border-slate-200 p-3" key={index}>
-                        <p className="font-medium">{item.title ?? "Evento"}</p>
-                        {item.description ? <p className="text-sm text-slate-600">{item.description}</p> : null}
-                        {item.occurredAt ? <p className="mt-1 text-xs text-slate-500">{new Date(item.occurredAt).toLocaleDateString("pt-PT")}</p> : null}
-                    </li>
-                );
-            })}
+            {events.map((event) => (
+                <li className="rounded-md border border-slate-200 p-3" key={event.id}>
+                    <p className="font-medium">{event.title}</p>
+                    {event.description ? (
+                        <p className="text-sm text-slate-600">{event.description}</p>
+                    ) : null}
+                    <p className="mt-1 text-xs text-slate-500">
+                        {/* A data chega em ISO e só é localizada no último momento, junto da UI. */}
+                        {formatDatePt(event.occurredAt)}
+                    </p>
+                </li>
+            ))}
         </ul>
     );
 }
