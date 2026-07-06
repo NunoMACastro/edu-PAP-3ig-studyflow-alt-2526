@@ -1,3 +1,4 @@
+// apps/api/src/modules/study-rooms/study-rooms.module.ts
 /**
  * Regista providers, controllers e schemas necessários ao módulo de salas de estudo.
  */
@@ -6,10 +7,10 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { AiModule } from "../ai/ai.module.js";
 import { AuthModule } from "../auth/auth.module.js";
 import { User, UserSchema } from "../auth/schemas/user.schema.js";
-import { MaterialsModule } from "../materials/materials.module.js";
-import { StudentsModule } from "../students/students.module.js";
+import { Material, MaterialSchema } from "../materials/schemas/material.schema.js";
 import { RoomAiController } from "./room-ai.controller.js";
 import { RoomAiService } from "./room-ai.service.js";
+import { RoomAiSharingService } from "./room-ai-sharing.service.js";
 import { RoomSharesController } from "./room-shares.controller.js";
 import { RoomSharesService } from "./room-shares.service.js";
 import {
@@ -22,23 +23,27 @@ import { StudyRoomsController } from "./study-rooms.controller.js";
 import { StudyRoomsService } from "./study-rooms.service.js";
 
 /**
- * Módulo acumulativo de salas da MF1.
+ * Módulo acumulativo de salas de estudo.
  */
 @Module({
     imports: [
         AuthModule,
         AiModule,
-        MaterialsModule,
-        StudentsModule,
         MongooseModule.forFeature([
             { name: User.name, schema: UserSchema },
+            { name: Material.name, schema: MaterialSchema },
             { name: StudyRoom.name, schema: StudyRoomSchema },
             { name: RoomShare.name, schema: RoomShareSchema },
             { name: RoomAiInteraction.name, schema: RoomAiInteractionSchema },
         ]),
     ],
     controllers: [StudyRoomsController, RoomSharesController, RoomAiController],
-    providers: [StudyRoomsService, RoomSharesService, RoomAiService],
+    providers: [
+        StudyRoomsService,
+        RoomSharesService,
+        RoomAiService,
+        RoomAiSharingService,
+    ],
     exports: [StudyRoomsService, RoomSharesService],
 })
 export class StudyRoomsModule {}
