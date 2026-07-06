@@ -10,6 +10,71 @@ export type RoomAiAnswer = {
     createdAt?: string;
 };
 
+// apps/web/src/lib/apiClient.ts
+/**
+ * Modos permitidos para reutilizar uma resposta IA da sala.
+ */
+export type RoomAiShareMode = "READ_ONLY" | "PRIVATE_FORK";
+
+/**
+ * Resposta IA partilhada ou cópia privada criada a partir de uma resposta partilhada.
+ */
+export type RoomAiSharedAnswer = {
+    _id: string;
+    roomId: string;
+    studentId: string;
+    question: string;
+    answer: string;
+    sourceShareIds: string[];
+    visibility: "PRIVATE" | "SHARED";
+    sharedAt?: string;
+    forkedFromInteractionId?: string;
+    createdAt?: string;
+};
+
+/**
+ * Resultado da operação de partilha ou fork privado.
+ */
+export type RoomAiShareResult = {
+    mode: RoomAiShareMode;
+    answer: RoomAiSharedAnswer;
+    createdPrivateCopy: boolean;
+};
+
+/**
+ * Lista respostas IA partilhadas em read-only na sala.
+ *
+ * @param roomId Identificador da sala.
+ * @returns Respostas partilhadas visíveis para membros da sala.
+ */
+export function listSharedRoomAiAnswers(roomId: string): Promise<RoomAiSharedAnswer[]> {
+    return requestJson<RoomAiSharedAnswer[]>(
+        `/api/study-rooms/${roomId}/ai/answers?scope=shared`,
+    );
+}
+
+/**
+ * Partilha uma resposta própria ou cria uma cópia privada de uma resposta partilhada.
+ *
+ * @param roomId Identificador da sala.
+ * @param answerId Identificador da resposta IA.
+ * @param input Modo da operação.
+ * @returns Resultado público devolvido pela API.
+ */
+export function shareRoomAiAnswer(
+    roomId: string,
+    answerId: string,
+    input: { mode: RoomAiShareMode },
+): Promise<RoomAiShareResult> {
+    return requestJson<RoomAiShareResult>(
+        `/api/study-rooms/${roomId}/ai/answers/${answerId}/share`,
+        {
+            method: "POST",
+            body: JSON.stringify(input),
+        },
+    );
+}
+
 /**
  * Item privado do histórico da IA da sala.
  */

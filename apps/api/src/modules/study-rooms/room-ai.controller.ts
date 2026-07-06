@@ -1,11 +1,24 @@
+// apps/api/src/modules/study-rooms/room-ai.controller.ts
 /**
  * Expõe os endpoints HTTP de salas de estudo e delega regras de negócio para o service.
  */
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
+import {
+    BadRequestException,
+    Body,
+    Controller,
+    Get,
+    Param,
+    Post,
+    Query,
+    Req,
+    UseGuards,
+} from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
 import { AskRoomAiDto } from "./dto/ask-room-ai.dto.js";
+import { ShareRoomAiAnswerDto } from "./dto/share-room-ai-answer.dto.js";
 import { RoomAiService } from "./room-ai.service.js";
+import { RoomAiSharingService } from "./room-ai-sharing.service.js";
 
 /**
  * Controller da IA partilhada da sala.
@@ -14,34 +27,51 @@ import { RoomAiService } from "./room-ai.service.js";
 @UseGuards(SessionGuard)
 export class RoomAiController {
     /**
-     * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
+     * Recebe dependências por injeção para manter a classe testável.
      *
-     * @param roomAiService Service injetado para reutilizar regras de sala ai sem duplicar validações.
+     * @param roomAiService Service da geração e histórico privado da IA da sala.
+     * @param roomAiSharingService Service da partilha e fork privado.
      */
-    constructor(private readonly roomAiService: RoomAiService) {}
+    constructor(
+        private readonly roomAiService: RoomAiService,
+        private readonly roomAiSharingService: RoomAiSharingService,
+    ) {}
 
     /**
-     * Lista as respostas privadas da IA da sala criadas pelo aluno autenticado.
+     * Lista respostas IA da sala dentro do scope pedido.
      *
-     * @param request Pedido HTTP já atravessado pelo guard, incluindo `request.user`.
-     * @param roomId Identificador da sala; exige membership no service antes da leitura.
-     * @returns Histórico privado da IA da sala.
+     * @param request Pedido autenticado com o utilizador da sessão.
+     * @param roomId Identificador da sala.
+     * @param scope Scope público: `mine` para histórico privado ou `shared` para partilha.
+     * @returns Lista autorizada de respostas IA.
      */
     @Get()
-    listMine(
+    list(
         @Req() request: AuthenticatedRequest,
         @Param("roomId") roomId: string,
+        @Query("scope") scope = "mine",
     ) {
+        if (scope === "shared") {
+            return this.roomAiSharingService.listSharedAnswers(request.user!, roomId);
+        }
+
+        if (scope !== "mine") {
+            throw new BadRequestException({
+                code: "INVALID_ROOM_AI_SCOPE",
+                message: "Escolhe mine ou shared.",
+            });
+        }
+
         return this.roomAiService.listMyRoomAiHistory(request.user!, roomId);
     }
 
     /**
-     * Orquestra uma pergunta de IA em salas de estudo, limitando contexto e validando a resposta antes de a devolver.
+     * Orquestra uma pergunta de IA em salas de estudo.
      *
-     * @param request Pedido HTTP já atravessado pelo guard, incluindo `request.user` quando o endpoint exige sessão.
-     * @param roomId Identificador da sala; exige membership antes de expor partilhas, mensagens ou respostas IA.
-     * @param body Payload validado pelo DTO do endpoint antes de chegar ao service.
-     * @returns Resposta validada, limitada às fontes e pronta para persistência ou apresentação.
+     * @param request Pedido autenticado com o utilizador da sessão.
+     * @param roomId Identificador da sala.
+     * @param body Dados da pergunta.
+     * @returns Resposta IA validada.
      */
     @Post()
     ask(
@@ -50,5 +80,29 @@ export class RoomAiController {
         @Body() body: AskRoomAiDto,
     ) {
         return this.roomAiService.askRoomAi(request.user!, roomId, body);
+    }
+
+    /**
+     * Partilha uma resposta própria ou cria uma cópia privada de resposta partilhada.
+     *
+     * @param request Pedido autenticado com o utilizador da sessão.
+     * @param roomId Identificador da sala.
+     * @param answerId Identificador da resposta IA.
+     * @param body Modo de reutilização da resposta.
+     * @returns Resultado público da operação.
+     */
+    @Post(":answerId/share")
+    share(
+        @Req() request: AuthenticatedRequest,
+        @Param("roomId") roomId: string,
+        @Param("answerId") answerId: string,
+        @Body() body: ShareRoomAiAnswerDto,
+    ) {
+        return this.roomAiSharingService.shareOrForkAnswer(
+            request.user!,
+            roomId,
+            answerId,
+            body,
+        );
     }
 }

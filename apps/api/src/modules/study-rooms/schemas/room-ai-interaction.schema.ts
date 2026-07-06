@@ -1,8 +1,11 @@
+// apps/api/src/modules/study-rooms/schemas/room-ai-interaction.schema.ts
 /**
  * Define o modelo persistido de salas de estudo usado pelo Mongoose.
  */
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
+
+export type RoomAiVisibility = "PRIVATE" | "SHARED";
 
 /**
  * Documento Mongoose de salas de estudo, usado apenas dentro da camada de persistência.
@@ -28,8 +31,25 @@ export class RoomAiInteraction {
 
     @Prop({ type: [{ type: Types.ObjectId, ref: "RoomShare" }], default: [] })
     sourceShareIds!: Types.ObjectId[];
+
+    @Prop({
+        required: true,
+        enum: ["PRIVATE", "SHARED"],
+        default: "PRIVATE",
+        index: true,
+    })
+    visibility!: RoomAiVisibility;
+
+    @Prop({ type: Date })
+    sharedAt?: Date;
+
+    @Prop({ type: Types.ObjectId, ref: "RoomAiInteraction" })
+    forkedFromInteractionId?: Types.ObjectId;
 }
 
 export const RoomAiInteractionSchema =
     SchemaFactory.createForClass(RoomAiInteraction);
+
 RoomAiInteractionSchema.index({ roomId: 1, createdAt: -1 });
+RoomAiInteractionSchema.index({ roomId: 1, studentId: 1, createdAt: -1 });
+RoomAiInteractionSchema.index({ roomId: 1, visibility: 1, createdAt: -1 });
