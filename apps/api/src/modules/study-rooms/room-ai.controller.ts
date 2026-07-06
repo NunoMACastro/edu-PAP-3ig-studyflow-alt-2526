@@ -1,7 +1,7 @@
 /**
  * Expõe os endpoints HTTP de salas de estudo e delega regras de negócio para o service.
  */
-import { Body, Controller, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
 import { AskRoomAiDto } from "./dto/ask-room-ai.dto.js";
@@ -19,6 +19,21 @@ export class RoomAiController {
      * @param roomAiService Service injetado para reutilizar regras de sala ai sem duplicar validações.
      */
     constructor(private readonly roomAiService: RoomAiService) {}
+
+    /**
+     * Lista as respostas privadas da IA da sala criadas pelo aluno autenticado.
+     *
+     * @param request Pedido HTTP já atravessado pelo guard, incluindo `request.user`.
+     * @param roomId Identificador da sala; exige membership no service antes da leitura.
+     * @returns Histórico privado da IA da sala.
+     */
+    @Get()
+    listMine(
+        @Req() request: AuthenticatedRequest,
+        @Param("roomId") roomId: string,
+    ) {
+        return this.roomAiService.listMyRoomAiHistory(request.user!, roomId);
+    }
 
     /**
      * Orquestra uma pergunta de IA em salas de estudo, limitando contexto e validando a resposta antes de a devolver.

@@ -2,6 +2,7 @@
  * Implementa as regras de negócio de salas de estudo e concentra validações do domínio.
  */
 import {
+    BadRequestException,
     GatewayTimeoutException,
     Inject,
     Injectable,
@@ -12,12 +13,11 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { AI_PROVIDER, AiProvider, RoomAiResult } from "../ai/providers/ai-provider.js";
-import { StudentProfileService } from "../students/student-profile.service.js";
 import { AskRoomAiDto } from "./dto/ask-room-ai.dto.js";
 import { buildRoomAiPrompt } from "./prompts/room-ai.prompt.js";
-import { resolveRoomAiPedagogicalContext } from "./room-ai-pedagogy.js";
-import { RoomAiInteraction, RoomAiInteractionDocument } from "./schemas/room-ai-interaction.schema.js";
+import { RoomAiHistoryItem, toPrivateRoomAiHistory } from "./room-ai-history.js";
 import { RoomSharesService, RoomShareSource } from "./room-shares.service.js";
+import { RoomAiInteraction, RoomAiInteractionDocument } from "./schemas/room-ai-interaction.schema.js";
 import { StudyRoomsService } from "./study-rooms.service.js";
 
 /**
@@ -28,11 +28,10 @@ export class RoomAiService {
     /**
      * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
      *
-     * @param interactionModel Modelo Mongoose injetado para ler e persistir salas de estudo.
+     * @param interactionModel Modelo Mongoose injetado para ler e persistir interações IA da sala.
      * @param aiProvider Provider injetado para isolar integração externa e facilitar testes.
-     * @param studyRoomsService Service injetado para reutilizar regras de salas de estudo sem duplicar validações.
-     * @param roomSharesService Service injetado para reutilizar regras de sala shares sem duplicar validações.
-     * @param studentProfileService Service injetado para adaptar a resposta ao ano escolar do aluno autenticado.
+     * @param studyRoomsService Service injetado para reutilizar regras de membership da sala.
+     * @param roomSharesService Service injetado para reutilizar regras de partilhas da sala.
      */
     constructor(
         @InjectModel(RoomAiInteraction.name)
@@ -40,8 +39,41 @@ export class RoomAiService {
         @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
         private readonly studyRoomsService: StudyRoomsService,
         private readonly roomSharesService: RoomSharesService,
-        private readonly studentProfileService: StudentProfileService,
     ) {}
+
+    /**
+     * Lista apenas as interações IA da sala criadas pelo aluno autenticado.
+     *
+     * @param actor Utilizador autenticado vindo da sessão; define o dono do histórico.
+     * @param roomId Identificador da sala; exige membership antes de qualquer leitura.
+     * @returns Histórico privado ordenado da interação mais recente para a mais antiga.
+     */
+    async listMyRoomAiHistory(
+        actor: AuthenticatedUser,
+        roomId: string,
+    ): Promise<RoomAiHistoryItem[]> {
+        if (!Types.ObjectId.isValid(roomId)) {
+            throw new BadRequestException({
+                code: "INVALID_ROOM_ID",
+                message: "A sala indicada não é válida.",
+            });
+        }
+
+        await this.studyRoomsService.ensureMember(actor.id, roomId);
+
+        const rows = await this.interactionModel
+            .find({
+                // O filtro usa o aluno da sessão e impede que a UI escolha outro histórico.
+                roomId: new Types.ObjectId(roomId),
+                studentId: new Types.ObjectId(actor.id),
+            })
+            .sort({ createdAt: -1 })
+            // O limite protege a API contra respostas demasiado grandes numa página de sala.
+            .limit(30)
+            .exec();
+
+        return toPrivateRoomAiHistory(actor, roomId, rows);
+    }
 
     /**
      * Orquestra uma pergunta de IA em salas de estudo, limitando contexto e validando a resposta antes de a devolver.
@@ -66,17 +98,11 @@ export class RoomAiService {
             });
         }
 
-        const askerProfile = await this.studentProfileService.getMyProfile(actor.id);
-        const askerPedagogicalContext = resolveRoomAiPedagogicalContext(
-            askerProfile?.year,
-        );
-
         try {
             const result = await this.aiProvider.generateRoomAnswer({
                 prompt: buildRoomAiPrompt({
                     question: input.question.trim(),
                     sources,
-                    askerPedagogicalContext,
                 }),
             });
             this.validateResult(result, sources);
@@ -120,7 +146,7 @@ export class RoomAiService {
     /**
      * Confirma que os dados de salas de estudo cumprem o contrato antes de serem persistidos ou apresentados.
      *
-     * @param result result necessário para executar validate result sem depender de estado global.
+     * @param result Resultado devolvido pelo provider de IA.
      * @param sources Fontes já autorizadas que limitam a resposta e evitam acesso a dados fora do contexto.
      */
     private validateResult(result: RoomAiResult, sources: RoomShareSource[]): void {

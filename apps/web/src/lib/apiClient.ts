@@ -1,39 +1,51 @@
-// apps/web/src/lib/apiClient.ts
-
-// Função utilitária mockada ou importada de outro local do seu projeto
-declare function requestJson<T>(url: string): Promise<T>;
-
 /**
- * Evento de histórico devolvido pela API de estudo.
- *
- * `occurredAt` chega ao browser como string ISO porque atravessa JSON.
+ * Resposta da IA da sala baseada nas partilhas autorizadas.
  */
-export type StudyHistoryEvent = {
-    id: string;
-    type:
-        | "ROUTINE_CREATED"
-        | "ROUTINE_ARCHIVED"
-        | "GOAL_CREATED"
-        | "GOAL_UPDATED"
-        | "GOAL_ARCHIVED"
-        | "STUDY_AREA_CREATED"
-        | "MATERIAL_SUBMITTED"
-        | "AI_PROFILE_CREATED"
-        | "SUMMARY_GENERATED"
-        | "STUDY_TOOL_GENERATED"
-        | "ADAPTIVE_EXPLANATION_GENERATED"
-        | "QUIZ_ATTEMPT_RECORDED";
-    title: string;
-    description?: string;
-    occurredAt?: string;
+export type RoomAiAnswer = {
+    _id: string;
+    roomId: string;
+    question: string;
+    answer: string;
+    sources: { shareId: string; title: string; contentText: string }[];
+    createdAt?: string;
 };
 
 /**
- * Lista eventos recentes de estudo do aluno autenticado.
- *
- * @returns Histórico privado do aluno com datas ISO serializadas.
+ * Item privado do histórico da IA da sala.
  */
-export function listStudyHistory(): Promise<StudyHistoryEvent[]> {
-    // O requestJson já usa credentials include; o frontend não envia userId manualmente.
-    return requestJson<StudyHistoryEvent[]>("/api/study/history");
+export type RoomAiHistoryItem = {
+    _id: string;
+    roomId: string;
+    question: string;
+    answer: string;
+    createdAt?: string;
+};
+
+/**
+ * Pergunta à IA da sala usando apenas partilhas autorizadas como contexto.
+ *
+ * @param roomId Identificador da sala; o backend valida membership antes de expor dados.
+ * @param input Payload tipado enviado para a API; validação final continua no backend.
+ * @returns Resposta da IA da sala com fontes usadas.
+ */
+export function askRoomAi(
+    roomId: string,
+    input: { question: string; sourceIds?: string[] },
+): Promise<RoomAiAnswer> {
+    return requestJson<RoomAiAnswer>(`/api/study-rooms/${roomId}/ai/answers`, {
+        method: "POST",
+        body: JSON.stringify(input),
+    });
+}
+
+/**
+ * Lista o histórico privado da IA da sala para o aluno autenticado.
+ *
+ * @param roomId Identificador da sala; o backend valida membership e dono do histórico.
+ * @returns Interações privadas ordenadas da mais recente para a mais antiga.
+ */
+export function listMyRoomAiHistory(roomId: string): Promise<RoomAiHistoryItem[]> {
+    return requestJson<RoomAiHistoryItem[]>(
+        `/api/study-rooms/${roomId}/ai/answers?scope=mine`,
+    );
 }
