@@ -4,21 +4,23 @@ import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
 import { CreateOfficialTestDto } from "./dto/create-official-test.dto.js";
 import { SubmitOfficialTestAttemptDto } from "./dto/submit-official-test-attempt.dto.js";
+import { OfficialTestRankingService } from "./official-test-ranking.service.js";
 import { OfficialTestsService } from "./official-tests.service.js";
 
 /**
  * Endpoints de testes oficiais.
- *
- * O controller mantém rotas docentes e de aluno no mesmo domínio para evitar
- * controllers paralelos com regras duplicadas.
  */
 @Controller("api")
 @UseGuards(SessionGuard)
 export class OfficialTestsController {
     /**
-     * @param testsService Service de domínio com regras de testes oficiais.
+     * @param testsService Service principal de testes oficiais.
+     * @param rankingService Service de ranking docente.
      */
-    constructor(private readonly testsService: OfficialTestsService) {}
+    constructor(
+        private readonly testsService: OfficialTestsService,
+        private readonly rankingService: OfficialTestRankingService,
+    ) {}
 
     /**
      * Cria teste oficial docente.
@@ -50,6 +52,27 @@ export class OfficialTestsController {
         @Param("subjectId") subjectId: string,
     ) {
         return this.testsService.listForTeacher(request.user!, subjectId);
+    }
+
+    /**
+     * Lista ranking de um mini-teste oficial para professor autorizado.
+     *
+     * @param request Pedido autenticado.
+     * @param subjectId Disciplina do professor.
+     * @param testId Mini-teste oficial.
+     * @returns Ranking ordenado e minimizado.
+     */
+    @Get("teacher/subjects/:subjectId/tests/:testId/ranking")
+    listRankingForTeacher(
+        @Req() request: AuthenticatedRequest,
+        @Param("subjectId") subjectId: string,
+        @Param("testId") testId: string,
+    ) {
+        return this.rankingService.listForTeacher(
+            request.user!,
+            subjectId,
+            testId,
+        );
     }
 
     /**

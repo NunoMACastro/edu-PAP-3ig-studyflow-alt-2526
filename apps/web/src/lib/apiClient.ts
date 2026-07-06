@@ -70,3 +70,36 @@ export function submitOfficialTestAttempt(
         },
     );
 }
+
+export type OfficialTestRankingRow = {
+    position: number;
+    studentRef: string;
+    displayName: string;
+    correctAnswers: number;
+    totalQuestions: number;
+    percentage: number;
+    answeredAt: string;
+};
+
+export type OfficialTestRanking = {
+    testId: string;
+    subjectId: string;
+    classId: string;
+    rows: OfficialTestRankingRow[];
+};
+
+/**
+ * Obtém ranking docente de um mini-teste oficial.
+ *
+ * @param subjectId Disciplina do professor autenticado.
+ * @param testId Mini-teste oficial.
+ * @returns Ranking minimizado e autorizado pelo backend.
+ */
+export function getOfficialTestRanking(
+    subjectId: string,
+    testId: string,
+): Promise<OfficialTestRanking> {
+    return requestJson<OfficialTestRanking>(
+        `/api/teacher/subjects/${subjectId}/tests/${testId}/ranking`,
+    );
+}

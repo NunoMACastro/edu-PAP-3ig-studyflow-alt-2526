@@ -3,6 +3,7 @@ import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "../auth/auth.module.js";
 import { SubjectsModule } from "../subjects/subjects.module.js";
+import { OfficialTestRankingService } from "./official-test-ranking.service.js";
 import { OfficialTestsController } from "./official-tests.controller.js";
 import { OfficialTestsService } from "./official-tests.service.js";
 import {
@@ -12,10 +13,7 @@ import {
 import { OfficialTest, OfficialTestSchema } from "./schemas/official-test.schema.js";
 
 /**
- * Módulo de testes oficiais.
- *
- * Regista o teste oficial criado pelo professor e a tentativa separada
- * criada pelo aluno, preservando a versão oficial sem alterações.
+ * Módulo de testes oficiais, tentativas e ranking docente.
  */
 @Module({
     imports: [
@@ -27,7 +25,7 @@ import { OfficialTest, OfficialTestSchema } from "./schemas/official-test.schema
         ]),
     ],
     controllers: [OfficialTestsController],
-    providers: [OfficialTestsService],
-    exports: [OfficialTestsService],
+    providers: [OfficialTestsService, OfficialTestRankingService],
+    exports: [OfficialTestsService, OfficialTestRankingService],
 })
 export class OfficialTestsModule {}
