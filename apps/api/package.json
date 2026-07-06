@@ -15,8 +15,7 @@
     "verify:tls": "node src/scripts/verify-tls-evidence.mjs",
     "backup:daily": "nest build && node dist/scripts/backup-database.js",
     "backup:daily:dry-run": "nest build && node dist/scripts/backup-database.js --dry-run",
-    "mf8:final-tests": "nest build && node dist/scripts/run-mf8-final-tests.js",
-    "deploy:check": "npm run build && node dist/scripts/validate-deploy-readiness.js",
+    "mf8:error-register": "nest build && node dist/scripts/mf8-error-register.js",
     "test": "jest --config ./jest.config.cjs --passWithNoTests",
     "test:unit": "npm test"
   },
