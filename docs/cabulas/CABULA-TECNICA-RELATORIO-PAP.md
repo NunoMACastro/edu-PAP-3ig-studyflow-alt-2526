@@ -542,7 +542,7 @@ Inclui:
 - autenticação;
 - sessões HttpOnly;
 - roles de aluno, professor e administrador;
-- validação, segurança, CSRF, ownership e membership.
+- validação, segurança, CSRF, ownership e membership. (não precisam de explicar ou falar detalhadamente sobre cada uma destas, mas devem situar no mapa geral. Dizer algo como "o backend valida se o aluno é dono da área, se o aluno pertence à sala, se o aluno está inscrito na disciplina, etc.")
 
 Mensagem-chave:
 
