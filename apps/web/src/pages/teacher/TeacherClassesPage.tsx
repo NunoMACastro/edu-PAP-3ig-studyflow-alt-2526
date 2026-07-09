@@ -274,22 +274,22 @@ export function TeacherClassesPage() {
     const classesList = (
         <section className="min-w-0 space-y-3">
             {isLoading ? (
-                <p className="sf-panel text-sm text-slate-600">A carregar turmas...</p>
+                <p className="sf-panel text-sm text-studyflow-text">A carregar turmas...</p>
             ) : null}
             {performanceWarning ? (
-                <p className="sf-panel text-sm text-amber-900" role="status">
+                <p className="sf-panel text-sm text-studyflow-alert" role="status">
                     {performanceWarning}
                 </p>
             ) : null}
             {!isLoading && classes.length === 0 ? (
-                <p className="sf-panel text-sm text-slate-600">Ainda não tens turmas.</p>
+                <p className="sf-panel text-sm text-studyflow-text">Ainda não tens turmas.</p>
             ) : null}
 
             {classes.map((schoolClass) => (
                 <article className="sf-panel min-w-0 space-y-3" key={schoolClass._id}>
                     <div>
                         <h2 className="break-words font-semibold">{schoolClass.name}</h2>
-                        <p className="text-sm text-slate-600">
+                        <p className="text-sm text-studyflow-text">
                             {schoolClass.code} · {schoolClass.schoolYear} ·{" "}
                             {schoolClass.studentIds.length} alunos
                         </p>

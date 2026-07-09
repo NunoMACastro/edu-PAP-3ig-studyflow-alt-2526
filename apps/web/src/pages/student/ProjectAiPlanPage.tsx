@@ -47,10 +47,10 @@ export function ProjectAiPlanPage({ projectId }: { projectId: string }) {
             {plan ? (
                 <article className="sf-panel">
                     <h2 className="font-semibold">Passos sugeridos</h2>
-                    <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-700">
+                    <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-studyflow-text">
                         {plan.steps.map((step) => <li key={step}>{step}</li>)}
                     </ol>
-                    {plan.rationale ? <p className="mt-3 text-sm text-slate-600">{plan.rationale}</p> : null}
+                    {plan.rationale ? <p className="mt-3 text-sm text-studyflow-text">{plan.rationale}</p> : null}
                 </article>
             ) : null}
         </section>

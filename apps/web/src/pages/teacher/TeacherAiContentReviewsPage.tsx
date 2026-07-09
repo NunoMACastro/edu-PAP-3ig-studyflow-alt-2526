@@ -93,12 +93,12 @@ export function TeacherAiContentReviewsPage({ subjectId }: { subjectId: string }
                 </button>
             </form>
             <div className="grid gap-3">
-                {reviews.length === 0 ? <p className="sf-panel text-sm text-slate-600">Sem conteúdo pendente de revisão.</p> : null}
+                {reviews.length === 0 ? <p className="sf-panel text-sm text-studyflow-text">Sem conteúdo pendente de revisão.</p> : null}
                 {reviews.map((review) => (
                     <article className="sf-panel space-y-2" key={review._id}>
                         <h2 className="font-semibold">{review.contentType}</h2>
-                        <p className="text-sm text-slate-600">{review.status} · material {review.materialId}</p>
-                        <pre className="overflow-auto rounded bg-slate-100 p-3 text-xs">
+                        <p className="text-sm text-studyflow-text">{review.status} · material {review.materialId}</p>
+                        <pre className="overflow-auto rounded bg-studyflow-card p-3 text-xs">
                             {JSON.stringify(review.contentJson, null, 2)}
                         </pre>
                         {review.status === "PENDING" ? (

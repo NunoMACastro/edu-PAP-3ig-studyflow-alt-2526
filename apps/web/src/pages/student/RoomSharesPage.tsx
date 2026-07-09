@@ -138,12 +138,12 @@ export function RoomSharesPage({ roomId }: RoomSharesPageProps) {
                 </form>
             </div>
             <div className="grid gap-3">
-                {shares.length === 0 ? <p className="sf-panel text-sm text-slate-600">Ainda não há partilhas.</p> : null}
+                {shares.length === 0 ? <p className="sf-panel text-sm text-studyflow-text">Ainda não há partilhas.</p> : null}
                 {shares.map((share) => (
                     <article className="sf-panel space-y-1" key={share._id}>
                         <h2 className="font-semibold">{share.title}</h2>
-                        <p className="text-sm text-slate-600">{share.type} · {share.usableByAi ? "pode alimentar IA" : "referência"}</p>
-                        {share.textContent ? <p className="whitespace-pre-wrap text-sm text-slate-700">{share.textContent}</p> : null}
+                        <p className="text-sm text-studyflow-text">{share.type} · {share.usableByAi ? "pode alimentar IA" : "referência"}</p>
+                        {share.textContent ? <p className="whitespace-pre-wrap text-sm text-studyflow-text">{share.textContent}</p> : null}
                         {share.url ? <a className="text-sm text-studyflow-brand" href={share.url}>{share.url}</a> : null}
                     </article>
                 ))}

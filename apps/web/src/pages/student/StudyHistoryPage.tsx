@@ -36,7 +36,7 @@ export function StudyHistoryPage() {
     }, []);
 
     if (loading) {
-        return <p className="text-sm text-slate-600">A carregar histórico...</p>;
+        return <p className="text-sm text-studyflow-text">A carregar histórico...</p>;
     }
 
     return (

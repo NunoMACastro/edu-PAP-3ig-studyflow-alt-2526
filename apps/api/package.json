@@ -9,6 +9,7 @@
     "start:dev": "nest start --watch",
     "start:e2e": "nest build && node dist/scripts/start-e2e-api.js",
     "seed:dev-users": "nest build && node dist/scripts/seed-development-users.js",
+    "seed:demo": "nest build && node dist/scripts/seed-demo-dataset.js",
     "smoke:200-users": "node src/scripts/smoke-200-users.mjs",
     "smoke:runtime-instances": "node src/scripts/smoke-runtime-instances.mjs",
     "smoke:runtime-instances:local": "npm run build && node src/scripts/smoke-runtime-instances.mjs --local",

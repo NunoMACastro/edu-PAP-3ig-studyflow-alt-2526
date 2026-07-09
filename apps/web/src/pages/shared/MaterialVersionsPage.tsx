@@ -117,7 +117,7 @@ export function MaterialVersionsPage({ jobId }: { jobId: string }) {
                                 <p className="font-semibold">
                                     v{version.versionNumber} · {version.title}
                                 </p>
-                                <p className="text-sm text-slate-600">
+                                <p className="text-sm text-studyflow-text">
                                     {version.chunksSnapshot.length} blocos indexados
                                 </p>
                             </div>
@@ -131,7 +131,7 @@ export function MaterialVersionsPage({ jobId }: { jobId: string }) {
                             </button>
                         </div>
                         {version.changeSummary ? (
-                            <p className="text-sm text-slate-700">{version.changeSummary}</p>
+                            <p className="text-sm text-studyflow-text">{version.changeSummary}</p>
                         ) : null}
                     </article>
                 ))}

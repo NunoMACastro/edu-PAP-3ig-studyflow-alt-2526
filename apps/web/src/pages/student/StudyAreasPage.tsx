@@ -62,7 +62,7 @@ export function StudyAreasPage() {
                 {areas.map((area) => (
                     <a className="sf-panel block hover:border-studyflow-brand" href={`/app/areas/${area._id}`} key={area._id}>
                         <h2 className="font-semibold">{area.name}</h2>
-                        {area.description ? <p className="mt-1 text-sm text-slate-600">{area.description}</p> : null}
+                        {area.description ? <p className="mt-1 text-sm text-studyflow-text">{area.description}</p> : null}
                     </a>
                 ))}
             </div>

@@ -207,23 +207,23 @@ export function AdminGovernancePanel() {
     return (
         <section className="space-y-6">
             <header>
-                <h1 className="text-2xl font-bold text-slate-900">Governança</h1>
-                <p className="text-sm text-slate-600">Utilizadores, auditoria, notificações e limites de IA.</p>
+                <h1 className="text-2xl font-bold text-studyflow-text">Governança</h1>
+                <p className="text-sm text-studyflow-text">Utilizadores, auditoria, notificações e limites de IA.</p>
             </header>
             {error ? <p className="sf-error">{error}</p> : null}
             {success ? <p className="sf-success">{success}</p> : null}
-            {loading ? <p className="text-sm text-slate-600">A carregar governança...</p> : null}
+            {loading ? <p className="text-sm text-studyflow-text">A carregar governança...</p> : null}
 
             <div className="sf-panel space-y-3">
                 <h2 className="text-lg font-semibold">Utilizadores</h2>
-                {users.length === 0 && !loading ? <p className="text-sm text-slate-600">Sem utilizadores.</p> : null}
+                {users.length === 0 && !loading ? <p className="text-sm text-studyflow-text">Sem utilizadores.</p> : null}
                 <div className="grid gap-2">
                     {users.map((user) => (
-                        <article className="rounded-md border border-slate-200 p-3" key={user.id}>
+                        <article className="rounded-md border border-studyflow-border p-3" key={user.id}>
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                     <p className="font-medium">{user.email}</p>
-                                    <p className="text-xs text-slate-500">{user.role}</p>
+                                    <p className="text-xs text-studyflow-text">{user.role}</p>
                                 </div>
                                 <select
                                     value={user.role}
@@ -245,9 +245,9 @@ export function AdminGovernancePanel() {
                 <section className="sf-panel space-y-3">
                     <h2 className="text-lg font-semibold">Auditoria</h2>
                     {events.slice(0, 8).map((event) => (
-                        <article className="rounded-md border border-slate-200 p-3" key={event.id}>
+                        <article className="rounded-md border border-studyflow-border p-3" key={event.id}>
                             <p className="font-medium">{event.action}</p>
-                            <p className="text-xs text-slate-500">{event.domain} · {event.result}</p>
+                            <p className="text-xs text-studyflow-text">{event.domain} · {event.result}</p>
                         </article>
                     ))}
                 </section>
@@ -255,7 +255,7 @@ export function AdminGovernancePanel() {
                     <h2 className="text-lg font-semibold">Canais</h2>
                     {notificationPolicies.map((policy) => (
                         <form
-                            className="grid gap-2 rounded-md border border-slate-200 p-3"
+                            className="grid gap-2 rounded-md border border-studyflow-border p-3"
                             key={policy.channel}
                             onSubmit={(event) => {
                                 event.preventDefault();
@@ -326,7 +326,7 @@ export function AdminGovernancePanel() {
                     <h2 className="text-lg font-semibold">Modelos IA</h2>
                     {[...modelPolicies, modelDraft].map((policy, index) => (
                         <form
-                            className="grid gap-2 rounded-md border border-slate-200 p-3"
+                            className="grid gap-2 rounded-md border border-studyflow-border p-3"
                             key={`${policy.purpose}-${index}`}
                             onSubmit={(event) => {
                                 event.preventDefault();
@@ -418,7 +418,7 @@ export function AdminGovernancePanel() {
                 <section className="sf-panel space-y-4">
                     <h2 className="text-lg font-semibold">Quotas IA</h2>
                     <form
-                        className="grid gap-2 rounded-md border border-slate-200 p-3"
+                        className="grid gap-2 rounded-md border border-studyflow-border p-3"
                         onSubmit={(event) => {
                             event.preventDefault();
                             void persistQuotaPolicy(quotaDraft);
@@ -481,19 +481,19 @@ export function AdminGovernancePanel() {
                     <div className="grid gap-2">
                         {quotas.slice(0, 6).map((quota) => (
                             <button
-                                className="rounded-md border border-slate-200 p-3 text-left"
+                                className="rounded-md border border-studyflow-border p-3 text-left"
                                 key={`${quota.scope}-${quota.targetId}-${quota.purpose}`}
                                 type="button"
                                 onClick={() => setQuotaDraft(quota)}
                             >
                                 <strong>{quota.scope}</strong> · {quota.purpose}
-                                <span className="block text-xs text-slate-500">{quota.monthlyLimitUnits} unidades</span>
+                                <span className="block text-xs text-studyflow-text">{quota.monthlyLimitUnits} unidades</span>
                             </button>
                         ))}
                     </div>
                     <h3 className="text-base font-semibold">Consumo</h3>
                     {usage.slice(0, 5).map((row) => (
-                        <p className="text-sm text-slate-600" key={`${row.scope}-${row.targetId}-${row.purpose}-${row.period}`}>
+                        <p className="text-sm text-studyflow-text" key={`${row.scope}-${row.targetId}-${row.purpose}-${row.period}`}>
                             {row.period} · {row.scope} · {row.purpose}: {row.usedUnits}
                         </p>
                     ))}

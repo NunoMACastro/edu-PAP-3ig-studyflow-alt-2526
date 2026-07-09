@@ -77,10 +77,10 @@ export function SoloStudyDashboard() {
                 action={<a className="sf-button-primary" href="/app/areas">Criar área</a>}
             />
 
-            {loading ? <p className="text-sm text-slate-600">A carregar estudo...</p> : null}
+            {loading ? <p className="text-sm text-studyflow-text">A carregar estudo...</p> : null}
             {error ? <p className="sf-error" role="alert">{error}</p> : null}
             {performanceWarning ? (
-                <p className="sf-panel text-sm text-amber-900" role="status">
+                <p className="sf-panel text-sm text-studyflow-alert" role="status">
                     {performanceWarning}
                 </p>
             ) : null}
@@ -88,22 +88,22 @@ export function SoloStudyDashboard() {
             {state ? (
                 <div className="grid gap-4 md:grid-cols-3">
                     <article className="sf-panel">
-                        <p className="text-sm text-slate-500">Áreas</p>
+                        <p className="text-sm text-studyflow-text">Áreas</p>
                         <p className="mt-2 text-3xl font-bold">{state.studyAreasCount}</p>
                     </article>
                     <article className="sf-panel">
-                        <p className="text-sm text-slate-500">Rotinas</p>
+                        <p className="text-sm text-studyflow-text">Rotinas</p>
                         <p className="mt-2 text-3xl font-bold">{state.routinesCount}</p>
                     </article>
                     <article className="sf-panel">
-                        <p className="text-sm text-slate-500">Materiais</p>
+                        <p className="text-sm text-studyflow-text">Materiais</p>
                         <p className="mt-2 text-3xl font-bold">{state.materialsCount}</p>
                     </article>
                 </div>
             ) : null}
 
             {state && state.studyAreasCount === 0 ? (
-                <p className="sf-panel text-sm text-slate-600">
+                <p className="sf-panel text-sm text-studyflow-text">
                     Ainda não há áreas de estudo. Cria a primeira área para juntar materiais e IA privada.
                 </p>
             ) : null}

@@ -89,13 +89,13 @@ export function StudyRoomsPage() {
                 </button>
             </form>
             <div className="grid gap-3">
-                {loading ? <p className="text-sm text-slate-600">A carregar salas...</p> : null}
-                {!loading && rooms.length === 0 ? <p className="sf-panel text-sm text-slate-600">Ainda não tens salas.</p> : null}
+                {loading ? <p className="text-sm text-studyflow-text">A carregar salas...</p> : null}
+                {!loading && rooms.length === 0 ? <p className="sf-panel text-sm text-studyflow-text">Ainda não tens salas.</p> : null}
                 {rooms.map((room) => (
                     <article className="sf-panel space-y-2" key={room._id}>
                         <div>
                             <h2 className="font-semibold">{room.name}</h2>
-                            <p className="text-sm text-slate-600">
+                            <p className="text-sm text-studyflow-text">
                                 {room.type === "SUBJECT" ? room.disciplineName : "Sala livre"} · {room.memberIds.length} membros
                             </p>
                         </div>

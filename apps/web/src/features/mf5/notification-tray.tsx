@@ -67,21 +67,21 @@ export function NotificationTray() {
             {open ? (
                 <section
                     aria-label="Notificações contextualizadas"
-                    className="absolute right-0 z-20 mt-2 max-h-96 w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border border-slate-200 bg-white p-4 shadow-lg"
+                    className="absolute right-0 z-20 mt-2 max-h-96 w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border border-studyflow-border bg-studyflow-card p-4"
                     id="studyflow-notification-tray"
                 >
                     {status === "loading" ? (
-                        <p className="text-sm text-slate-600">A carregar notificações...</p>
+                        <p className="text-sm text-studyflow-text">A carregar notificações...</p>
                     ) : null}
 
                     {status === "error" ? (
-                        <p className="text-sm text-red-700">
+                        <p className="text-sm text-studyflow-alert">
                             Não foi possível carregar notificações.
                         </p>
                     ) : null}
 
                     {status === "success" && items.length === 0 ? (
-                        <p className="text-sm text-slate-600">Sem notificações novas.</p>
+                        <p className="text-sm text-studyflow-text">Sem notificações novas.</p>
                     ) : null}
 
                     {items.length > 0 ? (
@@ -91,10 +91,10 @@ export function NotificationTray() {
                                     <p className="text-xs font-medium uppercase text-studyflow-brand">
                                         {getContextLabel(item)}
                                     </p>
-                                    <strong className="block text-sm text-slate-900">
+                                    <strong className="block text-sm text-studyflow-text">
                                         {item.title}
                                     </strong>
-                                    <p className="mt-1 text-sm text-slate-700">{item.body}</p>
+                                    <p className="mt-1 text-sm text-studyflow-text">{item.body}</p>
                                 </li>
                             ))}
                         </ul>

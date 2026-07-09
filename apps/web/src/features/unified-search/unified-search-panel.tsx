@@ -61,14 +61,14 @@ export function UnifiedSearchPanel() {
                 </button>
             </form>
             {response && response.results.length === 0 ? (
-                <p className="text-sm text-slate-600">Sem resultados.</p>
+                <p className="text-sm text-studyflow-text">Sem resultados.</p>
             ) : null}
             <div className="grid gap-2">
                 {response?.results.map((result) => (
-                    <article className="rounded-md border border-slate-200 p-3 text-sm" key={`${result.jobId}-${result.locator}`}>
+                    <article className="rounded-md border border-studyflow-border p-3 text-sm" key={`${result.jobId}-${result.locator}`}>
                         <strong>{result.sourceLabel}</strong>
-                        <p className="text-slate-600">{result.locator}</p>
-                        <p className="text-slate-700">{result.excerpt}</p>
+                        <p className="text-studyflow-text">{result.locator}</p>
+                        <p className="text-studyflow-text">{result.excerpt}</p>
                     </article>
                 ))}
             </div>

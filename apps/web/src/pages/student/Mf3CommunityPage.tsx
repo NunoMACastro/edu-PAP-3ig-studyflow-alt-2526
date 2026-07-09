@@ -27,7 +27,7 @@ export function Mf3CommunityPage() {
     return (
         <div className="space-y-6">
             <header>
-                <h1 className="text-2xl font-bold text-slate-900">Comunidade e guardrails</h1>
+                <h1 className="text-2xl font-bold text-studyflow-text">Comunidade e guardrails</h1>
             </header>
             <div className="grid gap-6 xl:grid-cols-2">
                 <StudyAlertsPanel />

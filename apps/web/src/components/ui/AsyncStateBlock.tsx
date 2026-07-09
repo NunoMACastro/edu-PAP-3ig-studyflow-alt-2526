@@ -20,7 +20,7 @@ export type AsyncStateBlockProps = {
 export function AsyncStateBlock(props: AsyncStateBlockProps) {
     if (props.isLoading) {
         return (
-            <p className="text-sm text-slate-600" aria-live="polite">
+            <p className="text-sm text-studyflow-text" aria-live="polite">
                 A carregar dados...
             </p>
         );
@@ -38,7 +38,7 @@ export function AsyncStateBlock(props: AsyncStateBlockProps) {
     if (props.isEmpty) {
         // O estado vazio fica explícito para evitar listas silenciosamente sem conteúdo.
         return (
-            <p className="text-sm text-slate-600" aria-live="polite">
+            <p className="text-sm text-studyflow-text" aria-live="polite">
                 {props.emptyMessage}
             </p>
         );

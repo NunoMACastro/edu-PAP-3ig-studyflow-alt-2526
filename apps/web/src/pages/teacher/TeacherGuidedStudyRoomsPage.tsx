@@ -99,20 +99,20 @@ export function TeacherGuidedStudyRoomsPage({ classId }: { classId: string }) {
                 </button>
             </form>
             <div className="grid gap-3">
-                {rooms.length === 0 ? <p className="sf-panel text-sm text-slate-600">Ainda não existem salas guiadas.</p> : null}
+                {rooms.length === 0 ? <p className="sf-panel text-sm text-studyflow-text">Ainda não existem salas guiadas.</p> : null}
                 {rooms.map((room) => (
                     <article className="sf-panel" key={room._id}>
                         <h2 className="font-semibold">{room.title}</h2>
-                        <p className="text-sm text-slate-600">{room.description}</p>
-                        <p className="mt-2 text-sm text-slate-600">
+                        <p className="text-sm text-studyflow-text">{room.description}</p>
+                        <p className="mt-2 text-sm text-studyflow-text">
                             {room.subjectId
                                 ? `Disciplina: ${subjectsById.get(room.subjectId)?.name ?? "Disciplina"}`
                                 : "Sem disciplina específica"}
                         </p>
-                        <p className="text-xs uppercase text-slate-500">
+                        <p className="text-xs uppercase text-studyflow-text">
                             Voz: {room.subjectId ? "disciplina" : "turma"}
                         </p>
-                        <p className="mt-2 text-xs uppercase text-slate-500">{room.status}</p>
+                        <p className="mt-2 text-xs uppercase text-studyflow-text">{room.status}</p>
                     </article>
                 ))}
             </div>

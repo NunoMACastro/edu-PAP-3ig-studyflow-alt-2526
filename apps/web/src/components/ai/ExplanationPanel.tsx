@@ -34,7 +34,7 @@ export function ExplanationPanel({ artifact }: ExplanationPanelProps) {
             {(content.sections ?? []).map((section, index) => (
                 <section className="space-y-1" key={index}>
                     <h3 className="font-semibold">{section.heading}</h3>
-                    <p className="text-sm text-slate-700">{section.body}</p>
+                    <p className="text-sm text-studyflow-text">{section.body}</p>
                     <ArtifactSources
                         sourceMaterialIds={section.sourceMaterialIds}
                         sources={artifact.sourcesJson}

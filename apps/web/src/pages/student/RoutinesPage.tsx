@@ -263,7 +263,7 @@ export function RoutinesPage() {
             <div className="sf-panel space-y-4">
                 <div>
                     <h1 className="text-xl font-bold">Rotinas</h1>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-studyflow-text">
                         Define dias, hora e duração para blocos de estudo.
                     </p>
                 </div>
@@ -284,11 +284,11 @@ export function RoutinesPage() {
                         />
                     </div>
                     <div>
-                        <span className="text-sm font-medium text-slate-700">Dias</span>
+                        <span className="text-sm font-medium text-studyflow-text">Dias</span>
                         <div className="mt-2 flex flex-wrap gap-2">
                             {weekdayOptions.map((weekday) => (
                                 <label
-                                    className="inline-flex items-center gap-2 rounded border border-slate-200 px-3 py-2 text-sm"
+                                    className="inline-flex items-center gap-2 rounded border border-studyflow-border px-3 py-2 text-sm"
                                     key={weekday.value}
                                 >
                                     <input
@@ -355,11 +355,11 @@ export function RoutinesPage() {
                 </form>
                 <ul className="space-y-2">
                     {data.routines.map((routine) => (
-                        <li className="rounded-md border border-slate-200 p-3 text-sm" key={routine._id}>
+                        <li className="rounded-md border border-studyflow-border p-3 text-sm" key={routine._id}>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
                                     <p className="font-semibold">{routine.title}</p>
-                                    <p className="text-slate-600">
+                                    <p className="text-studyflow-text">
                                         {routine.weekdays.join(", ")} às {routine.startTime}, {routine.durationMinutes} min
                                     </p>
                                 </div>
@@ -379,7 +379,7 @@ export function RoutinesPage() {
             <div className="sf-panel space-y-4">
                 <div>
                     <h2 className="text-xl font-bold">Objetivos</h2>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-studyflow-text">
                         Regista metas pessoais e acompanha a conclusão.
                     </p>
                 </div>
@@ -443,14 +443,14 @@ export function RoutinesPage() {
                 </form>
                 <ul className="space-y-2">
                     {data.goals.map((goal) => (
-                        <li className="rounded-md border border-slate-200 p-3 text-sm" key={goal._id}>
+                        <li className="rounded-md border border-studyflow-border p-3 text-sm" key={goal._id}>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div className={goal.completed ? "text-slate-500" : ""}>
+                                <div className={goal.completed ? "text-studyflow-text" : ""}>
                                     <p className="font-semibold">{goal.title}</p>
                                     {goal.description ? (
-                                        <p className="text-slate-600">{goal.description}</p>
+                                        <p className="text-studyflow-text">{goal.description}</p>
                                     ) : null}
-                                    <p className="text-slate-600">
+                                    <p className="text-studyflow-text">
                                         {goal.targetDate
                                             ? `Data alvo: ${formatDatePt(goal.targetDate)}`
                                             : "Sem data alvo"}

@@ -28,7 +28,7 @@ export function SummaryPanel({ artifact }: SummaryPanelProps) {
     return (
         <article className="sf-panel space-y-3">
             <h2 className="text-lg font-bold">{content.title ?? "Resumo"}</h2>
-            <ul className="list-disc space-y-2 pl-5 text-sm text-slate-700">
+            <ul className="list-disc space-y-2 pl-5 text-sm text-studyflow-text">
                 {(content.bullets ?? []).map((bullet, index) => (
                     <li key={index}>{bullet}</li>
                 ))}

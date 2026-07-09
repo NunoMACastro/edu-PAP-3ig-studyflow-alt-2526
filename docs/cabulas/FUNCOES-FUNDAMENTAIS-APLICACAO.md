@@ -515,6 +515,7 @@ Base do levantamento: `real_dev/api/src` e `real_dev/web/src`
 - `ClassesController.create(request, body)` (pública; método de classe) - Recebe o pedido de criação de turmas e entrega ao service mantendo o controller fino. Entradas: `request`: Pedido HTTP já atravessado pelo guard, incluindo `request.user` quando o endpoint exige sessão.; `body`: Payload validado pelo DTO do endpoint antes de chegar ao service. Devolve: Registo de turmas criado no formato público esperado pela UI ou pelo teste.
 - `ClassesController.listTeacher(request)` (pública; método de classe) - Recebe o pedido de listagem de turmas e usa a sessão para limitar o âmbito. Entradas: `request`: Pedido HTTP já atravessado pelo guard, incluindo `request.user` quando o endpoint exige sessão. Devolve: Coleção de turmas visível para o contexto autorizado.
 - `ClassesController.addStudent(request, classId, body)` (pública; método de classe) - Executa a operação add student no domínio de turmas com contrato explícito. Entradas: `request`: Pedido autenticado recebido pelo controller, incluindo a sessão e o utilizador atual.; `classId`: Identificador usado para localizar o recurso correto e validar o acesso ao seu âmbito.; `body`: Payload validado recebido no pedido HTTP antes de ser entregue ao domínio. Devolve: Resultado da operação no formato esperado pelo chamador.
+- `ClassesController.removeStudent(request, classId, studentId)` (pública; método de classe) - Remove a associação entre aluno e turma sem apagar a conta do aluno. Entradas: `request`: Pedido autenticado recebido pelo controller.; `classId`: Turma onde a associação existe.; `studentId`: Aluno a remover da turma. Devolve: Turma atualizada depois da remoção.
 - `ClassesController.listStudent(request)` (pública; método de classe) - Recebe o pedido de listagem de turmas e usa a sessão para limitar o âmbito. Entradas: `request`: Pedido HTTP já atravessado pelo guard, incluindo `request.user` quando o endpoint exige sessão. Devolve: Coleção de turmas visível para o contexto autorizado.
 
 ### `real_dev/api/src/modules/classes/classes.service.ts`
@@ -522,6 +523,7 @@ Base do levantamento: `real_dev/api/src` e `real_dev/web/src`
 - `ClassesService.createClass(actor, input)` (pública; método de classe) - Cria turmas depois de validar permissões, normalizar input e preparar o contrato público. Entradas: `actor`: Utilizador autenticado usado para validar permissões, ownership e âmbito da operação.; `input`: Dados estruturados da operação, já alinhados com o DTO ou contrato público correspondente. Devolve: Promise com o resultado da operação depois de concluídas validações e efeitos assíncronos.
 - `ClassesService.listTeacherClasses(actor)` (pública; método de classe) - Lista turmas já filtrado pelo utilizador autenticado ou pela relação de turma ou sala. Entradas: `actor`: Utilizador autenticado vindo da sessão; é a base para validar role, ownership e membership. Devolve: Coleção de turmas visível para o contexto autorizado.
 - `ClassesService.addStudent(actor, classId, input)` (pública; método de classe) - Executa a operação add student no domínio de turmas com contrato explícito. Entradas: `actor`: Utilizador autenticado usado para validar permissões, ownership e âmbito da operação.; `classId`: Identificador usado para localizar o recurso correto e validar o acesso ao seu âmbito.; `input`: Dados estruturados da operação, já alinhados com o DTO ou contrato público correspondente. Devolve: Promise com o resultado da operação depois de concluídas validações e efeitos assíncronos.
+- `ClassesService.removeStudent(actor, classId, studentId)` (pública; método de classe) - Remove a inscrição de um aluno numa turma depois de validar professor dono, turma e aluno. Entradas: `actor`: Utilizador autenticado usado para validar permissões e ownership.; `classId`: Turma alvo.; `studentId`: Aluno a desassociar. Devolve: Turma pública atualizada.
 - `ClassesService.listStudentClasses(actor)` (pública; método de classe) - Lista turmas já filtrado pelo utilizador autenticado ou pela relação de turma ou sala. Entradas: `actor`: Utilizador autenticado vindo da sessão; é a base para validar role, ownership e membership. Devolve: Coleção de turmas visível para o contexto autorizado.
 - `ClassesService.findOwnedClass(teacherId, classId)` (pública; método de classe) - Obtém turma pertencente ao professor. Entradas: `teacherId`: Professor autenticado.; `classId`: Turma a validar. Devolve: Turma pública.
 - `ClassesService.ensureStudentEnrollment(studentId, classId)` (pública; método de classe) - Confirma inscrição do aluno numa turma. Entradas: `studentId`: Aluno autenticado.; `classId`: Turma a validar. Devolve: Turma pública.
@@ -1122,6 +1124,25 @@ Base do levantamento: `real_dev/api/src` e `real_dev/web/src`
 - `SubjectsService.duplicatedName()` (privada; método de classe) - Constrói uma exceção de disciplinas com código previsível para API, UI e testes. Entradas: sem entradas explícitas. Devolve: Exceção padronizada com código estável para controllers e testes.
 - `SubjectsService.toSubjectView(subject)` (privada; método de classe) - Mapeia o documento interno de disciplinas para uma forma pública estável e simples de consumir. Entradas: `subject`: Valor de subject usado pela função para executar to subject view com dados explícitos. Devolve: Contrato público pronto para a UI, sem campos internos de persistência.
 
+### `real_dev/api/src/modules/teacher-student-chat/teacher-student-chat.controller.ts`
+
+- `TeacherStudentChatController.listStudentMessages(request, subjectId)` (pública; método de classe) - Lista o histórico persistido do chat de uma disciplina para aluno inscrito. Entradas: `request`: Pedido autenticado pelo `SessionGuard`.; `subjectId`: Identificador da disciplina. Devolve: Últimas mensagens autorizadas em ordem cronológica.
+- `TeacherStudentChatController.listTeacherMessages(request, subjectId)` (pública; método de classe) - Lista o histórico persistido do chat de uma disciplina para o professor responsável. Entradas: `request`: Pedido autenticado pelo `SessionGuard`.; `subjectId`: Identificador da disciplina. Devolve: Últimas mensagens autorizadas em ordem cronológica.
+
+### `real_dev/api/src/modules/teacher-student-chat/teacher-student-chat.gateway.ts`
+
+- `TeacherStudentChatGateway.handleConnection(client)` (pública; método de classe) - Valida `Origin`, extrai o cookie `sf_sid` e anexa o utilizador autenticado à socket. Entradas: `client`: Socket ligada ao namespace `/subject-chat`. Devolve: Promise resolvida quando a sessão fica validada, ou erro público antes de desligar.
+- `TeacherStudentChatGateway.handleJoin(client, payload)` (pública; método de classe) - Junta uma socket autorizada à room da disciplina. Entradas: `client`: Socket autenticada.; `payload`: Objeto com `subjectId`. Devolve: Não devolve payload; em caso de falha emite `subject-chat:error`.
+- `TeacherStudentChatGateway.handleSend(client, payload)` (pública; método de classe) - Valida, persiste e emite uma mensagem para a room da disciplina. Entradas: `client`: Socket autenticada.; `payload`: Objeto com `subjectId` e `text`. Devolve: Não devolve payload; mensagens válidas são emitidas por `subject-chat:message`.
+
+### `real_dev/api/src/modules/teacher-student-chat/teacher-student-chat.service.ts`
+
+- `TeacherStudentChatService.listStudentMessages(actor, subjectId)` (pública; método de classe) - Carrega histórico do chat depois de confirmar que o aluno está inscrito na disciplina. Entradas: `actor`: Utilizador autenticado vindo da sessão.; `subjectId`: Disciplina alvo. Devolve: Mensagens públicas sem emails nem dados de sessão.
+- `TeacherStudentChatService.listTeacherMessages(actor, subjectId)` (pública; método de classe) - Carrega histórico do chat depois de confirmar que o professor é responsável pela disciplina. Entradas: `actor`: Utilizador autenticado vindo da sessão.; `subjectId`: Disciplina alvo. Devolve: Mensagens públicas sem dados sensíveis.
+- `TeacherStudentChatService.assertCanJoin(actor, subjectId)` (pública; método de classe) - Valida autorização para entrar no canal WebSocket da disciplina. Entradas: `actor`: Utilizador autenticado.; `subjectId`: Disciplina alvo. Devolve: Dados mínimos de acesso para calcular a room.
+- `TeacherStudentChatService.sendMessage(actor, subjectId, text)` (pública; método de classe) - Valida papel, disciplina, texto e rate limit antes de persistir a mensagem. Entradas: `actor`: Utilizador autenticado.; `subjectId`: Disciplina alvo.; `text`: Texto submetido pela UI. Devolve: Mensagem pública já persistida.
+- `TeacherStudentChatService.roomName(subjectId)` (pública; método de classe) - Calcula o nome estável da room Socket.IO por disciplina. Entradas: `subjectId`: Disciplina alvo. Devolve: String no formato `subject:<subjectId>`.
+
 ### `real_dev/api/src/modules/teacher-ai/teacher-ai-voice.controller.ts`
 
 - `TeacherAiVoiceController.updateClassVoice(request, classId, body)` (pública; método de classe) - Atualiza voz da IA docente sem alterar a semântica pública do endpoint ou componente. Este fluxo mantém a governação de IA explícita quando depende de consentimento, política, quota ou fontes autorizadas. Entradas: `request`: Pedido autenticado recebido pelo controller, incluindo a sessão e o utilizador atual.; `classId`: Identificador usado para localizar o recurso correto e validar o acesso ao seu âmbito.; `body`: Payload validado recebido no pedido HTTP antes de ser entregue ao domínio. Devolve: Resultado da operação no formato esperado pelo chamador.
@@ -1526,6 +1547,17 @@ Base do levantamento: `real_dev/api/src` e `real_dev/web/src`
 - `SourceGroundedAiPanel()` (exportada; função) - Painel de resposta com citações obrigatórias. Entradas: sem entradas explícitas. Devolve: Formulário e resposta fundamentada.
 - `SourceGroundedAiPanel.handleSubmit(event)` (interna; função) - Trata a acao do utilizador e sincroniza o estado da interface. Este fluxo mantém a governação de IA explícita quando depende de consentimento, política, quota ou fontes autorizadas. Entradas: `event`: Evento da interface usado para impedir o comportamento padrão e recolher dados do formulário. Devolve: Não devolve payload; termina quando os efeitos locais ou remotos ficam concluídos.
 
+### `real_dev/web/src/features/subject-chat/subject-chat-client.ts`
+
+- `listSubjectChatMessages(role, subjectId)` (exportada; função) - Carrega por REST o histórico persistido do chat da disciplina para aluno ou professor. Entradas: `role`: Papel da página atual, `STUDENT` ou `TEACHER`.; `subjectId`: Disciplina alvo. Devolve: Últimas mensagens autorizadas.
+- `createSubjectChatSocket()` (exportada; função) - Cria a socket tipada para o namespace `/subject-chat` com `withCredentials`. Entradas: sem entradas explícitas. Devolve: Socket desligada, pronta para registar handlers antes do `connect`.
+
+### `real_dev/web/src/features/subject-chat/SubjectChatPanel.tsx`
+
+- `SubjectChatPanel({ subjectId, role })` (exportada; função) - Painel reutilizável do chat da disciplina com histórico REST, ligação WebSocket, estados online/offline, vazio, erro e envio conservador. Entradas: `props`: Disciplina e papel da página atual. Devolve: Interface de chat pronta a renderizar.
+- `SubjectChatPanel.startChat()` (interna; função) - Carrega histórico, cria socket, faz `join` no canal da disciplina e escuta mensagens em tempo real. Entradas: sem entradas explícitas, usa `subjectId` e `role` do componente. Devolve: Promise resolvida quando o painel fica pronto ou erro visível.
+- `SubjectChatPanel.handleSubmit(event)` (interna; função) - Envia a mensagem por `subject-chat:send`, sem optimistic UI, para que só mensagens confirmadas pelo servidor apareçam no histórico. Entradas: `event`: Evento do formulário. Devolve: Promise resolvida depois de entregar à socket local.
+
 ### `real_dev/web/src/features/study-alerts/load-study-alerts.ts`
 
 - `loadStudyAlerts(onlyUpcoming)` (exportada; função) - Carrega alertas internos de estudo. Entradas: `onlyUpcoming`: Filtra alertas futuros. Devolve: Alertas visíveis.
@@ -1646,6 +1678,7 @@ Base do levantamento: `real_dev/api/src` e `real_dev/web/src`
 - `listTeacherClasses()` (exportada; função) - Lista as turmas oficiais criadas pelo professor autenticado. Entradas: sem entradas explícitas. Devolve: Turmas geridas pelo professor atual.
 - `createTeacherClass(input)` (exportada; função) - Cria uma turma oficial que depois pode receber alunos, disciplinas e materiais. Entradas: `input`: Payload tipado enviado para a API; validação final continua no backend. Devolve: Turma criada com código normalizado pelo backend.
 - `addClassStudent(classId, email)` (exportada; função) - Inscreve um aluno numa turma oficial usando o email. Entradas: `classId`: Identificador da turma; o backend valida professor dono ou aluno inscrito.; `email`: Email do aluno usado pelo backend para encontrar a conta certa. Devolve: Turma atualizada com o aluno inscrito.
+- `removeClassStudent(classId, studentId)` (exportada; função) - Remove a associação de um aluno a uma turma oficial sem apagar a conta. Entradas: `classId`: Identificador da turma; o backend valida ownership pelo professor autenticado.; `studentId`: Aluno a remover da turma. Devolve: Turma atualizada após a remoção.
 - `listStudentClasses()` (exportada; função) - Lista as turmas oficiais onde o aluno autenticado está inscrito. Entradas: sem entradas explícitas. Devolve: Turmas visíveis para o aluno atual.
 - `listSubjects(classId)` (exportada; função) - Lista disciplinas de uma turma para o professor dono. Entradas: `classId`: Identificador da turma; o backend valida professor dono ou aluno inscrito. Devolve: Disciplinas configuradas na turma.
 - `listStudentSubjects(classId)` (exportada; função) - Lista disciplinas de uma turma acessíveis ao aluno inscrito. Entradas: `classId`: Identificador da turma; o backend valida professor dono ou aluno inscrito. Devolve: Disciplinas visíveis para o aluno.
@@ -1821,6 +1854,10 @@ Base do levantamento: `real_dev/api/src` e `real_dev/web/src`
 
 - `StudentClassSubjectsPage({ classId })` (exportada; função) - Página de disciplinas disponíveis para o aluno numa turma onde está inscrito. Entradas: `props`: Propriedades recebidas pelo componente React; concentram os dados e callbacks necessários para renderizar a UI. Devolve: Elemento React pronto a ser renderizado pela página ou rota atual.
 
+### `real_dev/web/src/pages/student/StudentSubjectChatPage.tsx`
+
+- `StudentSubjectChatPage({ subjectId })` (exportada; função) - Página do aluno para chat contextual da disciplina. Entradas: `props`: Identificador da disciplina vindo da rota `/app/disciplinas/:subjectId/chat`. Devolve: `SubjectChatPanel` em modo `STUDENT`.
+
 ### `real_dev/web/src/pages/student/StudentGuidedStudyRoomsPage.tsx`
 
 - `StudentGuidedStudyRoomsPage({ classId })` (exportada; função) - Página do aluno para consultar salas guiadas da turma. Entradas: `props`: Propriedades recebidas pelo componente React; concentram os dados e callbacks necessários para renderizar a UI. Devolve: Elemento React pronto a ser renderizado pela página ou rota atual.
@@ -1890,12 +1927,23 @@ Base do levantamento: `real_dev/api/src` e `real_dev/web/src`
 ### `real_dev/web/src/pages/teacher/TeacherClassesPage.tsx`
 
 - `TeacherClassesPage()` (exportada; função) - Página de turmas oficiais do professor. Entradas: sem entradas explícitas. Devolve: Elemento React pronto a ser renderizado pela página ou rota atual.
+- `normalizeSearchText(value)` (top-level; função) - Normaliza texto de pesquisa para filtrar turmas por nome, código ou ano letivo sem depender de maiúsculas, minúsculas ou espaços laterais. Entradas: `value`: Texto digitado ou campo de turma usado na pesquisa local. Devolve: Texto normalizado para comparação.
+- `formatStudentCount(count)` (top-level; função) - Formata a contagem de alunos com singular/plural correto. Entradas: `count`: Número de alunos associados à turma. Devolve: Texto legível para o card e o acordeão.
+- `formatClassCount(count)` (top-level; função) - Formata a contagem total de turmas do professor. Entradas: `count`: Número de turmas carregadas. Devolve: Texto legível para a toolbar.
+- `formatVisibleClassCount(visibleCount, totalCount)` (top-level; função) - Formata a contagem contextual quando há pesquisa ativa. Entradas: `visibleCount`: Turmas visíveis após filtro.; `totalCount`: Total de turmas carregadas. Devolve: Texto no formato `X de Y turmas visíveis`.
+- `getSchoolYearStart(schoolYear)` (top-level; função) - Extrai o primeiro ano de um ano letivo para ordenação local. Entradas: `schoolYear`: Texto como `2025/2026`. Devolve: Ano numérico ou fallback seguro.
+- `getCreatedAtTimestamp(createdAt)` (top-level; função) - Converte `createdAt` opcional em timestamp para ordenar turmas recentes. Entradas: `createdAt`: Data ISO opcional devolvida pela API. Devolve: Timestamp ou `0`.
+- `getStudentSectionClassIdFromHash()` (top-level; função) - Lê o hash `#students-:classId` para abrir diretamente o painel de alunos de uma turma. Entradas: sem entradas explícitas; usa `window.location.hash`. Devolve: Identificador da turma ou `null`.
+- `validateTeacherClassFields(input)` (top-level; função) - Valida localmente criação de turma alinhada com o DTO backend. Entradas: `input`: Campos `name`, `code` e `schoolYear` já aparados. Devolve: Mapa de erros por campo para a UI.
 - `TeacherClassesPage.loadInitialClasses(active)` (interna; função) - Carrega as turmas iniciais respeitando unmounts durante a chamada assíncrona. Entradas: `active`: Função que indica se o componente ainda pode receber estado. Devolve: Promise resolvida depois de carregar ou falhar de forma controlada.
-- `TeacherClassesPage.refreshAfterMutation()` (interna; função) - Recarrega dados depois de mutações, sem duplicar mensagens de sucesso. Entradas: sem entradas explícitas. Devolve: Promise resolvida depois de atualizar estado.
+- `TeacherClassesPage.upsertClass(nextClass)` (interna; função) - Aplica no estado local a turma criada ou atualizada devolvida pela API. Entradas: `nextClass`: Payload confirmado por `createTeacherClass`, `addClassStudent` ou `removeClassStudent`. Devolve: Nada; apenas sincroniza a lista local.
 - `TeacherClassesPage.clearClassFieldError(field)` (interna; função) - Remove uma mensagem de validação quando o professor começa a corrigir o campo. Entradas: `field`: Campo do formulário de criação de turma. Devolve: Nada; apenas atualiza estado local.
 - `TeacherClassesPage.clearStudentFieldError(classId)` (interna; função) - Remove o erro do email de aluno dentro da turma indicada. Entradas: `classId`: Turma onde o professor está a escrever. Devolve: Nada; apenas atualiza estado local.
+- `TeacherClassesPage.toggleStudentSection(classId)` (interna; função) - Alterna o acordeão de alunos de uma turma sem alterar a rota. Entradas: `classId`: Turma cujo painel deve abrir ou fechar. Devolve: Nada; apenas atualiza estado local.
+- `TeacherClassesPage.openStudentSection(classId)` (interna; função) - Abre diretamente o painel de alunos de uma turma. Entradas: `classId`: Turma cujo painel deve ficar visível. Devolve: Nada; apenas atualiza estado local.
 - `TeacherClassesPage.handleCreate(event)` (interna; função) - Trata a acao do utilizador e sincroniza o estado da interface. Entradas: `event`: Evento da interface que dispara a acao. Devolve: Promise resolvida depois de criar ou reportar erro.
 - `TeacherClassesPage.handleAddStudent(classId)` (interna; função) - Trata a acao do utilizador e sincroniza o estado da interface. Entradas: `classId`: Identificador usado para limitar a operação a turma. Devolve: Promise resolvida depois de associar aluno ou reportar erro.
+- `TeacherClassesPage.handleRemoveStudent(classId, className, studentId, studentEmail)` (interna; função) - Remove a associação de um aluno após confirmação explícita do professor. Entradas: `classId`: Turma onde o aluno está inscrito.; `className`: Nome da turma para contexto visual.; `studentId`: Aluno a desassociar.; `studentEmail`: Email visível do aluno. Devolve: Promise resolvida depois de remover ou reportar erro.
 
 ### `real_dev/web/src/pages/teacher/TeacherClassPostsPage.tsx`
 
@@ -1945,6 +1993,10 @@ Base do levantamento: `real_dev/api/src` e `real_dev/web/src`
 - `TeacherSubjectsPage({ classId })` (exportada; função) - Página de disciplinas de uma turma. Entradas: `props`: Propriedades recebidas pelo componente React; concentram os dados e callbacks necessários para renderizar a UI. Devolve: Elemento React pronto a ser renderizado pela página ou rota atual.
 - `TeacherSubjectsPage.refresh()` (interna; função) - Recarrega dados remotos para manter a interface atualizada. Entradas: sem entradas explícitas. Devolve: Não devolve payload; termina quando os efeitos locais ou remotos ficam concluídos.
 - `TeacherSubjectsPage.handleSubmit(event)` (interna; função) - Trata a acao do utilizador e sincroniza o estado da interface. Entradas: `event`: Evento da interface usado para impedir o comportamento padrão e recolher dados do formulário. Devolve: Não devolve payload; termina quando os efeitos locais ou remotos ficam concluídos.
+
+### `real_dev/web/src/pages/teacher/TeacherSubjectChatPage.tsx`
+
+- `TeacherSubjectChatPage({ subjectId })` (exportada; função) - Página do professor para chat contextual da disciplina. Entradas: `props`: Identificador da disciplina vindo da rota `/app/professor/disciplinas/:subjectId/chat`. Devolve: `SubjectChatPanel` em modo `TEACHER`.
 
 ### `real_dev/web/src/routes/protectedRoutes.tsx`
 

@@ -70,11 +70,11 @@ export function TeacherSubjectsPage({ classId }: TeacherSubjectsPageProps) {
                 <button className="sf-button-primary" disabled={name.trim().length < 2 || code.trim().length < 2}>Criar disciplina</button>
             </form>
             <div className="grid gap-3">
-                {subjects.length === 0 ? <p className="sf-panel text-sm text-slate-600">Ainda não há disciplinas.</p> : null}
+                {subjects.length === 0 ? <p className="sf-panel text-sm text-studyflow-text">Ainda não há disciplinas.</p> : null}
                 {subjects.map((subject) => (
                     <article className="sf-panel space-y-2" key={subject._id}>
                         <h2 className="font-semibold">{subject.name}</h2>
-                        <p className="text-sm text-slate-600">{subject.code}</p>
+                        <p className="text-sm text-studyflow-text">{subject.code}</p>
                         <div className="flex flex-wrap gap-2">
                             <a className="sf-button-secondary" href={`/app/professor/disciplinas/${subject._id}/materiais`}>Materiais</a>
                             <a className="sf-button-secondary" href={`/app/professor/disciplinas/${subject._id}/voz`}>Override voz IA</a>

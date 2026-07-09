@@ -16,18 +16,18 @@ type StudyHistoryListProps = {
  */
 export function StudyHistoryList({ events }: StudyHistoryListProps) {
     if (events.length === 0) {
-        return <p className="text-sm text-slate-600">Ainda não há eventos.</p>;
+        return <p className="text-sm text-studyflow-text">Ainda não há eventos.</p>;
     }
 
     return (
         <ul className="space-y-3">
             {events.map((event) => (
-                <li className="rounded-md border border-slate-200 p-3" key={event.id}>
+                <li className="rounded-md border border-studyflow-border p-3" key={event.id}>
                     <p className="font-medium">{event.title}</p>
                     {event.description ? (
-                        <p className="text-sm text-slate-600">{event.description}</p>
+                        <p className="text-sm text-studyflow-text">{event.description}</p>
                     ) : null}
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-studyflow-text">
                         {/* A data chega em ISO e só é localizada no último momento, junto da UI. */}
                         {formatDatePt(event.occurredAt)}
                     </p>

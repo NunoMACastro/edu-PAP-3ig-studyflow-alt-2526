@@ -27,11 +27,11 @@ export function StudentClassProjectsPage({ classId }: { classId: string }) {
             <h1 className="text-xl font-bold">Projectos da turma</h1>
             {error ? <p className="sf-error">{error}</p> : null}
             <div className="grid gap-3">
-                {projects.length === 0 ? <p className="sf-panel text-sm text-slate-600">Ainda não existem projectos publicados.</p> : null}
+                {projects.length === 0 ? <p className="sf-panel text-sm text-studyflow-text">Ainda não existem projectos publicados.</p> : null}
                 {projects.map((project) => (
                     <article className="sf-panel space-y-2" key={project._id}>
                         <h2 className="font-semibold">{project.title}</h2>
-                        <p className="text-sm text-slate-600">{project.brief}</p>
+                        <p className="text-sm text-studyflow-text">{project.brief}</p>
                         <a className="sf-button-secondary inline-flex" href={`/app/projectos/${project._id}/plano-ia`}>
                             Criar plano IA
                         </a>

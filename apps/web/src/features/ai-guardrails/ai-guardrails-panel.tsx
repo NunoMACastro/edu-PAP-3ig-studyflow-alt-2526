@@ -87,15 +87,15 @@ export function AiGuardrailsPanel() {
                 </button>
             </form>
             {decision ? (
-                <div className="rounded-md border border-slate-200 p-3 text-sm">
-                    <p className={decision.allowed ? "text-emerald-700" : "text-red-700"}>
+                <div className="rounded-md border border-studyflow-border p-3 text-sm">
+                    <p className={decision.allowed ? "text-studyflow-brand" : "text-studyflow-alert"}>
                         {decision.allowed
                             ? t(messageKeys.guardrailsAllowed)
                             : t(messageKeys.guardrailsBlocked)}
                     </p>
-                    <p className="text-slate-700">{decision.reason}</p>
+                    <p className="text-studyflow-text">{decision.reason}</p>
                     {isAiSafetyBlock(decision) ? (
-                        <p className="mt-2 text-slate-600">
+                        <p className="mt-2 text-studyflow-text">
                             {t(messageKeys.guardrailsSafetyBlock)}
                         </p>
                     ) : null}

@@ -102,9 +102,9 @@ export function StudyGroupSessionsPanel({ initialGroupId }: StudyGroupSessionsPa
             </form>
             <div className="grid gap-2">
                 {sessions.map((session) => (
-                    <article className="rounded-md border border-slate-200 p-3 text-sm" key={session._id}>
+                    <article className="rounded-md border border-studyflow-border p-3 text-sm" key={session._id}>
                         <strong>{session.title}</strong>
-                        <p className="text-slate-600">{new Date(session.startsAt).toLocaleString("pt-PT")}</p>
+                        <p className="text-studyflow-text">{new Date(session.startsAt).toLocaleString("pt-PT")}</p>
                     </article>
                 ))}
             </div>

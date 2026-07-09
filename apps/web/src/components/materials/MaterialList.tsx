@@ -81,7 +81,7 @@ export function MaterialList({ materials, studyAreaId }: MaterialListProps) {
     }
 
     if (materials.length === 0) {
-        return <p className="text-sm text-slate-600">Ainda não há materiais.</p>;
+        return <p className="text-sm text-studyflow-text">Ainda não há materiais.</p>;
     }
 
     return (
@@ -93,13 +93,13 @@ export function MaterialList({ materials, studyAreaId }: MaterialListProps) {
                     const isIndexing =
                         job?.status === "QUEUED" || job?.status === "PROCESSING";
                     return (
-                        <li className="rounded-md border border-slate-200 bg-white p-4" key={material._id}>
+                        <li className="rounded-md border border-studyflow-border bg-studyflow-card p-4" key={material._id}>
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                     <p className="font-semibold">{material.title}</p>
-                                    <p className="text-sm text-slate-600">{material.type}</p>
+                                    <p className="text-sm text-studyflow-text">{material.type}</p>
                                 </div>
-                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                                <span className="rounded-full bg-studyflow-card px-3 py-1 text-xs font-medium text-studyflow-text">
                                     {material.status}
                                 </span>
                             </div>
@@ -113,7 +113,7 @@ export function MaterialList({ materials, studyAreaId }: MaterialListProps) {
                                     {isIndexing ? "A indexar..." : "Indexar"}
                                 </button>
                                 {isIndexing ? (
-                                    <p className="text-sm text-slate-600" aria-live="polite">
+                                    <p className="text-sm text-studyflow-text" aria-live="polite">
                                         Indexação em {job.status === "QUEUED" ? "fila" : "processamento"}.
                                     </p>
                                 ) : null}
@@ -126,7 +126,7 @@ export function MaterialList({ materials, studyAreaId }: MaterialListProps) {
                                     </a>
                                 ) : null}
                                 {job?.status === "FAILED" ? (
-                                    <p className="text-sm text-red-700" role="alert">
+                                    <p className="text-sm text-studyflow-alert" role="alert">
                                         {job.errorMessage ??
                                             "O material não tem texto legível para estudar."}
                                     </p>

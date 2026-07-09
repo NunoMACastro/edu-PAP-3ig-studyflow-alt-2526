@@ -16,7 +16,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF1-08`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-07-criar-turmas.md`
-- `last_updated`: `2026-05-30`
+- `last_updated`: `2026-07-08`
 
 ## Objetivo
 Implementar `RF19`: permitir que um professor crie turmas oficiais e consulte apenas as suas turmas. Este BK também acrescenta, como decisão `DERIVADO`, o fluxo mínimo para associar alunos por email, porque `RF23`, `RF24` e os BKs seguintes dependem de existir um aluno inscrito numa turma.
@@ -116,7 +116,7 @@ Turmas são a fronteira principal da área docente. Disciplinas, materiais ofici
 - `apps/api/src/modules/classes/classes.service.ts`
 - `apps/api/src/modules/classes/classes.controller.ts`
 - `apps/api/src/modules/classes/classes.module.ts`
-- `apps/web/src/lib/api/classes.ts`
+- `apps/web/src/lib/apiClient.ts`
 - `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
 - `apps/web/src/pages/student/StudentClassesPage.tsx`
 
@@ -124,6 +124,7 @@ Endpoints:
 - `POST /api/teacher/classes`
 - `GET /api/teacher/classes`
 - `POST /api/teacher/classes/:classId/students`
+- `DELETE /api/teacher/classes/:classId/students/:studentId`
 - `GET /api/student/classes`
 
 ## Guia linear de implementação
@@ -336,14 +337,11 @@ export class SchoolClass {
     @Prop({ required: true, trim: true, minlength: 2, maxlength: 120 })
     name!: string;
 
-    @Prop({ required: true, trim: true, uppercase: true, minlength: 2, maxlength: 24 })
+    @Prop({ required: true, trim: true, uppercase: true, minlength: 2, maxlength: 40 })
     code!: string;
 
     @Prop({ required: true, trim: true, minlength: 4, maxlength: 20 })
     schoolYear!: string;
-
-    @Prop({ trim: true, maxlength: 500 })
-    description?: string;
 
     @Prop({ type: [{ type: Types.ObjectId, ref: "User" }], default: [], index: true })
     studentIds!: Types.ObjectId[];
@@ -389,7 +387,7 @@ Valida que o índice único é por professor. Dois professores podem usar o mesm
 
 ```ts
 // apps/api/src/modules/classes/dto/create-class.dto.ts
-import { IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+import { IsString, MaxLength, MinLength } from "class-validator";
 
 export class CreateClassDto {
     @IsString()
@@ -399,18 +397,13 @@ export class CreateClassDto {
 
     @IsString()
     @MinLength(2)
-    @MaxLength(24)
+    @MaxLength(40)
     code!: string;
 
     @IsString()
     @MinLength(4)
     @MaxLength(20)
     schoolYear!: string;
-
-    @IsOptional()
-    @IsString()
-    @MaxLength(500)
-    description?: string;
 }
 ```
 
@@ -496,7 +489,6 @@ export class ClassesService {
             name: dto.name.trim(),
             code,
             schoolYear: dto.schoolYear.trim(),
-            description: dto.description?.trim(),
             studentIds: [],
         });
 
@@ -601,7 +593,6 @@ export class ClassesService {
             name: schoolClass.name,
             code: schoolClass.code,
             schoolYear: schoolClass.schoolYear,
-            description: schoolClass.description ?? "",
             studentIds: schoolClass.studentIds.map((id) => id.toString()),
         };
     }
@@ -748,87 +739,80 @@ export class ClassesModule {}
 
 1. Explicação simples do objetivo.
 
-    Neste passo vais criar cliente frontend nos ficheiros `apps/web/src/lib/api/classes.ts`. O objetivo é avançar uma peça pequena, verificável e ligada ao que os BKs anteriores já criaram, para evitar código solto ou contratos contraditórios.
+    Neste passo vais integrar os endpoints de turmas no cliente frontend central `apps/web/src/lib/apiClient.ts`. O objetivo é avançar uma peça pequena, verificável e ligada ao que os BKs anteriores já criaram, para evitar código solto, clientes paralelos ou contratos contraditórios.
 
 2. Ficheiros envolvidos.
 
-- CRIAR: `apps/web/src/lib/api/classes.ts`
-- LOCALIZAÇÃO: ficheiro completo.
+- EDITAR: `apps/web/src/lib/apiClient.ts`
+- LOCALIZAÇÃO: zona de tipos partilhados e zona de funções de turmas.
 
 3. O que fazer.
 
-    Cria ou edita os ficheiros indicados acima, exatamente na localização indicada. Usa o código completo abaixo como a versão final prevista para a app, mantendo nomes, exports e imports coerentes com os BKs anteriores e seguintes.
+    Acrescenta ou confirma os tipos e funções abaixo no cliente central. O helper `requestJson` deve continuar a ser o ponto único para cookies, parsing e tratamento de erros HTTP.
 
-4. Código completo, correto e integrado.
+4. Contrato de integração correto.
 
 ```ts
-// apps/web/src/lib/api/classes.ts
-export type SchoolClassView = {
+// apps/web/src/lib/apiClient.ts
+export type SchoolClassStudent = {
     id: string;
+    email: string;
+};
+
+export type SchoolClass = {
+    _id: string;
     teacherId: string;
     name: string;
     code: string;
     schoolYear: string;
-    description: string;
     studentIds: string[];
+    students?: SchoolClassStudent[];
+    createdAt?: string;
 };
 
-async function parseResponse<T>(response: Response): Promise<T> {
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: "Pedido inválido." }));
-        throw new Error(error.message ?? "Pedido inválido.");
-    }
-
-    return response.json() as Promise<T>;
+export function listTeacherClasses(): Promise<SchoolClass[]> {
+    return requestJson<SchoolClass[]>("/api/teacher/classes");
 }
 
-export async function createClass(input: {
+export function createTeacherClass(input: {
     name: string;
     code: string;
     schoolYear: string;
-    description?: string;
-}) {
-    const response = await fetch("/api/teacher/classes", {
+}): Promise<SchoolClass> {
+    return requestJson<SchoolClass>("/api/teacher/classes", {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
     });
-
-    return parseResponse<SchoolClassView>(response);
 }
 
-export async function listTeacherClasses() {
-    const response = await fetch("/api/teacher/classes", {
-        credentials: "include",
-    });
-
-    return parseResponse<SchoolClassView[]>(response);
-}
-
-export async function addClassStudent(classId: string, email: string) {
-    const response = await fetch(`/api/teacher/classes/${classId}/students`, {
+export function addClassStudent(
+    classId: string,
+    email: string,
+): Promise<SchoolClass> {
+    return requestJson<SchoolClass>(`/api/teacher/classes/${classId}/students`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
     });
-
-    return parseResponse<SchoolClassView>(response);
 }
 
-export async function listStudentClasses() {
-    const response = await fetch("/api/student/classes", {
-        credentials: "include",
-    });
+export function removeClassStudent(
+    classId: string,
+    studentId: string,
+): Promise<SchoolClass> {
+    return requestJson<SchoolClass>(
+        `/api/teacher/classes/${classId}/students/${studentId}`,
+        { method: "DELETE" },
+    );
+}
 
-    return parseResponse<SchoolClassView[]>(response);
+export function listStudentClasses(): Promise<SchoolClass[]> {
+    return requestJson<SchoolClass[]>("/api/student/classes");
 }
 ```
 
 5. Explicação do código.
 
-    O cliente centraliza as chamadas e envia sempre o cookie de sessão.
+    O cliente centraliza as chamadas e usa sempre a sessão autenticada. As mutações de professor devolvem a turma criada ou atualizada para a UI poder sincronizar estado local sem depender de um reload completo depois de cada sucesso.
 
 6. Como validar este passo.
 
@@ -836,7 +820,7 @@ export async function listStudentClasses() {
 
 7. Erros comuns ou cenário negativo.
 
-    O erro mais comum é copiar o código sem respeitar a ordem dos BKs: isso cria imports para ficheiros ainda não definidos. Outro erro é quebrar ownership, aceitando IDs vindos do frontend em vez de usar a sessão autenticada ou os services de validação.
+    O erro mais comum é criar um cliente paralelo como `classes.ts`, duplicando headers, parsing e tipos. Outro erro é quebrar ownership, aceitando IDs vindos do frontend em vez de usar a sessão autenticada ou os services de validação.
 
 ### Passo 9 - Criar páginas mínimas de utilização
 
@@ -853,22 +837,22 @@ export async function listStudentClasses() {
 
 3. O que fazer.
 
-    Cria ou edita os ficheiros indicados acima, exatamente na localização indicada. Usa o código completo abaixo como a versão final prevista para a app, mantendo nomes, exports e imports coerentes com os BKs anteriores e seguintes.
+    Cria ou edita os ficheiros indicados acima, exatamente na localização indicada. Usa a base abaixo como bootstrap pedagógico, mantendo nomes, exports e imports coerentes com os BKs anteriores e seguintes. A implementação real deve preservar o contrato operacional descrito depois do excerto.
 
-4. Código completo, correto e integrado.
+4. Base mínima e contrato real de integração.
 
 ```tsx
 // apps/web/src/pages/teacher/TeacherClassesPage.tsx
 import { FormEvent, useEffect, useState } from "react";
 import {
-    SchoolClassView,
     addClassStudent,
-    createClass,
+    createTeacherClass,
     listTeacherClasses,
-} from "../../lib/api/classes";
+    SchoolClass,
+} from "../../lib/apiClient";
 
 export function TeacherClassesPage() {
-    const [classes, setClasses] = useState<SchoolClassView[]>([]);
+    const [classes, setClasses] = useState<SchoolClass[]>([]);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [isLoading, setIsLoading] = useState(true);
@@ -876,6 +860,17 @@ export function TeacherClassesPage() {
 
     async function refresh() {
         setClasses(await listTeacherClasses());
+    }
+
+    function upsertClass(nextClass: SchoolClass) {
+        setClasses((current) => {
+            const exists = current.some((schoolClass) => schoolClass._id === nextClass._id);
+            if (!exists) return [nextClass, ...current];
+
+            return current.map((schoolClass) =>
+                schoolClass._id === nextClass._id ? nextClass : schoolClass,
+            );
+        });
     }
 
     useEffect(() => {
@@ -894,14 +889,13 @@ export function TeacherClassesPage() {
         const form = new FormData(event.currentTarget);
 
         try {
-            await createClass({
+            const createdClass = await createTeacherClass({
                 name: String(form.get("name") ?? ""),
                 code: String(form.get("code") ?? ""),
                 schoolYear: String(form.get("schoolYear") ?? ""),
-                description: String(form.get("description") ?? ""),
             });
             event.currentTarget.reset();
-            await refresh();
+            upsertClass(createdClass);
             setNotice("Turma criada com sucesso.");
         } catch (reason) {
             setError(reason instanceof Error ? reason.message : "Não foi possível criar a turma.");
@@ -913,8 +907,8 @@ export function TeacherClassesPage() {
     async function handleAddStudent(classId: string, email: string) {
         setError("");
         setNotice("");
-        await addClassStudent(classId, email);
-        await refresh();
+        const updatedClass = await addClassStudent(classId, email);
+        upsertClass(updatedClass);
         setNotice("Aluno adicionado à turma.");
     }
 
@@ -925,7 +919,6 @@ export function TeacherClassesPage() {
                 <input name="name" placeholder="Nome da turma" required />
                 <input name="code" placeholder="Código" required />
                 <input name="schoolYear" placeholder="Ano letivo" required />
-                <textarea name="description" placeholder="Descrição" />
                 <button type="submit" disabled={isSaving}>
                     {isSaving ? "A guardar" : "Criar turma"}
                 </button>
@@ -938,15 +931,18 @@ export function TeacherClassesPage() {
                 {isLoading ? <p>A carregar turmas.</p> : null}
                 {!isLoading && classes.length === 0 ? <p>Ainda não existem turmas criadas.</p> : null}
                 {classes.map((schoolClass) => (
-                    <article key={schoolClass.id}>
+                    <article key={schoolClass._id}>
                         <h2>{schoolClass.name}</h2>
                         <p>{schoolClass.code} · {schoolClass.schoolYear}</p>
                         <p>{schoolClass.studentIds.length} alunos inscritos</p>
+                        <a href={`/app/professor/turmas/${schoolClass._id}/voz`}>
+                            Voz IA da turma
+                        </a>
                         <form
                             onSubmit={(event) => {
                                 event.preventDefault();
                                 const form = new FormData(event.currentTarget);
-                                handleAddStudent(schoolClass.id, String(form.get("email") ?? "")).catch(
+                                handleAddStudent(schoolClass._id, String(form.get("email") ?? "")).catch(
                                     (reason: Error) => setError(reason.message),
                                 );
                                 event.currentTarget.reset();
@@ -966,10 +962,10 @@ export function TeacherClassesPage() {
 ```tsx
 // apps/web/src/pages/student/StudentClassesPage.tsx
 import { useEffect, useState } from "react";
-import { SchoolClassView, listStudentClasses } from "../../lib/api/classes";
+import { SchoolClass, listStudentClasses } from "../../lib/apiClient";
 
 export function StudentClassesPage() {
-    const [classes, setClasses] = useState<SchoolClassView[]>([]);
+    const [classes, setClasses] = useState<SchoolClass[]>([]);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
@@ -988,7 +984,7 @@ export function StudentClassesPage() {
             {isLoading ? <p>A carregar turmas.</p> : null}
             {!isLoading && classes.length === 0 ? <p>Ainda não estás inscrito em turmas.</p> : null}
             {classes.map((schoolClass) => (
-                <article key={schoolClass.id}>
+                <article key={schoolClass._id}>
                     <h2>{schoolClass.name}</h2>
                     <p>{schoolClass.code} · {schoolClass.schoolYear}</p>
                 </article>
@@ -1000,7 +996,9 @@ export function StudentClassesPage() {
 
 5. Explicação do código.
 
-    A página do professor deve permitir criar turma, ver lista e adicionar aluno por email, mostrando carregamento, vazio, sucesso e erro. A página do aluno só mostra vazio depois de terminar a leitura das turmas inscritas.
+    A página do professor deve permitir criar turma, ver lista e adicionar aluno por email, mostrando carregamento, vazio, sucesso e erro. No estado real de `real_dev`, esta página foi expandida sem alterar backend: o CTA do topo abre `form#criar-turma`, o hash `/app/professor/turmas#criar-turma` abre e foca o formulário, `#students-:classId` continua a abrir o painel de alunos, a validação local respeita `name` 2-120, `code` 2-40 e `schoolYear` no formato `YYYY/YYYY`, e as mutações usam o payload devolvido por `createTeacherClass`, `addClassStudent` e `removeClassStudent`.
+
+    A lista docente também deve manter uma toolbar compacta de pesquisa e ordenação local, com `Pesquisar turma`, `Ordenar`, opções `Mais recentes`, `Nome A-Z` e `Ano letivo`, contagem contextual, chips `Sem alunos`/`Com alunos`, CTA destacado `Voz IA da turma`, ação `Adicionar primeiro aluno` quando a turma está vazia e ação `Gerir disciplinas` quando já tem alunos. O acordeão de alunos deve expor `Adicionar primeiro aluno`, `Gerir 1 aluno` ou `Gerir N alunos` conforme o estado da turma. A página do aluno só mostra vazio depois de terminar a leitura das turmas inscritas.
 
 6. Como validar este passo.
 

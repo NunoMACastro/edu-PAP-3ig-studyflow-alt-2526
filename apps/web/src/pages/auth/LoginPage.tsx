@@ -4,6 +4,8 @@
 import { FormEvent, useState } from "react";
 import { login } from "../../lib/apiClient.js";
 
+const studyflowLogoUrl = new URL("../../assets/studyflow-logo-temp.jpg", import.meta.url).href;
+
 /**
  * Props do componente React de autenticação; mantêm explícitas as dependências vindas da página.
  */
@@ -45,30 +47,61 @@ export function LoginPage({ onLoggedIn }: LoginPageProps) {
     }
 
     return (
-        <main className="flex min-h-screen items-center justify-center bg-studyflow-page px-4 py-10">
-            <div className="w-full max-w-md space-y-8">
-                <div className="text-center">
-                    <h1 className="text-4xl font-bold text-studyflow-brand">StudyFlow</h1>
-                    <p className="mt-3 text-base text-slate-700">Plataforma Inteligente de Aprendizagem</p>
-                </div>
+        <main className="relative flex min-h-screen overflow-hidden bg-studyflow-page px-4 py-8 text-studyflow-text sm:px-6 lg:px-8">
+            <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+                <div className="absolute inset-x-0 top-0 h-56 bg-gradient-to-br from-studyflow-navyHover via-studyflow-page to-studyflow-brand opacity-60" />
+                <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-studyflow-navyHover to-transparent opacity-60" />
+            </div>
 
-                <form className="sf-panel space-y-5 p-8" onSubmit={(event) => void handleSubmit(event)}>
-                    <div>
-                        <h2 className="text-2xl font-bold text-studyflow-navy">Entrar</h2>
+            <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[1fr_440px]">
+                <section className="mx-auto flex w-full max-w-sm flex-col items-center text-center lg:mx-0 lg:items-start lg:text-left">
+                    <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-lg border border-studyflow-border bg-studyflow-card shadow-2xl sm:h-32 sm:w-32">
+                        <img aria-hidden="true" className="h-full w-full object-cover" src={studyflowLogoUrl} alt="" />
+                    </div>
+                    <h1 className="sr-only">StudyFlow</h1>
+                    <p className="mt-6 max-w-xs text-base font-medium text-studyflow-muted">Plataforma Inteligente de Aprendizagem</p>
+                </section>
+
+                <form
+                    className="sf-panel w-full space-y-5 p-6 shadow-2xl sm:p-8"
+                    onSubmit={(event) => void handleSubmit(event)}
+                >
+                    <div className="border-b border-studyflow-border pb-5">
+                        <h2 className="text-2xl font-bold text-studyflow-text">Entrar</h2>
                     </div>
                     {error ? <p className="sf-error">{error}</p> : null}
                     <div className="space-y-2">
-                        <label htmlFor="email">Email</label>
-                        <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+                        <label htmlFor="email">
+                            Email
+                        </label>
+                        <input
+                            className="h-12 px-4 text-base"
+                            id="email"
+                            type="email"
+                            autoComplete="email"
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            required
+                        />
                     </div>
                     <div className="space-y-2">
-                        <label htmlFor="password">Password</label>
-                        <input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+                        <label htmlFor="password">
+                            Password
+                        </label>
+                        <input
+                            className="h-12 px-4 text-base"
+                            id="password"
+                            type="password"
+                            autoComplete="current-password"
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
+                            required
+                        />
                     </div>
-                    <button className="sf-button-primary w-full" type="submit" disabled={loading}>
+                    <button className="sf-button-primary h-12 w-full shadow-xl" type="submit" disabled={loading}>
                         {loading ? "A entrar..." : "Entrar"}
                     </button>
-                    <p className="text-center text-sm text-slate-500">
+                    <p className="text-center text-sm text-studyflow-muted">
                         Ainda não tens conta?{" "}
                         <a className="font-semibold text-studyflow-brand hover:text-studyflow-brandHover" href="/registar">
                             Registar

@@ -44,15 +44,15 @@ export function StudyAlertsPanel() {
                 </button>
             </div>
             {error ? <p className="sf-error">{error}</p> : null}
-            {loading ? <p className="text-sm text-slate-600">A carregar alertas...</p> : null}
+            {loading ? <p className="text-sm text-studyflow-text">A carregar alertas...</p> : null}
             {!loading && alerts.length === 0 ? (
-                <p className="text-sm text-slate-600">Sem alertas ativos.</p>
+                <p className="text-sm text-studyflow-text">Sem alertas ativos.</p>
             ) : null}
             <div className="grid gap-2">
                 {alerts.map((alert) => (
-                    <article className="rounded-md border border-slate-200 p-3 text-sm" key={alert.key}>
+                    <article className="rounded-md border border-studyflow-border p-3 text-sm" key={alert.key}>
                         <strong>{alert.title}</strong>
-                        <p className="text-slate-700">{alert.body}</p>
+                        <p className="text-studyflow-text">{alert.body}</p>
                     </article>
                 ))}
             </div>

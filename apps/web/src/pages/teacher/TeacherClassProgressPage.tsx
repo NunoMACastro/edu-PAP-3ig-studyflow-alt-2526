@@ -27,7 +27,7 @@ export function TeacherClassProgressPage({ classId }: { classId: string }) {
     }, [classId]);
 
     if (error) return <p className="sf-error">{error}</p>;
-    if (!progress) return <p className="sf-panel text-sm text-slate-600">A carregar acompanhamento...</p>;
+    if (!progress) return <p className="sf-panel text-sm text-studyflow-text">A carregar acompanhamento...</p>;
 
     /**
      * Carrega teacher no formato necessário ao próximo passo do fluxo.
@@ -89,30 +89,30 @@ export function TeacherClassProgressPage({ classId }: { classId: string }) {
                 <Metric label="Conteúdos aprovados" value={progress.approvedAiContentCount} />
             </div>
             <div className="sf-panel space-y-2">
-                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                <div className="rounded-md border border-studyflow-alert bg-studyflow-card px-3 py-2 text-sm text-studyflow-alert">
                     Progresso de aprendizagem: ainda sem dados de submissões ou resultados nesta macrofase.
                 </div>
                 <div className="flex items-center justify-between gap-3">
                     <div>
-                        <p className="text-sm text-slate-600">Sinais de acompanhamento</p>
+                        <p className="text-sm text-studyflow-text">Sinais de acompanhamento</p>
                         <p className="text-2xl font-bold">{progress.activityCoveragePercent}%</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-studyflow-text">
                             {progress.activitySignalTotal} sinais registados
                         </p>
                     </div>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-studyflow-text">
                         {progress.postCount} publicações · {progress.noteCount} notas
                     </p>
                 </div>
-                <div className="h-2 overflow-hidden rounded bg-slate-200">
+                <div className="h-2 overflow-hidden rounded bg-studyflow-card">
                     <div
-                        className="h-full bg-emerald-500"
+                        className="h-full bg-studyflow-brand"
                         style={{ width: `${progress.activityCoveragePercent}%` }}
                     />
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {progress.difficultyTags.map((tag) => (
-                        <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700" key={tag}>
+                        <span className="rounded bg-studyflow-card px-2 py-1 text-xs text-studyflow-text" key={tag}>
                             {tag}
                         </span>
                     ))}
@@ -150,10 +150,10 @@ export function TeacherClassProgressPage({ classId }: { classId: string }) {
                 {progress.notes.map((item) => (
                     <article className="sf-panel" key={item._id}>
                         <p className="font-semibold">{item.title}</p>
-                        <p className="mt-1 text-sm text-slate-700">{item.note}</p>
+                        <p className="mt-1 text-sm text-studyflow-text">{item.note}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
                             {item.difficultyTags.map((tag) => (
-                                <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700" key={tag}>
+                                <span className="rounded bg-studyflow-card px-2 py-1 text-xs text-studyflow-text" key={tag}>
                                     {tag}
                                 </span>
                             ))}
@@ -162,7 +162,7 @@ export function TeacherClassProgressPage({ classId }: { classId: string }) {
                 ))}
             </div>
             {(progress.gaps ?? []).map((gap) => (
-                <p className="sf-panel text-sm text-slate-600" key={gap}>{gap}</p>
+                <p className="sf-panel text-sm text-studyflow-text" key={gap}>{gap}</p>
             ))}
         </section>
     );
@@ -177,7 +177,7 @@ export function TeacherClassProgressPage({ classId }: { classId: string }) {
 function Metric({ label, value }: { label: string; value: number }) {
     return (
         <article className="sf-panel">
-            <p className="text-sm text-slate-600">{label}</p>
+            <p className="text-sm text-studyflow-text">{label}</p>
             <p className="text-2xl font-bold">{value}</p>
         </article>
     );

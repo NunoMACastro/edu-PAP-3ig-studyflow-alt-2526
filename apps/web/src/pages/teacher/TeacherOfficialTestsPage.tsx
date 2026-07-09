@@ -79,7 +79,7 @@ export function TeacherOfficialTestsPage({ subjectId }: { subjectId: string }) {
                 {tests.map((test) => (
                     <article className="sf-panel space-y-3" key={test._id}>
                         <h2 className="font-semibold">{test.title}</h2>
-                        <p className="text-sm text-slate-600">{test.questions.length} perguntas · {test.status}</p>
+                        <p className="text-sm text-studyflow-text">{test.questions.length} perguntas · {test.status}</p>
                         <a
                             className="sf-button-secondary inline-flex w-fit"
                             href={`/app/professor/disciplinas/${subjectId}/testes/${test._id}/ranking`}

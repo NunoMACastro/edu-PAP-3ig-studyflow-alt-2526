@@ -764,11 +764,17 @@ test("MF5 valida criação de turma antes de chamar a API", async ({ page }) => 
 
     await loginAs(page, teacher);
     await page.goto("/app/professor/turmas");
-    await page.getByRole("button", { name: "Criar turma" }).click();
 
-    await expect(page.getByText("Nome é obrigatório.")).toBeVisible();
-    await expect(page.getByText("Código é obrigatório.")).toBeVisible();
-    await expect(page.getByText("Ano letivo é obrigatório.")).toBeVisible();
+    await page.getByRole("button", { name: "Nova turma" }).click();
+    const classForm = page.locator("form").filter({
+        has: page.getByRole("heading", { name: "Criar turma" }),
+    });
+    await classForm.getByLabel("Ano letivo").fill("");
+    await classForm.getByRole("button", { name: "Criar turma" }).click();
+
+    await expect(classForm.getByText("Nome é obrigatório.")).toBeVisible();
+    await expect(classForm.getByText("Código é obrigatório.")).toBeVisible();
+    await expect(classForm.getByText("Ano letivo é obrigatório.")).toBeVisible();
     expect(createClassRequests).toBe(0);
 });
 
@@ -895,7 +901,9 @@ Se o próximo BK tentar resolver erros de formulário dentro do tray de notifica
 #### Critérios de aceite
 
 - `form-validation.ts` existe e exporta `FieldErrors`, `RequiredField`, `requireFields` e `hasFieldErrors`.
-- `TeacherClassesPage.tsx` bloqueia criação de turma vazia antes de `POST /api/teacher/classes`.
+- `TeacherClassesPage.tsx` bloqueia criação de turma inválida antes de `POST /api/teacher/classes`.
+- A criação de turma valida localmente `name` obrigatório com 2-120 caracteres, `code` obrigatório com 2-40 caracteres e `schoolYear` obrigatório com 4-20 caracteres no formato `YYYY/YYYY`.
+- O formulário mantém atributos semânticos como `minLength`, `maxLength` e `pattern` quando aplicável, mas preserva `noValidate` para mostrar mensagens próprias da UI.
 - `TeacherClassesPage.tsx` bloqueia adição de aluno sem email antes de `POST /api/teacher/classes/:id/students`.
 - `MaterialSubmitForm.tsx` bloqueia título vazio, texto/URL vazio e ficheiro em falta antes da API.
 - Os erros aparecem junto aos campos através de `FormField.error`.
@@ -906,7 +914,8 @@ Se o próximo BK tentar resolver erros de formulário dentro do tray de notifica
 
 - Executar `npm --prefix apps/web run build`.
 - Executar `npm --prefix apps/web run test:e2e -- mf5-form-validation.spec.ts`.
-- Confirmar que `getByText("Nome é obrigatório.")`, `getByText("Código é obrigatório.")`, `getByText("Título é obrigatório.")` e `getByText("Texto é obrigatório.")` aparecem nos cenários negativos.
+- Confirmar que o teste abre o painel com `Nova turma` quando a fixture já tem turmas e submete o formulário interno com `Criar turma`.
+- Confirmar que `getByText("Nome é obrigatório.")`, `getByText("Código é obrigatório.")`, `getByText("Ano letivo é obrigatório.")`, `getByText("Título é obrigatório.")` e `getByText("Texto é obrigatório.")` aparecem nos cenários negativos.
 - Confirmar que os contadores de pedidos `POST` ficam em `0` nos submits inválidos.
 - Confirmar que nenhuma validação de ownership, membership, role ou sessão foi movida para o frontend.
 

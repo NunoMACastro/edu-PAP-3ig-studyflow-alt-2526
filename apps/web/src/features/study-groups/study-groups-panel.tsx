@@ -79,15 +79,15 @@ export function StudyGroupsPanel() {
                     Criar grupo
                 </button>
             </form>
-            {loading ? <p className="text-sm text-slate-600">A carregar grupos...</p> : null}
+            {loading ? <p className="text-sm text-studyflow-text">A carregar grupos...</p> : null}
             {!loading && groups.length === 0 ? (
-                <p className="text-sm text-slate-600">Ainda não tens grupos.</p>
+                <p className="text-sm text-studyflow-text">Ainda não tens grupos.</p>
             ) : null}
             <div className="grid gap-2">
                 {groups.map((group) => (
-                    <a className="rounded-md border border-slate-200 p-3 text-sm" href={`/app/comunidade?grupo=${encodeURIComponent(group._id)}`} key={group._id}>
+                    <a className="rounded-md border border-studyflow-border p-3 text-sm" href={`/app/comunidade?grupo=${encodeURIComponent(group._id)}`} key={group._id}>
                         <strong>{group.title}</strong>
-                        <span className="block text-slate-600">{group.memberIds.length} membros</span>
+                        <span className="block text-studyflow-text">{group.memberIds.length} membros</span>
                     </a>
                 ))}
             </div>

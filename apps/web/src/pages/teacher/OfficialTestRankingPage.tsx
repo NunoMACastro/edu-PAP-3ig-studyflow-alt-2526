@@ -65,7 +65,7 @@ export function OfficialTestRankingPage({
 
     if (isLoading) {
         return (
-            <p className="sf-panel text-sm text-slate-600">
+            <p className="sf-panel text-sm text-studyflow-text">
                 A carregar ranking do mini-teste.
             </p>
         );
@@ -84,7 +84,7 @@ export function OfficialTestRankingPage({
         return (
             <section className="sf-panel space-y-3">
                 <h1 className="text-xl font-bold">Ranking do mini-teste</h1>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-studyflow-text">
                     Ainda não existem tentativas submetidas para este mini-teste.
                 </p>
             </section>
@@ -95,7 +95,7 @@ export function OfficialTestRankingPage({
         <section className="sf-panel space-y-4">
             <div>
                 <h1 className="text-xl font-bold">Ranking do mini-teste</h1>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-studyflow-text">
                     Resultados ordenados por pontuação. Em empate, aparece primeiro quem
                     submeteu mais cedo.
                 </p>

@@ -83,7 +83,7 @@ export function TeacherClassAiVoicePage({ classId }: TeacherClassAiVoicePageProp
         }
     }
 
-    if (!voice) return <p className="text-sm text-slate-600">A carregar voz...</p>;
+    if (!voice) return <p className="text-sm text-studyflow-text">A carregar voz...</p>;
 
     return (
         <TeacherVoiceForm
@@ -166,7 +166,7 @@ export function TeacherAiVoicePage({ subjectId }: TeacherAiVoicePageProps) {
         }
     }
 
-    if (!voice) return <p className="text-sm text-slate-600">A carregar voz...</p>;
+    if (!voice) return <p className="text-sm text-studyflow-text">A carregar voz...</p>;
 
     return (
         <TeacherVoiceForm
@@ -213,7 +213,7 @@ function TeacherVoiceForm({
         <form className="sf-panel mx-auto max-w-2xl space-y-4" onSubmit={onSubmit}>
             <div>
                 <h1 className="text-xl font-bold">{title}</h1>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-studyflow-text">
                     Origem: {originLabel}
                 </p>
             </div>

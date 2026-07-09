@@ -41,7 +41,7 @@ export function AiAreaProfilePanel({ studyAreaId }: AiAreaProfilePanelProps) {
         <div className="sf-panel space-y-3">
             <h2 className="text-lg font-bold">Perfil IA</h2>
             {error ? <p className="sf-error">{error}</p> : null}
-            {status ? <p className="text-sm text-slate-700">Estado: {status}</p> : null}
+            {status ? <p className="text-sm text-studyflow-text">Estado: {status}</p> : null}
             <button className="sf-button-primary" onClick={() => void handlePrepare()}>
                 Preparar perfil
             </button>

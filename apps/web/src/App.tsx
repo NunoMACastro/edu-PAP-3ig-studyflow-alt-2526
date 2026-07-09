@@ -21,7 +21,7 @@ export function App() {
     if (session.loading) {
         return (
             <main className="flex min-h-screen items-center justify-center">
-                <p className="text-sm text-slate-600">A carregar sessão...</p>
+                <p className="text-sm text-studyflow-text">A carregar sessão...</p>
             </main>
         );
     }

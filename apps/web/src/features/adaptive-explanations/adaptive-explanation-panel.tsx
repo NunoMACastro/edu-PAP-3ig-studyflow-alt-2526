@@ -61,7 +61,7 @@ export function AdaptiveExplanationPanel() {
                 <h2 id="adaptive-explanation-title" className="text-lg font-semibold">
                     Explicação adaptada
                 </h2>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-studyflow-text">
                     A resposta usa o perfil pedagógico guardado para esta área.
                 </p>
             </header>
@@ -98,16 +98,16 @@ export function AdaptiveExplanationPanel() {
             {error ? <p className="sf-error" role="alert">{error}</p> : null}
 
             {!answer && !loading && !error ? (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-studyflow-text">
                     Ainda não existe uma explicação nesta sessão.
                 </p>
             ) : null}
 
             {answer ? (
-                <article className="space-y-3 rounded border border-slate-200 p-4">
-                    <p className="whitespace-pre-line text-sm text-slate-800">{answer.answer}</p>
+                <article className="space-y-3 rounded border border-studyflow-border p-4">
+                    <p className="whitespace-pre-line text-sm text-studyflow-text">{answer.answer}</p>
                     {answer.suggestedNextSteps.length > 0 ? (
-                        <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+                        <ul className="list-disc space-y-1 pl-5 text-sm text-studyflow-text">
                             {answer.suggestedNextSteps.map((step) => (
                                 <li key={step}>{step}</li>
                             ))}

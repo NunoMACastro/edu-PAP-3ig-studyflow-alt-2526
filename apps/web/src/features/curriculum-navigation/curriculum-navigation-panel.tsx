@@ -56,9 +56,9 @@ export function CurriculumNavigationPanel() {
             </form>
             <div className="grid gap-2">
                 {response?.topics.map((topic) => (
-                    <article className="rounded-md border border-slate-200 p-3 text-sm" key={topic.materialId}>
+                    <article className="rounded-md border border-studyflow-border p-3 text-sm" key={topic.materialId}>
                         <strong>{topic.title}</strong>
-                        <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-700">
+                        <ul className="mt-2 list-disc space-y-1 pl-5 text-studyflow-text">
                             {topic.sections.map((section) => (
                                 <li key={`${topic.materialId}-${section.locator}`}>
                                     {section.title} · {section.locator}

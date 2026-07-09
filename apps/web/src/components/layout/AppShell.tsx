@@ -32,7 +32,7 @@ export function AppShell({ user, children, onLogout }: AppShellProps) {
         <div className="min-h-screen bg-studyflow-page">
             <header className="border-b border-studyflow-navy bg-studyflow-navy">
                 <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4">
-                    <a href="/app/estudo" className="text-xl font-bold text-white">
+                    <a href="/app/estudo" className="text-xl font-bold text-studyflow-text">
                         StudyFlow
                     </a>
                     <nav aria-label="Navegação principal" className="flex flex-wrap gap-2">
@@ -43,8 +43,8 @@ export function AppShell({ user, children, onLogout }: AppShellProps) {
                                     aria-current={isActive ? "page" : undefined}
                                     className={
                                         isActive
-                                            ? "rounded-md bg-studyflow-brand px-3 py-2 text-sm font-semibold text-white"
-                                            : "rounded-md px-3 py-2 text-sm font-medium text-slate-100 hover:bg-studyflow-navyHover"
+                                            ? "rounded-md bg-studyflow-brand px-3 py-2 text-sm font-semibold text-studyflow-text"
+                                            : "rounded-md px-3 py-2 text-sm font-medium text-studyflow-text hover:bg-studyflow-navyHover"
                                     }
                                     href={item.href}
                                     key={item.href}
@@ -57,9 +57,9 @@ export function AppShell({ user, children, onLogout }: AppShellProps) {
                     <div className="flex flex-wrap items-center gap-3">
                         {/* O tray só apresenta notificações; filtragem e permissões continuam na API. */}
                         <NotificationTray />
-                        <span className="text-sm text-slate-200">{user.email}</span>
+                        <span className="text-sm text-studyflow-text">{user.email}</span>
                         <button
-                            className="inline-flex items-center justify-center rounded-md border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
+                            className="inline-flex items-center justify-center rounded-md border border-studyflow-border bg-studyflow-card px-4 py-2 text-sm font-semibold text-studyflow-text transition hover:bg-studyflow-card"
                             onClick={() => void onLogout()}
                         >
                             Sair

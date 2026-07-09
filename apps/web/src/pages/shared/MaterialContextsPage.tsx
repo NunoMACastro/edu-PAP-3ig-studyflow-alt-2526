@@ -62,20 +62,20 @@ export function MaterialContextsPage({
                 {items.map((item) => (
                     <article className="sf-panel" key={item._id}>
                         <p className="font-semibold">{item.title}</p>
-                        <p className="mt-1 text-sm text-slate-600">
+                        <p className="mt-1 text-sm text-studyflow-text">
                             {item.scope === "PRIVATE_AREA"
                                 ? "Área privada"
                                 : "Disciplina oficial"}{" "}
                             · {item.source}
                         </p>
-                        <p className="mt-2 break-all text-xs text-slate-500">
+                        <p className="mt-2 break-all text-xs text-studyflow-text">
                             Material: {item.materialId}
                         </p>
                     </article>
                 ))}
             </div>
             {items.length === 0 && !error ? (
-                <p className="sf-panel text-sm text-slate-600">
+                <p className="sf-panel text-sm text-studyflow-text">
                     Ainda não existem materiais neste contexto.
                 </p>
             ) : null}

@@ -29,9 +29,9 @@ const ActionFeedbackContext = createContext<ActionFeedbackContextValue | null>(
 );
 
 const toneClasses: Record<FeedbackTone, string> = {
-    loading: "border-sky-200 bg-sky-50 text-sky-900",
-    success: "border-emerald-200 bg-emerald-50 text-emerald-900",
-    error: "border-red-200 bg-red-50 text-red-900",
+    loading: "border-studyflow-brand bg-studyflow-card text-studyflow-brand",
+    success: "border-studyflow-brand bg-studyflow-card text-studyflow-brand",
+    error: "border-studyflow-alert bg-studyflow-card text-studyflow-alert",
 };
 
 /**
@@ -96,7 +96,7 @@ export function ActionFeedbackProvider({ children }: { children: ReactNode }) {
                     role="status"
                 >
                     <div
-                        className={`rounded-lg border p-4 text-sm shadow-lg ${toneClasses[feedback.tone]}`}
+                        className={`rounded-lg border p-4 text-sm ${toneClasses[feedback.tone]}`}
                     >
                         {/* Mensagens globais devem ser curtas e seguras; detalhes ficam no local autorizado. */}
                         {feedback.text}

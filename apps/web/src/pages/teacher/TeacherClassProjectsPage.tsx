@@ -80,12 +80,12 @@ export function TeacherClassProjectsPage({ classId }: { classId: string }) {
                 </button>
             </form>
             <div className="grid gap-3">
-                {projects.length === 0 ? <p className="sf-panel text-sm text-slate-600">Ainda não existem projectos.</p> : null}
+                {projects.length === 0 ? <p className="sf-panel text-sm text-studyflow-text">Ainda não existem projectos.</p> : null}
                 {projects.map((project) => (
                     <article className="sf-panel" key={project._id}>
                         <h2 className="font-semibold">{project.title}</h2>
-                        <p className="text-sm text-slate-600">{project.brief}</p>
-                        <p className="mt-2 text-xs uppercase text-slate-500">{project.status}</p>
+                        <p className="text-sm text-studyflow-text">{project.brief}</p>
+                        <p className="mt-2 text-xs uppercase text-studyflow-text">{project.status}</p>
                     </article>
                 ))}
             </div>

@@ -78,7 +78,7 @@ export function FlashcardsPanel({ artifact }: FlashcardsPanelProps) {
         return (
             <section className="sf-panel" aria-label="Flashcards">
                 <h2 className="text-lg font-bold">Flashcards</h2>
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-studyflow-text">
                     Este artefacto não tem cartões válidos para rever.
                 </p>
             </section>
@@ -103,7 +103,7 @@ export function FlashcardsPanel({ artifact }: FlashcardsPanelProps) {
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <h2 className="text-lg font-bold">Flashcards</h2>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-studyflow-text">
                         Treina a resposta antes de veres a solução, ou usa
                         revisão para ler tudo de seguida.
                     </p>
@@ -139,9 +139,9 @@ export function FlashcardsPanel({ artifact }: FlashcardsPanelProps) {
             </div>
 
             {practice.completed ? (
-                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4" role="status">
-                    <p className="font-semibold text-emerald-900">Sessão concluída.</p>
-                    <p className="mt-1 text-sm text-emerald-800">
+                <div className="rounded-md border border-studyflow-brand bg-studyflow-card p-4" role="status">
+                    <p className="font-semibold text-studyflow-brand">Sessão concluída.</p>
+                    <p className="mt-1 text-sm text-studyflow-brand">
                         Recomeça para repetir os cartões e reforçar a memória.
                     </p>
                     <button
@@ -155,11 +155,11 @@ export function FlashcardsPanel({ artifact }: FlashcardsPanelProps) {
                     </button>
                 </div>
             ) : (
-                <article className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+                <article className="rounded-md border border-studyflow-border bg-studyflow-card p-4">
                     <p className="text-xs font-semibold uppercase text-studyflow-brand">
                         Pergunta
                     </p>
-                    <h3 className="mt-1 text-lg font-bold text-slate-900">
+                    <h3 className="mt-1 text-lg font-bold text-studyflow-text">
                         {currentCard.front}
                     </h3>
 
@@ -168,14 +168,14 @@ export function FlashcardsPanel({ artifact }: FlashcardsPanelProps) {
                             className="mt-4 rounded-md bg-studyflow-page p-4"
                             aria-live="polite"
                         >
-                            <p className="text-xs font-semibold uppercase text-slate-500">
+                            <p className="text-xs font-semibold uppercase text-studyflow-text">
                                 Resposta
                             </p>
-                            <p className="mt-1 text-slate-800">{currentCard.back}</p>
+                            <p className="mt-1 text-studyflow-text">{currentCard.back}</p>
                         </div>
                     ) : (
                         <p
-                            className="mt-4 rounded-md bg-slate-50 p-4 text-sm text-slate-600"
+                            className="mt-4 rounded-md bg-studyflow-card p-4 text-sm text-studyflow-text"
                             aria-live="polite"
                         >
                             Resposta escondida. Tenta responder antes de a revelar.

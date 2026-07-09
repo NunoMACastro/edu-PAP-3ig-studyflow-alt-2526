@@ -72,10 +72,10 @@ export function NotificationPreferencesPanel() {
         <section className="sf-panel space-y-4">
             <h2 className="text-lg font-semibold">Notificações</h2>
             {error ? <p className="sf-error">{error}</p> : null}
-            {loading ? <p className="text-sm text-slate-600">A carregar preferências...</p> : null}
+            {loading ? <p className="text-sm text-studyflow-text">A carregar preferências...</p> : null}
             <div className="grid gap-3">
                 {preferences.map((preference) => (
-                    <article className="rounded-md border border-slate-200 p-3" key={preference.context}>
+                    <article className="rounded-md border border-studyflow-border p-3" key={preference.context}>
                         <h3 className="font-medium">{contextLabels[preference.context]}</h3>
                         <div className="mt-2 flex flex-wrap gap-3 text-sm">
                             {(["email", "push", "inApp"] as const).map((field) => (

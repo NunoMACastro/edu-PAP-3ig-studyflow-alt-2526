@@ -33,12 +33,12 @@ export function ArtifactSources({
     if (visibleSources.length === 0) return null;
 
     return (
-        <div className="border-t border-slate-200 pt-2 text-xs text-slate-500">
-            <p className="font-semibold text-slate-600">Fontes</p>
+        <div className="border-t border-studyflow-border pt-2 text-xs text-studyflow-text">
+            <p className="font-semibold text-studyflow-text">Fontes</p>
             <ul className="mt-1 flex flex-wrap gap-2">
                 {visibleSources.map((source, index) => (
                     <li
-                        className="rounded border border-slate-200 px-2 py-1"
+                        className="rounded border border-studyflow-border px-2 py-1"
                         key={source.materialId ?? index}
                     >
                         {source.title ?? source.materialId ?? "Fonte"}

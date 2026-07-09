@@ -80,8 +80,8 @@ export function FollowUpAlertsPanel() {
     return (
         <section className="space-y-6">
             <header>
-                <h1 className="text-2xl font-bold text-slate-900">Acompanhamento</h1>
-                <p className="text-sm text-slate-600">Alertas docentes e notificações internas de turma.</p>
+                <h1 className="text-2xl font-bold text-studyflow-text">Acompanhamento</h1>
+                <p className="text-sm text-studyflow-text">Alertas docentes e notificações internas de turma.</p>
             </header>
             {error ? <p className="sf-error">{error}</p> : null}
             <section className="sf-panel grid gap-3">
@@ -100,7 +100,7 @@ export function FollowUpAlertsPanel() {
             <section className="sf-panel space-y-3">
                 <h2 className="text-lg font-semibold">Regras</h2>
                 {rules.map((rule) => (
-                    <article className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 p-3" key={rule.id}>
+                    <article className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-studyflow-border p-3" key={rule.id}>
                         <span className="text-sm">{rule.title} · {rule.inactiveDays} dias</span>
                         <button className="sf-button-secondary" onClick={() => void runFollowUpRule(rule.id)}>
                             Executar
@@ -110,7 +110,7 @@ export function FollowUpAlertsPanel() {
             </section>
             <section className="sf-panel space-y-3">
                 <h2 className="text-lg font-semibold">Notificações recentes</h2>
-                <pre className="max-h-72 overflow-auto rounded-md bg-slate-900 p-3 text-xs text-slate-50">
+                <pre className="max-h-72 overflow-auto rounded-md bg-studyflow-page p-3 text-xs text-studyflow-text">
                     {JSON.stringify(notifications, null, 2)}
                 </pre>
             </section>

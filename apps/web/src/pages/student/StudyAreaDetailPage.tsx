@@ -34,7 +34,7 @@ export function StudyAreaDetailPage({ studyAreaId }: StudyAreaDetailPageProps) {
         void getStudyArea(studyAreaId).then(setArea);
     }, [studyAreaId]);
 
-    if (!area) return <p className="text-sm text-slate-600">A carregar área...</p>;
+    if (!area) return <p className="text-sm text-studyflow-text">A carregar área...</p>;
 
     /**
      * Atualiza nome e descrição da área.
@@ -91,7 +91,7 @@ export function StudyAreaDetailPage({ studyAreaId }: StudyAreaDetailPageProps) {
                     <>
                         {error ? <p className="sf-error mb-4">{error}</p> : null}
                         <h1 className="text-2xl font-bold">{area.name}</h1>
-                        {area.description ? <p className="mt-2 text-slate-600">{area.description}</p> : null}
+                        {area.description ? <p className="mt-2 text-studyflow-text">{area.description}</p> : null}
                         <div className="mt-4 flex flex-wrap gap-3">
                             <a className="sf-button-primary" href={`/app/areas/${area._id}/materiais`}>Materiais</a>
                             <a className="sf-button-secondary" href={`/app/areas/${area._id}/ferramentas`}>IA</a>

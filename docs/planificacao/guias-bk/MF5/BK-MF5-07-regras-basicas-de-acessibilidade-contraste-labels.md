@@ -607,7 +607,10 @@ test("MF5 acessibilidade: formulários críticos têm labels e ajuda associada",
     await loginAs(page, teacher);
     await page.goto("/app/professor/turmas");
 
-    const classForm = page.locator("form").filter({ has: page.getByRole("heading", { name: "Turmas" }) });
+    await page.getByRole("button", { name: "Nova turma" }).click();
+    const classForm = page.locator("form").filter({
+        has: page.getByRole("heading", { name: "Criar turma" }),
+    });
     await expect(classForm.getByLabel("Nome")).toHaveAttribute("aria-describedby", "teacherClassName-help");
     await expect(classForm.getByLabel("Código")).toHaveAttribute("aria-describedby", "teacherClassCode-help");
     await expect(classForm.getByLabel("Ano letivo")).toHaveAttribute("aria-describedby", "teacherClassSchoolYear-help");
@@ -617,6 +620,7 @@ test("MF5 acessibilidade: formulários críticos têm labels e ajuda associada",
     await classForm.getByRole("button", { name: "Criar turma" }).click();
 
     const classCard = page.locator("article").filter({ hasText: className });
+    await classCard.getByRole("button", { name: `Adicionar primeiro aluno a ${className}` }).click();
     await expect(classCard.getByLabel(new RegExp(`Email do aluno para ${className}`))).toBeVisible();
 
     await logout(page);
@@ -723,6 +727,11 @@ Se o próximo BK criar outro componente de campo, os formulários voltam a ficar
 - `TeacherClassesPage.tsx` usa `FormField` na criação de turma e no email de aluno.
 - `MaterialSubmitForm.tsx` usa `FormField` no tipo, título, ficheiro e texto/URL.
 - Campos têm `htmlFor`, `id`, `aria-describedby` e `aria-invalid` quando existe erro.
+- A página de turmas mantém labels acessíveis para `Pesquisar turma` e `Ordenar`.
+- O botão superior de criação usa `aria-controls="criar-turma"` e `aria-expanded`.
+- Cada card de turma expõe `Voz IA da turma` com nome acessível contextualizado pela turma.
+- A ação contextual `Adicionar primeiro aluno` aponta para o painel correto com `aria-controls` e `aria-expanded`.
+- O acordeão de alunos mantém nome acessível coerente: `Adicionar primeiro aluno`, `Gerir 1 aluno` ou `Gerir N alunos`.
 - Mensagens de erro não revelam cookies, tokens, prompts privados, respostas IA ou detalhes internos.
 - O smoke `mf5-accessibility.spec.ts` valida labels e ajuda associada.
 - A validação backend continua obrigatória.
@@ -733,6 +742,7 @@ Se o próximo BK criar outro componente de campo, os formulários voltam a ficar
 - Executar `npm --prefix apps/web run test:e2e -- mf5-accessibility.spec.ts`.
 - Confirmar manualmente foco visível com teclado.
 - Confirmar que `getByLabel("Nome")`, `getByLabel("Código")`, `getByLabel("Tipo")` e `getByLabel("Título")` encontram os campos.
+- Confirmar que `getByLabel("Pesquisar turma")`, `getByLabel("Ordenar")`, `getByRole("link", { name: /Voz IA da turma/ })` e `getByRole("button", { name: /Adicionar primeiro aluno|Gerir \d+ aluno/ })` encontram os controlos esperados.
 - Confirmar que `BK-MF5-08` consegue reutilizar `FormField` sem criar componente paralelo.
 
 #### Evidence para PR/defesa
@@ -745,8 +755,9 @@ Se o próximo BK criar outro componente de campo, os formulários voltam a ficar
 
 #### Handoff
 
-`BK-MF5-08` deve reutilizar `FormField` e preencher a prop `error` com validações antes de submissão. Os contratos entregues são `FormField`, `helpText`, `error`, `aria-describedby`, `aria-invalid`, integração em `TeacherClassesPage.tsx`, integração em `MaterialSubmitForm.tsx` e smoke `mf5-accessibility.spec.ts`.
+`BK-MF5-08` deve reutilizar `FormField` e preencher a prop `error` com validações antes de submissão. Os contratos entregues são `FormField`, `helpText`, `error`, `aria-describedby`, `aria-invalid`, integração em `TeacherClassesPage.tsx`, toolbar acessível de pesquisa/ordenação, ações contextuais por turma, integração em `MaterialSubmitForm.tsx` e smoke `mf5-accessibility.spec.ts`.
 
 #### Changelog
 
 - 2026-06-19: Guia alinhado com `RNF05`, com código completo para `FormField`, integração nos formulários reais e smoke E2E de acessibilidade.
+- 2026-07-08: Contrato de acessibilidade da página de turmas atualizado para cobrir pesquisa, ordenação, CTA de voz IA e ações contextuais por turma.

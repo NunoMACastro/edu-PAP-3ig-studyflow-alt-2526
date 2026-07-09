@@ -522,20 +522,51 @@ export function TeacherClassesPage() {
         <section className="space-y-6">
             <PageHeader
                 title="Turmas"
-                description="Cria turmas, associa alunos e abre rapidamente disciplinas, publicações, salas guiadas, projetos e progresso."
+                description="Gestão docente de turmas, alunos inscritos e atalhos para disciplinas, publicações e progresso."
                 action={
-                    <a className="sf-button-primary" href="#nova-turma">
-                        Nova turma
-                    </a>
+                    <button
+                        aria-controls="criar-turma"
+                        aria-expanded={isCreatePanelOpen}
+                        className="sf-button-primary"
+                        onClick={() => setIsCreatePanelOpen((current) => !current)}
+                        type="button"
+                    >
+                        {classes.length > 0 ? "Nova turma" : "Criar turma"}
+                    </button>
                 }
             />
+
+            {classes.length > 0 ? (
+                <section aria-label="Ferramentas de turmas" className="sf-panel grid gap-3">
+                    <label>
+                        <span>Pesquisar turma</span>
+                        <input
+                            placeholder="Nome, código ou ano"
+                            value={searchTerm}
+                            onChange={(event) => setSearchTerm(event.target.value)}
+                        />
+                    </label>
+
+                    <label>
+                        <span>Ordenar</span>
+                        <select
+                            value={sortMode}
+                            onChange={(event) => setSortMode(event.target.value as TeacherClassSortMode)}
+                        >
+                            <option value="recent">Mais recentes</option>
+                            <option value="name">Nome A-Z</option>
+                            <option value="schoolYear">Ano letivo</option>
+                        </select>
+                    </label>
+                </section>
+            ) : null}
 
             {error ? <p className="sf-error">{error}</p> : null}
             {successMessage ? <p className="sf-success">{successMessage}</p> : null}
 
             <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
                 <form
-                    id="nova-turma"
+                    id="criar-turma"
                     className="sf-panel space-y-4"
                     onSubmit={(event) => void handleCreate(event)}
                 >
@@ -741,8 +772,11 @@ test.describe("MF5 - clareza da interface", () => {
         // O teste valida navegação e hierarquia visual, não substitui testes backend de permissões.
         await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
         await expect(page.getByRole("heading", { name: "Turmas" })).toBeVisible();
-        await expect(page.getByRole("link", { name: "Nova turma" })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Nova turma" })).toBeVisible();
         await expect(page.getByRole("button", { name: "Criar turma" })).toBeVisible();
+        await expect(page.getByLabel("Pesquisar turma")).toBeVisible();
+        await expect(page.getByLabel("Ordenar")).toBeVisible();
+        await expect(page.getByRole("link", { name: /Voz IA da turma/ })).toBeVisible();
     });
 });
 ```
@@ -866,7 +900,9 @@ Resultados esperados:
 - build TypeScript/Vite sem erros;
 - teste Playwright com dois cenários passados ou skipped por credenciais ausentes;
 - dashboard do aluno com `h1` único e ações `Criar área` e `Rever rotinas`;
-- página de turmas com `h1` único, ação `Nova turma` e botão `Criar turma`;
+- página de turmas com `h1` único, ação superior `Nova turma` quando já existem turmas e botão de submit `Criar turma`;
+- toolbar de turmas com `Pesquisar turma`, `Ordenar`, contagem contextual e estado vazio `Nenhuma turma corresponde à pesquisa.`;
+- cards de turma com estado `Sem alunos`/`Com alunos`, CTA `Voz IA da turma` e próxima ação contextual (`Adicionar primeiro aluno` ou `Gerir disciplinas`);
 - nenhum dado sensível escrito no código ou nos screenshots.
 
 #### Evidence para PR/defesa

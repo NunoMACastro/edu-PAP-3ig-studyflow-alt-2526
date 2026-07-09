@@ -75,7 +75,7 @@ export function SourceGroundedAiPanel() {
                         onChange={(event) => setSourceJobIds(event.target.value)}
                     />
                 </label>
-                <p id="source-grounded-jobs-help" className="text-xs text-slate-600">
+                <p id="source-grounded-jobs-help" className="text-xs text-studyflow-text">
                     {t(messageKeys.sourceJobIdsHelp)}
                 </p>
                 <label className="block">
@@ -91,27 +91,27 @@ export function SourceGroundedAiPanel() {
                 </button>
             </form>
             {!answer && !error && !loading ? (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-studyflow-text">
                     {t(messageKeys.sourceEmptyState)}
                 </p>
             ) : null}
             {answer ? (
                 <div className="space-y-3 text-sm">
                     <h3 className="font-semibold">{t(messageKeys.sourceAnswerTitle)}</h3>
-                    <p className="whitespace-pre-line text-slate-800">{answer.answer}</p>
+                    <p className="whitespace-pre-line text-studyflow-text">{answer.answer}</p>
                     {answer.citations.length > 0 ? (
                         <div className="space-y-2">
                             <p className="font-semibold">{t(messageKeys.sourceCitationsTitle)}</p>
                             {answer.citations.map((citation) => (
                                 <article
-                                    className="rounded-md border border-slate-200 p-3"
+                                    className="rounded-md border border-studyflow-border p-3"
                                     key={`${citation.sourceJobId}-${citation.locator}`}
                                 >
-                                    <p className="font-medium text-slate-900">
+                                    <p className="font-medium text-studyflow-text">
                                         {citation.sourceLabel} · {citation.locator}
                                     </p>
                                     {/* O excerto vem limitado do backend para explicar a origem sem expor o material completo. */}
-                                    <p className="mt-1 text-slate-700">{citation.excerpt}</p>
+                                    <p className="mt-1 text-studyflow-text">{citation.excerpt}</p>
                                 </article>
                             ))}
                         </div>

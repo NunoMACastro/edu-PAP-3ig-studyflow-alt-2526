@@ -68,17 +68,17 @@ export function StudyAreaMaterialsPage({ studyAreaId }: StudyAreaMaterialsPagePr
         <section className="sf-panel min-w-0 space-y-4">
             <div>
                 <h2 className="text-lg font-bold">Materiais submetidos</h2>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-studyflow-text">
                     Estes materiais pertencem à tua área de estudo privada.
                 </p>
             </div>
 
             {error ? <p className="sf-error" role="alert">{error}</p> : null}
             {isLoading ? (
-                <p className="text-sm text-slate-600">A carregar materiais...</p>
+                <p className="text-sm text-studyflow-text">A carregar materiais...</p>
             ) : null}
             {!isLoading && materials.length === 0 ? (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-studyflow-text">
                     Ainda não existem materiais nesta área. Usa o painel lateral para
                     adicionar ou importar o primeiro.
                 </p>

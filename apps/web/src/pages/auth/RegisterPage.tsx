@@ -43,7 +43,7 @@ export function RegisterPage() {
             <div className="w-full max-w-md space-y-8">
                 <div className="text-center">
                     <h1 className="text-4xl font-bold text-studyflow-brand">StudyFlow</h1>
-                    <p className="mt-3 text-base text-slate-700">Plataforma Inteligente de Aprendizagem</p>
+                    <p className="mt-3 text-base text-studyflow-text">Plataforma Inteligente de Aprendizagem</p>
                 </div>
 
                 <form className="sf-panel space-y-5 p-8" onSubmit={(event) => void handleSubmit(event)}>
@@ -67,7 +67,7 @@ export function RegisterPage() {
                     <button className="sf-button-primary w-full" type="submit" disabled={loading}>
                         {loading ? "A criar..." : "Registar"}
                     </button>
-                    <p className="text-center text-sm text-slate-500">
+                    <p className="text-center text-sm text-studyflow-text">
                         Já tens conta?{" "}
                         <a className="font-semibold text-studyflow-brand hover:text-studyflow-brandHover" href="/login">
                             Entrar

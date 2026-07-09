@@ -62,7 +62,7 @@ O contrato publico de voz deve incluir:
 
 ## Contrato de UI
 
-- A area docente de turmas deve expor link `Voz IA` para `/app/professor/turmas/:classId/voz`.
+- A area docente de turmas deve expor CTA/link `Voz IA da turma` por turma para `/app/professor/turmas/:classId/voz`.
 - A pagina `/app/professor/turmas/:classId/voz` configura a voz base da turma.
 - A rota existente `/app/professor/disciplinas/:subjectId/voz` continua ativa, mas representa override da disciplina.
 - A pagina de override deve mostrar a voz efetiva herdada quando nao existir override e permitir remover override.
@@ -92,4 +92,3 @@ O contrato publico de voz deve incluir:
 - Sala guiada com disciplina da mesma turma funciona.
 - Disciplina de outra turma/professor e rejeitada.
 - Aluno inscrito lista apenas salas abertas da turma.
-

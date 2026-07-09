@@ -80,7 +80,7 @@ export function PrivateAreaAiPage({ studyAreaId }: PrivateAreaAiPageProps) {
             </form>
             {answer ? (
                 <article className="sf-panel">
-                    <p className="text-sm text-slate-600">{answer.question}</p>
+                    <p className="text-sm text-studyflow-text">{answer.question}</p>
                     <p className="mt-3 whitespace-pre-wrap">{answer.answer}</p>
                 </article>
             ) : null}

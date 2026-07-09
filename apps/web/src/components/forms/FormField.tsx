@@ -39,7 +39,7 @@ export function FormField({
 
     return (
         <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-800" htmlFor={id}>
+            <label className="block text-sm font-medium text-studyflow-text" htmlFor={id}>
                 {label}
             </label>
             {cloneElement(children, {
@@ -48,12 +48,12 @@ export function FormField({
                 "aria-invalid": Boolean(error),
             })}
             {helpText ? (
-                <p className="text-xs leading-5 text-slate-600" id={helpId}>
+                <p className="text-xs leading-5 text-studyflow-text" id={helpId}>
                     {helpText}
                 </p>
             ) : null}
             {error ? (
-                <p className="text-xs font-medium text-red-700" id={errorId} role="alert">
+                <p className="text-xs font-medium text-studyflow-alert" id={errorId} role="alert">
                     {error}
                 </p>
             ) : null}

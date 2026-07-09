@@ -104,8 +104,8 @@ export function PrivacyPanel() {
     return (
         <section className="space-y-6">
             <header>
-                <h1 className="text-2xl font-bold text-slate-900">Privacidade</h1>
-                <p className="text-sm text-slate-600">Exportação, eliminação de conta e consentimentos de IA.</p>
+                <h1 className="text-2xl font-bold text-studyflow-text">Privacidade</h1>
+                <p className="text-sm text-studyflow-text">Exportação, eliminação de conta e consentimentos de IA.</p>
             </header>
             {error ? <p className="sf-error">{error}</p> : null}
 
@@ -115,14 +115,14 @@ export function PrivacyPanel() {
                     Pedir exportação
                 </button>
                 {exportsList.map((item) => (
-                    <article className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 p-3" key={item.id}>
+                    <article className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-studyflow-border p-3" key={item.id}>
                         <span className="text-sm">{item.status} · expira {new Date(item.expiresAt).toLocaleDateString("pt-PT")}</span>
                         <button className="sf-button-secondary" onClick={() => void download(item.id)}>
                             Ver JSON
                         </button>
                     </article>
                 ))}
-                {bundle ? <pre className="max-h-80 overflow-auto rounded-md bg-slate-900 p-3 text-xs text-slate-50">{bundle}</pre> : null}
+                {bundle ? <pre className="max-h-80 overflow-auto rounded-md bg-studyflow-page p-3 text-xs text-studyflow-text">{bundle}</pre> : null}
             </section>
 
             <section className="sf-panel space-y-3">
@@ -130,7 +130,7 @@ export function PrivacyPanel() {
                 {purposes.map((purpose) => {
                     const granted = consents.find((item) => item.purpose === purpose)?.status === "GRANTED";
                     return (
-                        <label className="flex items-center justify-between gap-3 rounded-md border border-slate-200 p-3" key={purpose}>
+                        <label className="flex items-center justify-between gap-3 rounded-md border border-studyflow-border p-3" key={purpose}>
                             <span className="text-sm font-medium">{purpose}</span>
                             <input type="checkbox" checked={granted} onChange={() => void toggleConsent(purpose, granted)} />
                         </label>
@@ -138,8 +138,8 @@ export function PrivacyPanel() {
                 })}
             </section>
 
-            <section className="sf-panel space-y-3 border-red-200">
-                <h2 className="text-lg font-semibold text-red-700">Eliminar conta</h2>
+            <section className="sf-panel space-y-3 border-studyflow-alert">
+                <h2 className="text-lg font-semibold text-studyflow-alert">Eliminar conta</h2>
                 <input
                     value={confirmation}
                     onChange={(event) => setConfirmation(event.target.value)}

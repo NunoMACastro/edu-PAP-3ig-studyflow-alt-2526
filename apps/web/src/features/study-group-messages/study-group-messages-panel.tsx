@@ -91,12 +91,12 @@ export function StudyGroupMessagesPanel({ initialGroupId }: StudyGroupMessagesPa
                     Guardar
                 </button>
             </form>
-            {messages.length === 0 ? <p className="text-sm text-slate-600">Sem histórico.</p> : null}
+            {messages.length === 0 ? <p className="text-sm text-studyflow-text">Sem histórico.</p> : null}
             <div className="grid gap-2">
                 {messages.map((message) => (
-                    <article className="rounded-md border border-slate-200 p-3 text-sm" key={message._id}>
+                    <article className="rounded-md border border-studyflow-border p-3 text-sm" key={message._id}>
                         <strong>{message.kind === "NOTE" ? "Nota" : "Mensagem"}</strong>
-                        <p className="whitespace-pre-line text-slate-700">{message.text}</p>
+                        <p className="whitespace-pre-line text-studyflow-text">{message.text}</p>
                     </article>
                 ))}
             </div>

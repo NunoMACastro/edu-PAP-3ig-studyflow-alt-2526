@@ -56,8 +56,8 @@ export function StudentClassAiPage({ subjectId }: StudentClassAiPageProps) {
             {answer ? (
                 <article className="sf-panel space-y-3">
                     <h2 className="font-semibold">Resposta</h2>
-                    <p className="whitespace-pre-wrap text-sm text-slate-700">{answer.answer}</p>
-                    <p className="text-sm text-slate-600">Fontes oficiais: {answer.sources.map((source) => source.title).join(", ")}</p>
+                    <p className="whitespace-pre-wrap text-sm text-studyflow-text">{answer.answer}</p>
+                    <p className="text-sm text-studyflow-text">Fontes oficiais: {answer.sources.map((source) => source.title).join(", ")}</p>
                 </article>
             ) : null}
         </section>

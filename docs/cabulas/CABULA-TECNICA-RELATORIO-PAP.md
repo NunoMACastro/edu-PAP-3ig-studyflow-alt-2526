@@ -4,13 +4,13 @@
 
 Este documento serve como apoio aos alunos para escreverem e apresentarem o relatório técnico da PAP. A linguagem é técnica, mas explicada de forma acessível, para que possa ser usada tanto no relatório como na preparação da defesa.
 
-O StudyFlow é uma plataforma inteligente de aprendizagem que junta estudo individual, materiais escolares, IA com fontes, turmas, disciplinas, voz docente, salas colaborativas, grupos de estudo, mini-testes, notificações, privacidade e administração. Algumas secções descrevem funcionalidades centrais já implementadas em `real_dev`; outras resumem pontos documentados em requisitos, backlogs, guias e mapas técnicos.
+O StudyFlow é uma plataforma inteligente de aprendizagem que junta estudo individual, materiais escolares, IA com fontes, turmas, disciplinas, voz docente, chat aluno-professor por disciplina, salas colaborativas, grupos de estudo, mini-testes, notificações, privacidade e administração. Algumas secções descrevem funcionalidades centrais já implementadas em `real_dev`; outras resumem pontos documentados em requisitos, backlogs, guias e mapas técnicos.
 
 ## Visão Técnica Geral
 
 Tecnicamente, o StudyFlow segue uma arquitetura web cliente-servidor. O frontend é a aplicação usada no browser. O backend é responsável pelas regras de negócio, validação, autenticação, autorização, acesso à base de dados, integração com IA e exposição da API.
 
-O frontend comunica com o backend através de uma API REST. Cada área funcional tem páginas e clientes próprios no frontend, por exemplo para autenticação, estudo individual, áreas de estudo, materiais, ferramentas de IA, turmas, disciplinas, salas, grupos, notificações, privacidade e administração.
+O frontend comunica com o backend principalmente através de uma API REST. No chat aluno-professor por disciplina, usa também WebSocket com Socket.IO para entrega em tempo real, mantendo REST apenas para carregar o histórico inicial. Cada área funcional tem páginas e clientes próprios no frontend, por exemplo para autenticação, estudo individual, áreas de estudo, materiais, ferramentas de IA, turmas, disciplinas, chat, salas, grupos, notificações, privacidade e administração.
 
 O backend está organizado por módulos de domínio. Cada módulo concentra uma responsabilidade principal:
 
@@ -23,6 +23,7 @@ O backend está organizado por módulos de domínio. Cada módulo concentra uma 
 - ferramentas de IA;
 - turmas, disciplinas e materiais oficiais;
 - voz IA docente;
+- chat aluno-professor por disciplina;
 - salas de estudo e grupos;
 - projetos, mini-testes e progresso;
 - notificações e acompanhamento;
@@ -234,6 +235,35 @@ Este fluxo é diferente da IA privada. Na IA privada, as fontes pertencem ao alu
 
 O audit log regista sucesso ou falha da operação sem guardar prompts completos ou respostas sensíveis. Isto cria rastreabilidade sem expor dados privados.
 
+## Chat Aluno-Professor Por Disciplina
+
+O chat aluno-professor é contextual a uma disciplina. Não é um botão flutuante global: aparece como ação `Chat`, com ícone de mensagem, nas listagens de disciplinas do aluno e do professor. Ao clicar, o utilizador entra numa página própria:
+
+- aluno: `/app/disciplinas/:subjectId/chat`;
+- professor: `/app/professor/disciplinas/:subjectId/chat`.
+
+Esta decisão mantém a conversa ligada ao contexto correto. Uma disciplina tem um canal onde alunos inscritos e o professor responsável podem trocar mensagens, sem misturar com o chat aluno-aluno dos grupos de estudo.
+
+Tecnicamente, o chat combina duas peças:
+
+- REST para carregar o histórico persistido:
+  - `GET /api/student/subjects/:subjectId/chat/messages`;
+  - `GET /api/teacher/subjects/:subjectId/chat/messages`;
+- WebSocket no namespace `/subject-chat` para `subject-chat:join`, `subject-chat:send`, `subject-chat:message` e `subject-chat:error`.
+
+O histórico fica em MongoDB, nos modelos `TeacherStudentChatThread` e `TeacherStudentChatMessage`. O WebSocket serve apenas para entrada e entrega em tempo real.
+
+Antes de o utilizador entrar ou enviar mensagem, o backend valida:
+
+- sessão HttpOnly `sf_sid`;
+- origem WebSocket configurada;
+- inscrição do aluno na turma da disciplina;
+- ownership da disciplina no caso do professor;
+- texto não vazio e dentro do limite permitido;
+- rate limit básico por utilizador e thread.
+
+O frontend não envia `authorUserId`, `authorRole`, `classId` nem `teacherId`. Esses valores são derivados da sessão e da disciplina no backend. A resposta pública da mensagem não inclui emails, password hash, cookies, metadados de sessão ou dados de outros alunos.
+
 ## Salas De Estudo, Partilhas E IA Da Sala
 
 As salas de estudo são espaços colaborativos criados por alunos. Podem ser livres ou associadas a uma disciplina textual. Ao criar uma sala, o criador entra automaticamente como membro.
@@ -401,6 +431,7 @@ Pontos técnicos importantes:
 - passwords com bcrypt;
 - autorização por roles;
 - validação de ownership e membership;
+- WebSocket autenticado por sessão e validado por origem quando usado no chat;
 - DTOs com validação e remoção de campos inesperados;
 - proteção CSRF;
 - headers de segurança;
@@ -420,6 +451,7 @@ O projeto tem testes para validar:
 - materiais e indexação;
 - IA com fontes;
 - voz docente;
+- chat aluno-professor por disciplina;
 - salas e grupos;
 - mini-testes;
 - privacidade;
@@ -495,6 +527,7 @@ Fluxos fortes:
 - materiais oficiais;
 - voz docente;
 - IA da disciplina;
+- chat da disciplina entre alunos inscritos e professor responsável;
 - sala de estudo com partilhas e IA;
 - grupo com mensagens, sessão e IA coletiva;
 - mini-teste oficial com tentativa;
@@ -639,6 +672,7 @@ Inclui:
 - materiais oficiais;
 - voz docente;
 - IA da disciplina;
+- chat por disciplina com professor;
 - publicações da turma.
 
 Mensagem-chave:

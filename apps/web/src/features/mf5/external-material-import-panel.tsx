@@ -79,7 +79,7 @@ export function ExternalMaterialImportPanel({
         <form className="sf-panel space-y-4" onSubmit={(event) => void handleSubmit(event)}>
             <div className="space-y-1">
                 <h2 className="text-lg font-bold">Importar link externo</h2>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-studyflow-text">
                     Google Drive ou OneDrive, sem sincronização nem credenciais externas.
                 </p>
             </div>

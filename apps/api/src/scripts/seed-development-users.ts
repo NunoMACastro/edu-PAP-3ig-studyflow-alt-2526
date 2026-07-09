@@ -1,6 +1,7 @@
 /**
  * Automatiza tarefas operacionais usadas em desenvolvimento e validação.
  */
+import "../common/config/load-env.js";
 import bcrypt from "bcrypt";
 import mongoose from "mongoose";
 import { User, UserRole, UserSchema } from "../modules/auth/schemas/user.schema.js";

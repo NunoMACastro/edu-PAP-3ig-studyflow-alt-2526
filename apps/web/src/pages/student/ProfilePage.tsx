@@ -73,7 +73,7 @@ export function ProfilePage() {
                             value={profile.year ?? ""}
                             onChange={(event) => updateField("year", event.target.value)}
                         />
-                        <p id="year-help" className="text-xs text-slate-600">
+                        <p id="year-help" className="text-xs text-studyflow-text">
                             Ajuda a IA da sala a adaptar a linguagem e o detalhe das explicações.
                         </p>
                     </div>

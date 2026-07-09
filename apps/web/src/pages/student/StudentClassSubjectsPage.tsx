@@ -36,11 +36,11 @@ export function StudentClassSubjectsPage({ classId }: StudentClassSubjectsPagePr
                 {error ? <p className="sf-error mt-3">{error}</p> : null}
             </div>
             <div className="grid gap-3">
-                {subjects.length === 0 ? <p className="sf-panel text-sm text-slate-600">Esta turma ainda não tem disciplinas.</p> : null}
+                {subjects.length === 0 ? <p className="sf-panel text-sm text-studyflow-text">Esta turma ainda não tem disciplinas.</p> : null}
                 {subjects.map((subject) => (
                     <article className="sf-panel space-y-2" key={subject._id}>
                         <h2 className="font-semibold">{subject.name}</h2>
-                        <p className="text-sm text-slate-600">{subject.code}</p>
+                        <p className="text-sm text-studyflow-text">{subject.code}</p>
                         <div className="flex flex-wrap gap-2">
                             <a className="sf-button-secondary" href={`/app/disciplinas/${subject._id}/ia`}>Abrir IA da disciplina</a>
                             <a className="sf-button-secondary" href={`/app/disciplinas/${subject._id}/testes`}>Mini-testes</a>

@@ -103,7 +103,7 @@ export function QuizPanel({ artifact, studyAreaId }: QuizPanelProps) {
                     <div className="space-y-2">
                         {question.options.map((option, optionIndex) => (
                             <label
-                                className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                                className="flex items-center gap-3 rounded-md border border-studyflow-border px-3 py-2 text-sm"
                                 key={optionIndex}
                             >
                                 <input
@@ -129,7 +129,7 @@ export function QuizPanel({ artifact, studyAreaId }: QuizPanelProps) {
                                 className={
                                     result.isCorrect
                                         ? "text-sm text-studyflow-brand"
-                                        : "text-sm text-red-700"
+                                        : "text-sm text-studyflow-alert"
                                 }
                             >
                                 Correta: {result.correctOptionIndex + 1}.{" "}

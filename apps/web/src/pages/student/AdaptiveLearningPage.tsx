@@ -89,7 +89,7 @@ export function AdaptiveLearningPage({ studyAreaId }: AdaptiveLearningPageProps)
         }
     }
 
-    if (loading) return <p className="text-sm text-slate-600">A carregar perfil...</p>;
+    if (loading) return <p className="text-sm text-studyflow-text">A carregar perfil...</p>;
 
     return (
         <section className="grid gap-6 lg:grid-cols-[380px_1fr]">
@@ -182,15 +182,15 @@ export function AdaptiveLearningPage({ studyAreaId }: AdaptiveLearningPageProps)
                 {answer ? (
                     <article className="sf-panel space-y-3">
                         <h2 className="text-lg font-semibold">Resposta adaptada</h2>
-                        <p className="whitespace-pre-wrap text-sm text-slate-700">{answer.answer}</p>
-                        <ul className="list-disc space-y-1 pl-5 text-sm text-slate-600">
+                        <p className="whitespace-pre-wrap text-sm text-studyflow-text">{answer.answer}</p>
+                        <ul className="list-disc space-y-1 pl-5 text-sm text-studyflow-text">
                             {answer.suggestedNextSteps.map((step) => (
                                 <li key={step}>{step}</li>
                             ))}
                         </ul>
                     </article>
                 ) : (
-                    <p className="sf-panel text-sm text-slate-600">Ainda não há explicação nesta sessão.</p>
+                    <p className="sf-panel text-sm text-studyflow-text">Ainda não há explicação nesta sessão.</p>
                 )}
             </div>
         </section>

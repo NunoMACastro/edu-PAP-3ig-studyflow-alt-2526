@@ -179,7 +179,7 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
                 <h1 className="text-xl font-bold">IA da área</h1>
                 {actionError ? <p className="sf-error" role="alert">{actionError}</p> : null}
                 {isGenerating ? (
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-studyflow-text">
                         {isGeneratingSummary
                             ? "A gerar resumo..."
                             : isQuizJobActive
@@ -188,7 +188,7 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
                     </p>
                 ) : null}
                 {quizJob ? (
-                    <p className="text-sm text-slate-600" aria-live="polite">
+                    <p className="text-sm text-studyflow-text" aria-live="polite">
                         {quizJob.status === "DONE"
                             ? "Quiz pronto para resolver."
                             : quizJob.status === "FAILED"
@@ -325,7 +325,7 @@ function ArtifactExportPanel({
         return (
             <div className="sf-panel space-y-2">
                 <h2 className="text-lg font-bold">Exportação</h2>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-studyflow-text">
                     Escolhe ou gera um resumo ou quiz para ativar a exportação.
                 </p>
             </div>
@@ -336,7 +336,7 @@ function ArtifactExportPanel({
         <div className="sf-panel space-y-3">
             <h2 className="text-lg font-bold">Exportação</h2>
             {!isExportable ? (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-studyflow-text">
                     Este tipo de artefacto não é exportado neste BK.
                 </p>
             ) : (

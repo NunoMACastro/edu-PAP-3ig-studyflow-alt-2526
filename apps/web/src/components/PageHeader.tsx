@@ -24,7 +24,7 @@ export function PageHeader({ title, description, action }: PageHeaderProps) {
             <div className="max-w-3xl space-y-2">
                 {/* Um unico h1 por pagina ajuda leitores de ecra, testes e navegacao por headings. */}
                 <h1 className="text-2xl font-bold text-studyflow-navy">{title}</h1>
-                <p className="text-sm leading-6 text-slate-600">{description}</p>
+                <p className="text-sm leading-6 text-studyflow-text">{description}</p>
             </div>
             {action ? (
                 <div className="flex shrink-0 flex-wrap items-center gap-3">

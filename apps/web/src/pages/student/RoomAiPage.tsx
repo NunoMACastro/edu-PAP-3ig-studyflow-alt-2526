@@ -172,12 +172,12 @@ export function RoomAiPage({ roomId }: RoomAiPageProps) {
                 <h1 className="text-xl font-bold">IA da sala</h1>
                 {error ? <p className="sf-error">{error}</p> : null}
                 {notice ? (
-                    <p className="text-sm text-emerald-700" role="status">
+                    <p className="text-sm text-studyflow-brand" role="status">
                         {notice}
                     </p>
                 ) : null}
                 <label
-                    className="text-sm font-medium text-slate-700"
+                    className="text-sm font-medium text-studyflow-text"
                     htmlFor="room-ai-question"
                 >
                     Pergunta para a IA da sala
@@ -199,10 +199,10 @@ export function RoomAiPage({ roomId }: RoomAiPageProps) {
             {answer ? (
                 <article className="sf-panel space-y-3">
                     <h2 className="font-semibold">Resposta</h2>
-                    <p className="whitespace-pre-wrap text-sm text-slate-700">
+                    <p className="whitespace-pre-wrap text-sm text-studyflow-text">
                         {answer.answer}
                     </p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-studyflow-text">
                         Fontes usadas:{" "}
                         {answer.sources.map((source) => source.title).join(", ")}
                     </p>
@@ -232,11 +232,11 @@ export function RoomAiPage({ roomId }: RoomAiPageProps) {
                     </button>
                 </div>
                 {sharedLoading ? (
-                    <p className="text-sm text-slate-600">A carregar...</p>
+                    <p className="text-sm text-studyflow-text">A carregar...</p>
                 ) : null}
                 {sharedError ? <p className="sf-error">{sharedError}</p> : null}
                 {!sharedLoading && !sharedError && sharedAnswers.length === 0 ? (
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-studyflow-text">
                         Ainda não há respostas partilhadas nesta sala.
                     </p>
                 ) : null}
@@ -244,9 +244,9 @@ export function RoomAiPage({ roomId }: RoomAiPageProps) {
                     {sharedAnswers.map((sharedAnswer) => (
                         <article
                             key={sharedAnswer._id}
-                            className="rounded border border-slate-200 p-3"
+                            className="rounded border border-studyflow-border p-3"
                         >
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-studyflow-text">
                                 {sharedAnswer.sharedAt
                                     ? `Partilhada em ${new Date(
                                           sharedAnswer.sharedAt,
@@ -256,7 +256,7 @@ export function RoomAiPage({ roomId }: RoomAiPageProps) {
                             <h3 className="mt-2 text-sm font-semibold">
                                 {sharedAnswer.question}
                             </h3>
-                            <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                            <p className="mt-2 whitespace-pre-wrap text-sm text-studyflow-text">
                                 {sharedAnswer.answer}
                             </p>
                             <button
@@ -277,11 +277,11 @@ export function RoomAiPage({ roomId }: RoomAiPageProps) {
             <section className="sf-panel space-y-3">
                 <h2 className="font-semibold">O meu histórico privado</h2>
                 {historyLoading ? (
-                    <p className="text-sm text-slate-600">A carregar...</p>
+                    <p className="text-sm text-studyflow-text">A carregar...</p>
                 ) : null}
                 {historyError ? <p className="sf-error">{historyError}</p> : null}
                 {!historyLoading && !historyError && history.length === 0 ? (
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-studyflow-text">
                         Ainda não fizeste perguntas à IA desta sala.
                     </p>
                 ) : null}
@@ -289,9 +289,9 @@ export function RoomAiPage({ roomId }: RoomAiPageProps) {
                     {history.map((item) => (
                         <article
                             key={item._id}
-                            className="rounded border border-slate-200 p-3"
+                            className="rounded border border-studyflow-border p-3"
                         >
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-studyflow-text">
                                 {item.createdAt
                                     ? new Date(item.createdAt).toLocaleString("pt-PT")
                                     : "Sem data"}
@@ -299,7 +299,7 @@ export function RoomAiPage({ roomId }: RoomAiPageProps) {
                             <h3 className="mt-2 text-sm font-semibold">
                                 {item.question}
                             </h3>
-                            <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                            <p className="mt-2 whitespace-pre-wrap text-sm text-studyflow-text">
                                 {item.answer}
                             </p>
                         </article>

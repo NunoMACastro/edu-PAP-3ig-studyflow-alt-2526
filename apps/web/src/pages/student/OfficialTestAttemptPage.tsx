@@ -151,13 +151,13 @@ export function OfficialTestAttemptPage({ subjectId }: OfficialTestAttemptPagePr
             </div>
 
             {loading ? (
-                <p className="sf-panel text-sm text-slate-600">
+                <p className="sf-panel text-sm text-studyflow-text">
                     A carregar mini-testes publicados.
                 </p>
             ) : null}
 
             {!loading && tests.length === 0 ? (
-                <p className="sf-panel text-sm text-slate-600">
+                <p className="sf-panel text-sm text-studyflow-text">
                     Ainda não há mini-testes publicados nesta disciplina.
                 </p>
             ) : null}
@@ -177,11 +177,11 @@ export function OfficialTestAttemptPage({ subjectId }: OfficialTestAttemptPagePr
                             <div>
                                 <h2 className="font-semibold">{test.title}</h2>
                                 {test.description ? (
-                                    <p className="mt-1 text-sm text-slate-600">
+                                    <p className="mt-1 text-sm text-studyflow-text">
                                         {test.description}
                                     </p>
                                 ) : null}
-                                <p className="mt-1 text-sm text-slate-600">
+                                <p className="mt-1 text-sm text-studyflow-text">
                                     {test.questions.length} perguntas
                                 </p>
                             </div>
@@ -233,7 +233,7 @@ export function OfficialTestAttemptPage({ subjectId }: OfficialTestAttemptPagePr
                             ))}
 
                             {attempt ? (
-                                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                                <div className="rounded-md border border-studyflow-brand bg-studyflow-card p-3 text-sm text-studyflow-brand">
                                     Resultado: {attempt.correctAnswers}/
                                     {attempt.totalQuestions} ({attempt.percentage}%)
                                 </div>

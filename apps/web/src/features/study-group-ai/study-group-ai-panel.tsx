@@ -80,9 +80,9 @@ export function StudyGroupAiPanel({ initialGroupId }: StudyGroupAiPanelProps) {
             </form>
             {answer ? (
                 <div className="space-y-2 text-sm">
-                    <p className="whitespace-pre-line text-slate-800">{answer.answer}</p>
+                    <p className="whitespace-pre-line text-studyflow-text">{answer.answer}</p>
                     {answer.sources.map((source) => (
-                        <p className="text-slate-600" key={source.shareId}>{source.title}</p>
+                        <p className="text-studyflow-text" key={source.shareId}>{source.title}</p>
                     ))}
                 </div>
             ) : null}

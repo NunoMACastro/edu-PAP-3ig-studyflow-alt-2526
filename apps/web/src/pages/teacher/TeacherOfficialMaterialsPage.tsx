@@ -136,7 +136,7 @@ export function TeacherOfficialMaterialsPage({ subjectId }: TeacherOfficialMater
                         return (
                             <article className="sf-panel space-y-1" key={material._id}>
                                 <h2 className="font-semibold">{material.title}</h2>
-                                <p className="text-sm text-slate-600">{material.type} · {material.status}</p>
+                                <p className="text-sm text-studyflow-text">{material.type} · {material.status}</p>
                                 {material.sourceUrl ? <a className="text-sm text-studyflow-brand" href={material.sourceUrl}>{material.sourceUrl}</a> : null}
                                 <div className="flex flex-wrap gap-2 pt-2">
                                     <button

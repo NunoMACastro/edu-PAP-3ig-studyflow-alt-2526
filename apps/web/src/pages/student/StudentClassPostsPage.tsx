@@ -34,12 +34,12 @@ export function StudentClassPostsPage({ classId }: StudentClassPostsPageProps) {
             <h1 className="text-xl font-bold">Publicações da turma</h1>
             {error ? <p className="sf-error">{error}</p> : null}
             <div className="grid gap-3">
-                {posts.length === 0 ? <p className="sf-panel text-sm text-slate-600">Ainda não há publicações.</p> : null}
+                {posts.length === 0 ? <p className="sf-panel text-sm text-studyflow-text">Ainda não há publicações.</p> : null}
                 {posts.map((post) => (
                     <article className="sf-panel space-y-1" key={post._id}>
                         <p className="text-xs font-semibold uppercase tracking-wide text-studyflow-brand">{post.type === "NOTICE" ? "Aviso" : "Publicação"}</p>
                         <h2 className="font-semibold">{post.title}</h2>
-                        <p className="whitespace-pre-wrap text-sm text-slate-700">{post.body}</p>
+                        <p className="whitespace-pre-wrap text-sm text-studyflow-text">{post.body}</p>
                     </article>
                 ))}
             </div>

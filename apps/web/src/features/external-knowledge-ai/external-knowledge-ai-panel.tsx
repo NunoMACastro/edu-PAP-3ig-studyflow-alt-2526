@@ -56,7 +56,7 @@ export function ExternalKnowledgeAiPanel() {
                 <h2 id="external-knowledge-title" className="text-lg font-semibold">
                     Conhecimento externo limitado
                 </h2>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-studyflow-text">
                     A resposta usa fontes internas como base e marca qualquer nota externa.
                 </p>
             </header>
@@ -108,15 +108,15 @@ export function ExternalKnowledgeAiPanel() {
             </form>
 
             {!answer && !loading && !error ? (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-studyflow-text">
                     Ainda não existe resposta para esta pergunta.
                 </p>
             ) : null}
 
             {answer ? (
                 <article className="space-y-3 text-sm" aria-live="polite">
-                    <p className="whitespace-pre-line text-slate-800">{answer.answer}</p>
-                    <p className="font-medium text-slate-700">
+                    <p className="whitespace-pre-line text-studyflow-text">{answer.answer}</p>
+                    <p className="font-medium text-studyflow-text">
                         {answer.externalUsed ? "Nota externa usada" : "Só fontes internas"}
                     </p>
 
