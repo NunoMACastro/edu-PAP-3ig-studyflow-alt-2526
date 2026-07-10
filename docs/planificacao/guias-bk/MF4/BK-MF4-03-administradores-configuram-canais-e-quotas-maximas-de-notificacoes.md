@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF4-02`
 - `rf_rnf`: `RF51`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF4-04`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-03-administradores-configuram-canais-e-quotas-maximas-de-notificacoes.md`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 

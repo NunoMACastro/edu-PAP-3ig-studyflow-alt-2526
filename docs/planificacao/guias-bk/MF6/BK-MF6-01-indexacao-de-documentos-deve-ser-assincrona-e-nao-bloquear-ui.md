@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF11`
@@ -17,11 +18,13 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF6-02`
 - `guia_path`: `docs/planificacao/guias-bk/MF6/BK-MF6-01-indexacao-de-documentos-deve-ser-assincrona-e-nao-bloquear-ui.md`
-- `last_updated`: `2026-06-22`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais transformar a indexação de materiais num fluxo assíncrono: o frontend pede a indexação, recebe uma resposta rápida e acompanha o estado do job sem bloquear a interface.
+Neste BK vais transformar a indexação de materiais num fluxo assíncrono durável: o frontend recebe `202`, a API cria ou reutiliza um job ativo e um runner Mongo processa-o fora do pedido sem usar promessas `void`.
+
+O runner usa lease de 30 s, heartbeat com fencing, concorrência máxima 2, três tentativas e backoff de 1/5/30 s. Recupera leases expiradas no arranque, exige processadores idempotentes e um índice parcial impede dois jobs ativos para o mesmo material. `GET /api/student/study-areas/:studyAreaId/material-index-jobs?latestByMaterial=true` hidrata o último job por material após reload.
 
 No fim, a API passa a devolver um job com estado, a UI mostra progresso e os serviços de IA continuam a usar apenas materiais já processáveis. O foco é entregar uma melhoria real de qualidade, segurança, performance ou continuidade sem inventar requisitos fora de `RNF11`.
 
@@ -90,7 +93,7 @@ Este guia também prepara `BK-MF6-02` porque entrega contratos, evidence e decis
 
 #### Arquitetura do BK
 
-- Endpoint(s): `POST /api/student/study-areas/:studyAreaId/materials/:materialId/index-jobs`, `GET /api/material-index-jobs/:jobId`.
+- Endpoint(s): `POST /api/student/study-areas/:studyAreaId/materials/:materialId/index-jobs` (`202`, reutiliza ativo), `GET /api/material-index-jobs/:jobId` e `GET /api/student/study-areas/:studyAreaId/material-index-jobs?latestByMaterial=true`.
 - Modelo/schema: reutiliza `MaterialIndexJob`, que já guarda `QUEUED`, `PROCESSING`, `DONE` e `FAILED`.
 - Service(s): `apps/api/src/modules/material-index/material-index.service.ts` valida ownership e persiste o job; `apps/api/src/modules/material-index/material-index-queue.service.ts` arranca o processamento fora do pedido HTTP.
 - Controller/route: `MaterialIndexController` devolve o job `QUEUED` imediatamente e mantém `SessionGuard`.
@@ -324,12 +327,10 @@ async processQueuedPrivateJob(
 
 ```ts
 // apps/api/src/modules/material-index/material-index-queue.service.ts
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
-import {
-    MaterialIndexJobView,
-    MaterialIndexService,
-} from "./material-index.service.js";
+import { DurableJobRunner } from "../jobs/durable-job-runner.service.js";
+import { MaterialIndexJobView, MaterialIndexService } from "./material-index.service.js";
 
 export type MaterialIndexQueueInput = {
     actor: AuthenticatedUser;
@@ -337,25 +338,18 @@ export type MaterialIndexQueueInput = {
     materialId: string;
 };
 
-export type MaterialIndexQueuePort = Pick<
-    MaterialIndexService,
-    "createQueuedPrivateJob" | "processQueuedPrivateJob"
->;
-
 /**
- * Orquestra indexações privadas sem prender o pedido HTTP à extração do ficheiro.
+ * Persiste ou reutiliza indexações sem executar trabalho pesado no pedido HTTP.
  */
 @Injectable()
 export class MaterialIndexQueueService {
-    private readonly logger = new Logger(MaterialIndexQueueService.name);
-
     constructor(
-        @Inject(MaterialIndexService)
-        private readonly materialIndexService: MaterialIndexQueuePort,
+        private readonly materialIndexService: MaterialIndexService,
+        private readonly durableJobRunner: DurableJobRunner,
     ) {}
 
     /**
-     * Devolve um job QUEUED imediatamente e inicia o processamento em segundo plano.
+     * Devolve o job ativo e acorda o runner durável.
      *
      * @param input Contexto autenticado e material escolhido pelo aluno.
      * @returns Job persistido antes de a extração pesada começar.
@@ -363,41 +357,15 @@ export class MaterialIndexQueueService {
     async enqueuePrivateMaterial(
         input: MaterialIndexQueueInput,
     ): Promise<MaterialIndexJobView> {
-        const queuedJob = await this.materialIndexService.createQueuedPrivateJob(
+        const queuedJob = await this.materialIndexService.createOrReuseActivePrivateJob(
             input.actor,
             input.studyAreaId,
             input.materialId,
         );
 
-        // O processamento corre fora da resposta HTTP; falhas ficam registadas no job e nos logs técnicos.
-        void this.runPrivateIndex(input, queuedJob._id);
+        await this.durableJobRunner.wake("MATERIAL_INDEX");
 
         return queuedJob;
-    }
-
-    /**
-     * Atualiza o job em background e evita rejeições não tratadas no processo Node.
-     *
-     * @param input Contexto original validado no pedido.
-     * @param jobId Job persistido antes do processamento.
-     */
-    private async runPrivateIndex(
-        input: MaterialIndexQueueInput,
-        jobId: string,
-    ): Promise<void> {
-        try {
-            await this.materialIndexService.processQueuedPrivateJob(
-                input.actor,
-                input.studyAreaId,
-                input.materialId,
-                jobId,
-            );
-        } catch (error) {
-            this.logger.error(
-                "Falha ao processar indexação privada em background.",
-                error instanceof Error ? error.stack : undefined,
-            );
-        }
     }
 }
 ```
@@ -557,8 +525,11 @@ export function indexPrivateMaterial(
  * @param jobId Job devolvido pelo pedido inicial.
  * @returns Job com estado atualizado para a UI.
  */
-export function getMaterialIndexJob(jobId: string): Promise<MaterialIndexJob> {
-    return requestJson<MaterialIndexJob>(`/api/material-index-jobs/${jobId}`);
+export function getMaterialIndexJob(
+    jobId: string,
+    signal?: AbortSignal,
+): Promise<MaterialIndexJob> {
+    return requestJson<MaterialIndexJob>(`/api/material-index-jobs/${jobId}`, { signal });
 }
 ```
 
@@ -592,19 +563,41 @@ export function MaterialIndexStatusButton({
     useEffect(() => {
         if (!job || !["QUEUED", "PROCESSING"].includes(job.status)) return;
 
-        const timer = window.setInterval(async () => {
+        const abortController = new AbortController();
+        let disposed = false;
+        let timer: number | undefined;
+        const order = { QUEUED: 0, PROCESSING: 1, DONE: 2, FAILED: 2 } as const;
+
+        const pollOnce = async () => {
             try {
-                const nextJob = await getMaterialIndexJob(job._id);
-                setJob(nextJob);
+                const nextJob = await getMaterialIndexJob(job._id, abortController.signal);
+                if (disposed) return;
+                setJob((current) =>
+                    !current || order[nextJob.status] >= order[current.status]
+                        ? nextJob
+                        : current,
+                );
                 if (nextJob.status === "DONE") onIndexed?.(nextJob);
-            } catch {
+                if (["QUEUED", "PROCESSING"].includes(nextJob.status)) {
+                    timer = window.setTimeout(() => {
+                        pollOnce().catch(() => undefined);
+                    }, 1500);
+                }
+            } catch (caughtError) {
+                if (abortController.signal.aborted) return;
                 // A mensagem evita expor nomes de ficheiros ou texto privado do material.
                 setError("Não foi possível atualizar o estado da indexação.");
             }
-        }, 1500);
+        };
 
-        return () => window.clearInterval(timer);
-    }, [job, onIndexed]);
+        pollOnce().catch(() => undefined);
+
+        return () => {
+            disposed = true;
+            abortController.abort();
+            if (timer !== undefined) window.clearTimeout(timer);
+        };
+    }, [job?._id, onIndexed]);
 
     async function handleStartIndexing() {
         setIsStarting(true);
@@ -664,22 +657,18 @@ Criar uma prova pequena que falhe se a resposta voltar a depender da extração 
 
 3. Instruções do que fazer.
 
-Adiciona o teste abaixo e mantém o foco: o teste deve provar `QUEUED` imediato e chamada ao processamento em background com o mesmo contexto autenticado.
+Adiciona o teste abaixo e mantém o foco: o teste prova criação/reutilização atómica e wake do runner; o pedido HTTP nunca chama o processador diretamente.
 
 4. Código completo, correto e integrado com a app final.
 
 ```ts
 // apps/api/src/modules/material-index/material-index-queue.service.spec.ts
-import {
-    MaterialIndexQueuePort,
-    MaterialIndexQueueService,
-} from "./material-index-queue.service.js";
+import { MaterialIndexQueueService } from "./material-index-queue.service.js";
 
 describe("MaterialIndexQueueService", () => {
     it("devolve job QUEUED antes da extração terminar", async () => {
-        // O duplo tipado simula a persistência sem ler ficheiros reais nem expor materiais privados.
-        const port: jest.Mocked<MaterialIndexQueuePort> = {
-            createQueuedPrivateJob: jest.fn().mockResolvedValue({
+        const materialIndexService = {
+            createOrReuseActivePrivateJob: jest.fn().mockResolvedValue({
                 _id: "507f1f77bcf86cd799439011",
                 scope: "PRIVATE_AREA",
                 materialId: "507f1f77bcf86cd799439012",
@@ -688,17 +677,12 @@ describe("MaterialIndexQueueService", () => {
                 status: "QUEUED",
                 extractedTextChunks: [],
             }),
-            processQueuedPrivateJob: jest.fn().mockResolvedValue({
-                _id: "507f1f77bcf86cd799439011",
-                scope: "PRIVATE_AREA",
-                materialId: "507f1f77bcf86cd799439012",
-                studyAreaId: "507f1f77bcf86cd799439013",
-                userId: "507f1f77bcf86cd799439014",
-                status: "DONE",
-                extractedTextChunks: [],
-            }),
         };
-        const service = new MaterialIndexQueueService(port);
+        const runner = { wake: jest.fn().mockResolvedValue(undefined) };
+        const service = new MaterialIndexQueueService(
+            materialIndexService as never,
+            runner as never,
+        );
 
         const queuedJob = await service.enqueuePrivateMaterial({
             actor: {
@@ -712,17 +696,7 @@ describe("MaterialIndexQueueService", () => {
 
         // A asserção principal protege RNF11: a resposta inicial é observável antes do trabalho pesado.
         expect(queuedJob.status).toBe("QUEUED");
-        // A chamada em background deve preservar o mesmo aluno e material para não trocar ownership.
-        expect(port.processQueuedPrivateJob).toHaveBeenCalledWith(
-            {
-                id: "507f1f77bcf86cd799439014",
-                role: "STUDENT",
-                email: "aluno@studyflow.test",
-            },
-            "507f1f77bcf86cd799439013",
-            "507f1f77bcf86cd799439012",
-            "507f1f77bcf86cd799439011",
-        );
+        expect(runner.wake).toHaveBeenCalledWith("MATERIAL_INDEX");
     });
 });
 ```
@@ -737,7 +711,7 @@ Executa `npm --prefix apps/api run test:unit -- material-index-queue.service.spe
 
 7. Cenário negativo/erro esperado.
 
-Altera temporariamente o duplo de teste para lançar erro em `createQueuedPrivateJob`. O teste deve mostrar que nenhum processamento em background é iniciado quando a validação de ownership falha antes do job ser criado.
+Faz `createOrReuseActivePrivateJob` lançar erro de ownership. O teste deve confirmar que `runner.wake` não é chamado.
 
 ### Passo 6 - Preparar evidence técnica e pedagógica
 
@@ -782,7 +756,7 @@ Confirmar que `BK-MF6-02` consegue consumir o que este BK entrega sem reescrever
 
 3. Instruções do que fazer.
 
-Atualiza o handoff com exports, endpoints, comandos e riscos restantes. A decisão marcada como DERIVADO neste BK é: usar polling simples e job persistido como decisão mínima antes de uma fila distribuída completa.
+Atualiza o handoff com exports, endpoints, comandos e riscos restantes. A decisão deste alvo é runner Mongo single-instance, polling single-flight e jobs persistidos; uma futura passagem a multi-instância reabre a escolha de worker distribuído.
 
 4. Código completo, correto e integrado com a app final.
 
@@ -806,6 +780,9 @@ Se o próximo BK depender de algo que não foi entregue aqui, volta ao passo té
 - O cenário principal produz output objetivo e repetível: `POST` devolve job inicial e `GET` consulta estado terminal `DONE` ou `FAILED`.
 - O cenário negativo falha com erro controlado e sem dados sensíveis.
 - Falhas técnicas durante a extração ou marcação do material não deixam o job preso em `PROCESSING`.
+- Lease de 30 s, heartbeat/fencing, concorrência 2, três tentativas e backoff 1/5/30 s são cobertos por testes de crash/restart.
+- Existe no máximo um job ativo por material, o POST devolve `202` e reutiliza esse job.
+- Reload hidrata `latestByMaterial`; polling tem um só pedido em voo, abort no cleanup e nunca regride o estado visual.
 - A solução não depende de permissões decididas no frontend.
 - Os caminhos de ficheiros usam apenas apps/api e apps/web.
 - A evidence inclui comando, resultado observado e interpretação curta.
@@ -830,7 +807,7 @@ Se o próximo BK depender de algo que não foi entregue aqui, volta ao passo té
 #### Handoff
 
 - Entrega para `BK-MF6-02`: padrão de job persistido com `QUEUED`, `PROCESSING`, `DONE` e `FAILED`, além de controller protegido por sessão e cliente centralizado em `apiClient.ts`.
-- Decisão DERIVADO registada: usar job persistido e processamento em segundo plano dentro do processo Node antes de introduzir fila distribuída completa.
+- Decisão registada: runner Mongo single-instance com lease/heartbeat/fencing, idempotência e recuperação de leases expiradas; multi-instância exige reauditoria.
 - Risco residual: validar em ambiente semelhante ao deploy final antes de apresentar como garantia operacional, sobretudo para reinícios durante jobs em curso; falhas técnicas da operação pesada já terminam em `FAILED`.
 - Não há alteração de RF/RNF nem mudança de matriz nesta entrega.
 

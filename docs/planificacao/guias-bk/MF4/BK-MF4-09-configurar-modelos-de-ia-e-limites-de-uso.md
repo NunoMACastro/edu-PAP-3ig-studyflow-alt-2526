@@ -9,6 +9,7 @@
 - `apoio`: `Kaua`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF2-11`
 - `rf_rnf`: `RF57`
@@ -17,11 +18,11 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF4-10`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-09-configurar-modelos-de-ia-e-limites-de-uso.md`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Criar políticas administrativas para modelos de IA e limites técnicos de uso. O administrador define finalidade, provider, modelo, tamanho máximo de prompt, timeout e estado activo; os services IA passam a resolver a política antes de chamar o provider.
+Criar políticas administrativas para modelos e limites técnicos. O administrador define finalidade, provider, modelo, tamanho máximo, timeout e estado ativo; `GovernedAiExecutionService` passa a resolver a política para todos os fluxos.
 
 #### Importância
 
@@ -34,7 +35,7 @@ RF57 impede que cada service IA escolha modelo e limites de forma solta. A confi
 - Criar método `resolveForUse`.
 - Auditar alterações com BK-MF4-08.
 - Criar cliente e painel admin.
-- Indicar integração nos services que chamam `AI_PROVIDER`.
+- Integrar `AiModelPoliciesService` dentro de `GovernedAiExecutionService`.
 - Criar testes de role e política desativada.
 
 #### Scope-out
@@ -48,7 +49,7 @@ RF57 impede que cada service IA escolha modelo e limites de forma solta. A confi
 
 ##### Estado antes
 
-`AI_PROVIDER` existe e usa configuração de ambiente. Os services IA não têm política administrativa por finalidade.
+Existe uma fachada governada; falta integrar nela uma política administrativa por finalidade.
 
 ##### Estado depois
 
@@ -64,7 +65,7 @@ Fica um módulo `ai-model-policies` que centraliza modelo, limites e estado por 
 
 - BK-MF4-06 para consentimentos.
 - BK-MF4-08 para auditoria.
-- `AI_PROVIDER`.
+- `GovernedAiExecutionService`.
 - `SessionGuard`.
 - `requestMf3Json`.
 
@@ -77,7 +78,7 @@ Fica um módulo `ai-model-policies` que centraliza modelo, limites e estado por 
 
 #### Conceitos teóricos essenciais
 
-Modelo e limites devem ser decididos antes da chamada ao provider. O service de domínio continua responsável por ownership, fontes e consentimento; a política apenas controla se a IA pode correr e com que limites técnicos.
+Modelo e limites são resolvidos pela fachada depois de autorização/consentimento e antes de construir o prompt. O service de domínio continua responsável por ownership e fontes autorizadas, mas não consulta policy nem provider diretamente.
 
 #### Arquitetura do BK
 
@@ -99,7 +100,7 @@ Modelo e limites devem ser decididos antes da chamada ao provider. O service de 
 - CRIAR: `apps/api/src/modules/ai-model-policies/ai-model-policies.controller.ts`
 - CRIAR: `apps/api/src/modules/ai-model-policies/ai-model-policies.module.ts`
 - CRIAR: `apps/api/src/modules/ai-model-policies/ai-model-policies.service.spec.ts`
-- EDITAR: services IA que chamam `AI_PROVIDER`
+- EDITAR: `apps/api/src/modules/ai/governed-ai-execution.service.ts`
 - CRIAR: `apps/web/src/features/ai-model-policies/ai-model-policies-client.ts`
 - CRIAR: `apps/web/src/features/ai-model-policies/ai-model-policies-panel.tsx`
 - EDITAR: `apps/api/src/app.module.ts`
@@ -123,11 +124,15 @@ import { IsBoolean, IsEnum, IsInt, IsString, Max, MaxLength, Min, MinLength } fr
 
 export enum AiModelPurpose {
     PRIVATE_AREA_AI = "PRIVATE_AREA_AI",
-    STUDY_GROUP_AI = "STUDY_GROUP_AI",
+    GROUP_AI = "GROUP_AI",
     CLASS_AI = "CLASS_AI",
     PROJECT_AI = "PROJECT_AI",
+    SOURCE_GROUNDED_AI = "SOURCE_GROUNDED_AI",
+    EXTERNAL_KNOWLEDGE_AI = "EXTERNAL_KNOWLEDGE_AI",
+    ADAPTIVE_EXPLANATION = "ADAPTIVE_EXPLANATION",
     SUMMARY = "SUMMARY",
     STUDY_TOOL = "STUDY_TOOL",
+    ROOM_AI = "ROOM_AI",
 }
 
 export enum AiProviderName {
@@ -379,33 +384,29 @@ export class AiModelPoliciesModule {}
 7. Cenário negativo/erro esperado.
    Pedido sem sessão deve falhar no guard.
 
-### Passo 4 - Integrar nos services IA
+### Passo 4 - Integrar na fachada governada
 
 1. Objetivo funcional do passo no contexto da app.
-   Aplicar política antes do provider.
+   Aplicar política central uma única vez na fachada.
 2. Ficheiros envolvidos:
-   - EDITAR: services IA que chamam `AI_PROVIDER`
+   - EDITAR: `apps/api/src/modules/ai/governed-ai-execution.service.ts`
 3. Instruções do que fazer.
-   Chama `resolveForUse`, valida tamanho do prompt e passa `policy.model` ao provider se a interface for estendida.
+   `authorize` chama `resolveForUse`; `executeAuthorized` limita fontes, constrói o prompt, valida comprimento e só depois reserva quota e faz a invocação privada.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// Contrato dentro de um service IA antes de chamar AI_PROVIDER
-const policy = await this.aiModelPoliciesService.resolveForUse(AiModelPurpose.PRIVATE_AREA_AI);
-if (prompt.length > policy.maxPromptChars) {
-    throw new BadRequestException({
-        code: "AI_PROMPT_TOO_LONG",
-        message: "O pedido é demasiado grande para a política de IA configurada.",
-    });
-}
+const policy = await this.aiModelPoliciesService.resolveForUse(input.purpose);
+const limitedSources = input.sources.slice(0, policy.maxSourceCount);
+const prompt = input.buildPrompt(limitedSources);
+assertPromptWithinLimit(prompt, policy);
 ```
 
 5. Explicação do código.
    A validação ocorre depois de consentimento e ownership, mas antes do provider. Isto evita custos e exposição de dados quando a política bloqueia.
 6. Validação do passo.
-   Prompt acima do limite deve falhar antes de chamar `AI_PROVIDER`.
+   Prompt acima do limite deve falhar antes de reservar quota ou invocar o provider privado.
 7. Cenário negativo/erro esperado.
-   Se `AI_PROVIDER` for chamado sem `resolveForUse`, a integração está incompleta.
+   O teste arquitetural deve falhar se um consumidor de domínio injetar o provider ou consultar policy fora da fachada.
 
 ### Passo 5 - Criar frontend admin
 
@@ -423,7 +424,7 @@ if (prompt.length > policy.maxPromptChars) {
 import { requestMf3Json } from "../mf3/request-mf3-json.js";
 
 export type AiModelPolicy = {
-    purpose: "PRIVATE_AREA_AI" | "STUDY_GROUP_AI" | "CLASS_AI" | "PROJECT_AI" | "SUMMARY" | "STUDY_TOOL";
+    purpose: "PRIVATE_AREA_AI" | "GROUP_AI" | "CLASS_AI" | "PROJECT_AI" | "SOURCE_GROUNDED_AI" | "EXTERNAL_KNOWLEDGE_AI" | "ADAPTIVE_EXPLANATION" | "SUMMARY" | "STUDY_TOOL" | "ROOM_AI";
     provider: "OPENAI";
     model: string;
     maxPromptChars: number;
@@ -517,7 +518,7 @@ describe("AiModelPoliciesService", () => {
 
 - Só admin altera políticas.
 - Política define finalidade, provider, modelo e limites.
-- Service IA resolve política antes do provider.
+- A fachada resolve a política antes de limites, quota e invocação externa.
 - Política desativada bloqueia com mensagem honesta.
 - Alteração de política é auditada.
 

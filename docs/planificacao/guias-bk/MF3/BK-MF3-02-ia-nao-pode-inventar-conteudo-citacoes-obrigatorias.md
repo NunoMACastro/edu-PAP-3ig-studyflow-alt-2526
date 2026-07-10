@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF2-07`
 - `rf_rnf`: `RF38`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF3-03`
 - `guia_path`: `docs/planificacao/guias-bk/MF3/BK-MF3-02-ia-nao-pode-inventar-conteudo-citacoes-obrigatorias.md`
-- `last_updated`: `2026-06-26`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -61,7 +62,7 @@ Este BK transforma o requisito RF38 numa entrega copiável e testável. A funcio
 #### Pre-requisitos
 
 - `BK-MF2-07` com `MaterialIndexService.findDoneJob`.
-- `BK-MF0-12` com `AiModule` e `AI_PROVIDER`.
+- `BK-MF0-12` com `AiModule` e `GovernedAiExecutionService`.
 
 #### Glossário
 
@@ -103,8 +104,8 @@ Este BK transforma o requisito RF38 numa entrega copiável e testável. A funcio
 #### Arquitetura do BK
 
 - Endpoint: `POST /api/ai/source-grounded-answers`.
-- Backend: `real_dev/api/src/modules/source-grounded-ai`.
-- Frontend: `real_dev/web/src/features/source-grounded-ai`.
+- Backend: `apps/api/src/modules/source-grounded-ai`.
+- Frontend: `apps/web/src/features/source-grounded-ai`.
 - DTO principal: `AskSourceGroundedAiDto`.
 - Service principal: `SourceGroundedAiService`.
 - Controller principal: `SourceGroundedAiController`.
@@ -113,14 +114,14 @@ Este BK transforma o requisito RF38 numa entrega copiável e testável. A funcio
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/api/src/modules/source-grounded-ai/dto/ask-source-grounded-ai.dto.ts`
-- CRIAR: `real_dev/api/src/modules/source-grounded-ai/schemas/source-grounded-ai-answer.schema.ts`
-- CRIAR: `real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`
-- CRIAR: `real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.controller.ts`
-- CRIAR: `real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.module.ts`
-- CRIAR: `real_dev/web/src/features/source-grounded-ai/ask-source-grounded-ai.ts`
-- CRIAR: `real_dev/web/src/features/source-grounded-ai/source-grounded-ai-panel.tsx`
-- REVER: `real_dev/api/src/app.module.ts` para importar o módulo criado.
+- CRIAR: `apps/api/src/modules/source-grounded-ai/dto/ask-source-grounded-ai.dto.ts`
+- CRIAR: `apps/api/src/modules/source-grounded-ai/schemas/source-grounded-ai-answer.schema.ts`
+- CRIAR: `apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`
+- CRIAR: `apps/api/src/modules/source-grounded-ai/source-grounded-ai.controller.ts`
+- CRIAR: `apps/api/src/modules/source-grounded-ai/source-grounded-ai.module.ts`
+- CRIAR: `apps/web/src/features/source-grounded-ai/ask-source-grounded-ai.ts`
+- CRIAR: `apps/web/src/features/source-grounded-ai/source-grounded-ai-panel.tsx`
+- REVER: `apps/api/src/app.module.ts` para importar o módulo criado.
 
 #### Tutorial técnico linear
 
@@ -131,14 +132,14 @@ Este BK transforma o requisito RF38 numa entrega copiável e testável. A funcio
 1. Objetivo funcional do passo no contexto da app.
    Garantir que o endpoint recebe dados claros e rejeita input inválido antes do service.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/source-grounded-ai/dto/ask-source-grounded-ai.dto.ts`
+   - CRIAR: `apps/api/src/modules/source-grounded-ai/dto/ask-source-grounded-ai.dto.ts`
    - LOCALIZAÇÃO: `ficheiro completo`
 3. Instruções do que fazer.
    Cria o DTO com validações declarativas e nomes iguais ao payload documentado neste BK.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/source-grounded-ai/dto/ask-source-grounded-ai.dto.ts
+// apps/api/src/modules/source-grounded-ai/dto/ask-source-grounded-ai.dto.ts
 import {
     ArrayMinSize,
     IsArray,
@@ -182,14 +183,14 @@ export class AskSourceGroundedAiDto {
 1. Objetivo funcional do passo no contexto da app.
    Guardar dados mínimos do fluxo para histórico, defesa e integração com BKs seguintes.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/source-grounded-ai/schemas/source-grounded-ai-answer.schema.ts`
+   - CRIAR: `apps/api/src/modules/source-grounded-ai/schemas/source-grounded-ai-answer.schema.ts`
    - LOCALIZAÇÃO: `ficheiro completo`
 3. Instruções do que fazer.
    Cria o schema Mongoose do resultado produzido por este BK.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/source-grounded-ai/schemas/source-grounded-ai-answer.schema.ts
+// apps/api/src/modules/source-grounded-ai/schemas/source-grounded-ai-answer.schema.ts
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
 
@@ -257,14 +258,14 @@ export const SourceGroundedAiAnswerSchema = SchemaFactory.createForClass(
 1. Objetivo funcional do passo no contexto da app.
    Concentrar regras de negócio, ownership, membership, erros e efeitos de persistência num ponto testável.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`
+   - CRIAR: `apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`
    - LOCALIZAÇÃO: `classe completa do service`
 3. Instruções do que fazer.
    Cria o service e injeta apenas módulos herdados ou ficheiros criados neste BK.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts
+// apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts
 import {
     Inject,
     Injectable,
@@ -274,7 +275,7 @@ import {
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
-import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider.js";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service.js";
 import {
     MaterialIndexJobView,
     MaterialIndexService,
@@ -309,8 +310,7 @@ export class SourceGroundedAiService {
         @InjectModel(SourceGroundedAiAnswer.name)
         private readonly answerModel: Model<SourceGroundedAiAnswerDocument>,
         private readonly materialIndexService: MaterialIndexService,
-        @Inject(AI_PROVIDER)
-        private readonly aiProvider: AiProvider,
+        private readonly aiExecution: GovernedAiExecutionService,
     ) {}
 
     /**
@@ -344,7 +344,7 @@ export class SourceGroundedAiService {
             });
         }
 
-        const answer = await this.generateAnswer(input.question, citations);
+        const answer = await this.generateAnswer(actor, input.question, citations);
 
         const document = await this.answerModel.create({
             actorId: new Types.ObjectId(actor.id),
@@ -424,6 +424,7 @@ export class SourceGroundedAiService {
      * @returns Resposta validada.
      */
     private async generateAnswer(
+        actor: AuthenticatedUser,
         question: string,
         citations: SourceGroundedCitation[],
     ): Promise<string> {
@@ -444,13 +445,28 @@ export class SourceGroundedAiService {
 
         let providerResult: Record<string, unknown>;
         try {
-            providerResult = await this.aiProvider.generateStudyTool({
-                prompt,
-                type: "EXPLANATION",
-            });
+            ({ result: providerResult } = await this.aiExecution.execute({
+                userId: actor.id,
+                purpose: "SOURCE_GROUNDED_AI",
+                quota: { scope: "USER", targetId: actor.id },
+                sources: citations,
+                guardrailText: question,
+                buildPrompt: () => prompt,
+                invoke: ({ provider, prompt: governedPrompt, options }) =>
+                    provider.generateStudyTool({
+                        prompt: governedPrompt,
+                        type: "EXPLANATION",
+                        ...options,
+                    }),
+                validateResult: (value) => {
+                    if (!value || typeof value !== "object") {
+                        throw new TypeError("Resposta com fontes inválida.");
+                    }
+                },
+            }));
         } catch {
             throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_UNAVAILABLE",
+                code: "AI_EXECUTION_UNAVAILABLE",
                 message: "A IA está temporariamente indisponível.",
             });
         }
@@ -458,7 +474,7 @@ export class SourceGroundedAiService {
         const answer = providerResult.answer;
         if (typeof answer !== "string" || answer.trim().length === 0) {
             throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_INVALID_RESPONSE",
+                code: "AI_EXECUTION_INVALID_OUTPUT",
                 message: "A IA devolveu uma resposta inválida.",
             });
         }
@@ -480,14 +496,14 @@ export class SourceGroundedAiService {
 1. Objetivo funcional do passo no contexto da app.
    Ligar `POST /api/ai/source-grounded-answers` ao service sem colocar regras sensíveis no controller.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.controller.ts`
+   - CRIAR: `apps/api/src/modules/source-grounded-ai/source-grounded-ai.controller.ts`
    - LOCALIZAÇÃO: `classe completa do controller`
 3. Instruções do que fazer.
    Cria o controller com `SessionGuard`, `@Req() request: AuthenticatedRequest` e delegação direta para o service.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.controller.ts
+// apps/api/src/modules/source-grounded-ai/source-grounded-ai.controller.ts
 import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
@@ -531,15 +547,15 @@ export class SourceGroundedAiController {
 1. Objetivo funcional do passo no contexto da app.
    Permitir que a aplicação carregue controller, service, schema e dependências num módulo coeso.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.module.ts`
-   - EDITAR: `real_dev/api/src/app.module.ts`
+   - CRIAR: `apps/api/src/modules/source-grounded-ai/source-grounded-ai.module.ts`
+   - EDITAR: `apps/api/src/app.module.ts`
    - LOCALIZAÇÃO: `módulo completo e lista de imports do AppModule`
 3. Instruções do que fazer.
    Cria o módulo e adiciona `SourceGroundedAiModule` à lista de imports do AppModule, preservando os módulos existentes.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/source-grounded-ai/source-grounded-ai.module.ts
+// apps/api/src/modules/source-grounded-ai/source-grounded-ai.module.ts
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AiModule } from "../ai/ai.module.js";
@@ -586,14 +602,14 @@ export class SourceGroundedAiModule {}
 1. Objetivo funcional do passo no contexto da app.
    Isolar a chamada HTTP para que o componente não tenha URLs, métodos ou parsing espalhados.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/web/src/features/source-grounded-ai/ask-source-grounded-ai.ts`
+   - CRIAR: `apps/web/src/features/source-grounded-ai/ask-source-grounded-ai.ts`
    - LOCALIZAÇÃO: `ficheiro completo`
 3. Instruções do que fazer.
    Cria uma função de API com payload e resposta tipados.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/src/features/source-grounded-ai/ask-source-grounded-ai.ts
+// apps/web/src/features/source-grounded-ai/ask-source-grounded-ai.ts
 import { requestMf3Json } from "../mf3/request-mf3-json.js";
 
 export type SourceGroundedAnswer = {
@@ -643,14 +659,14 @@ export function askSourceGroundedAi(input: {
 1. Objetivo funcional do passo no contexto da app.
    Dar ao aluno um ecrã simples para testar o endpoint sem ferramentas externas.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/web/src/features/source-grounded-ai/source-grounded-ai-panel.tsx`
+   - CRIAR: `apps/web/src/features/source-grounded-ai/source-grounded-ai-panel.tsx`
    - LOCALIZAÇÃO: `componente completo`
 3. Instruções do que fazer.
    Cria o componente com formulário, loading, erro, vazio e sucesso.
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/features/source-grounded-ai/source-grounded-ai-panel.tsx
+// apps/web/src/features/source-grounded-ai/source-grounded-ai-panel.tsx
 import { FormEvent, useState } from "react";
 import {
     askSourceGroundedAi,
@@ -734,18 +750,18 @@ export function SourceGroundedAiPanel() {
 1. Objetivo funcional do passo no contexto da app.
    Registar o contrato mínimo que a equipa deve cobrir com testes e evidência.
 2. Ficheiros envolvidos:
-   - REVER: `real_dev/api/src/modules/mf3-http-contracts.spec.ts`
+   - REVER: `apps/api/src/modules/mf3-http-contracts.spec.ts`
    - LOCALIZAÇÃO: `teste de contrato MF3 e teste unitário do módulo`
 3. Instruções do que fazer.
    Revê os testes Jest já configurados para a MF3 e confirma o cenário deste BK sem adicionar dependências novas.
 4. Código completo, correto e integrado com a app final.
 
-Sem código neste passo. Este passo é de validação: usa os testes Jest existentes em `real_dev/api/src/modules/mf3-http-contracts.spec.ts` e o teste unitário do módulo correspondente, sem adicionar dependências novas.
+Sem código neste passo. Este passo é de validação: usa os testes Jest existentes em `apps/api/src/modules/mf3-http-contracts.spec.ts` e o teste unitário do módulo correspondente, sem adicionar dependências novas.
 
 5. Explicação do código.
    A validação usa Jest e os testes de contrato existentes da MF3 para confirmar rota, autenticação, DTO e cenário negativo sem introduzir dependências HTTP externas.
 6. Validação do passo.
-   Executa os testes unitários da API e confirma que o ficheiro `real_dev/api/src/modules/mf3-http-contracts.spec.ts` cobre o endpoint documentado.
+   Executa os testes unitários da API e confirma que o ficheiro `apps/api/src/modules/mf3-http-contracts.spec.ts` cobre o endpoint documentado.
 7. Cenário negativo/erro esperado.
    Não marques o BK como concluído sem pelo menos um negativo de autenticação/autorização e um negativo de validação.
 

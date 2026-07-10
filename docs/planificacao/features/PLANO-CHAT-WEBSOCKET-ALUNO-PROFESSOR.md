@@ -32,8 +32,8 @@ O MVP usa:
   - `GET /api/student/subjects/:subjectId/chat/messages`
   - `GET /api/teacher/subjects/:subjectId/chat/messages`
 - Socket.IO no namespace `/subject-chat` para:
-  - `subject-chat:join`
-  - `subject-chat:send`
+  - `subject-chat:join`, com acknowledgement tipado;
+  - `subject-chat:send`, com acknowledgement tipado e chave de idempotência;
   - `subject-chat:message`
   - `subject-chat:error`
 
@@ -68,12 +68,20 @@ O cliente nunca envia `authorUserId`, `authorRole`, `classId` ou `teacherId`; es
 ## Segurança e privacidade
 
 - WebSocket valida `Origin` contra `WEB_ORIGIN`.
-- Handshake WebSocket lê `sf_sid` do header `Cookie` e chama `SessionService.requireSession`.
-- `join` e `send` repetem autorização por disciplina.
+- Handshake WebSocket lê `sf_sid` do header `Cookie` e chama `SessionService.requireSession`. A sessão v2 contém apenas `{ userId, sessionVersion }`; papel, `accountStatus` e versão são relidos do MongoDB.
+- `join` e `send` revalidam sessão e autorização por disciplina em cada evento. Uma conta que deixou de estar `ACTIVE`, uma mudança de papel ou uma versão divergente devolve acknowledgement `SESSION_REVOKED`, remove o socket das rooms e termina a ligação.
+- Antes de qualquer broadcast passivo, o gateway volta a confirmar que cada socket continua autorizado. Pertencer à room não é autorização permanente.
 - Mensagem vazia ou acima de 4000 caracteres é rejeitada no backend.
 - Rate limit básico: 10 mensagens por minuto por utilizador/thread.
 - Eventos de erro expõem apenas `code` e `message`.
 - Logs e respostas não expõem password hash, sessão, emails de participantes ou conteúdo fora da mensagem autorizada.
+
+Contrato de acknowledgement:
+
+- sucesso de `join`: `{ ok: true, subjectId, joinedAt }`;
+- sucesso de `send`: `{ ok: true, clientMessageId, message }`;
+- erro: `{ ok: false, code, message, retryable }`;
+- `clientMessageId` é obrigatório e único por autor/thread; um retry devolve a mensagem persistida, sem duplicar o documento nem o broadcast.
 
 ## Impacto no frontend
 
@@ -86,7 +94,9 @@ O frontend adiciona:
 - links de chat nas listagens de disciplinas, com ícone `message` junto ao texto `Chat`;
 - proxy Vite `/socket.io` com `ws: true`.
 
-O envio é conservador: a UI só mostra mensagens recebidas do servidor por `subject-chat:message`.
+O cliente regista handlers antes de ligar, espera acknowledgement positivo de `join` antes de ativar o envio e mantém um único listener por evento. O envio cria um `clientMessageId`, mantém o draft até acknowledgement positivo e reconcilia a resposta com o broadcast recebido. A lista deduplica por `message.id` e, enquanto esse ID não existir, por `clientMessageId`; reconnect e retry nunca criam duas mensagens visuais.
+
+Falha de rede, timeout ou acknowledgement negativo preservam o draft e apresentam erro recuperável. Apenas `401`/`SESSION_REVOKED` invalidam a sessão; `403` mantém a sessão e mostra acesso proibido, e `5xx`/offline colocam a UI em estado `unavailable`.
 
 ## Estado de implementação em `real_dev`
 
@@ -105,13 +115,16 @@ Implementado em `real_dev/web`:
 - painel `SubjectChatPanel` com loading, vazio, erro, estado online/offline, contador e envio;
 - páginas `/app/disciplinas/:subjectId/chat` e `/app/professor/disciplinas/:subjectId/chat`;
 - links `Chat` com ícone `message` nas páginas de disciplinas do aluno e do professor;
-- proxy Vite `/socket.io` com `ws: true`.
+- proxy Vite `/socket.io` com `ws: true`;
+- transporte Socket.IO limitado a `websocket`, sem fallback para long-polling.
+
+O estado acima é histórico e não constitui aceitação do hardening. A feature só fica concluída quando `sessionVersion`/`accountStatus`, revalidação por evento e broadcast, acknowledgements tipados, idempotência, reconciliação e deduplicação estiverem implementados e cobertos por testes.
 
 Validação local registada:
 
 - `npm --prefix real_dev/api test -- teacher-student-chat.service` passou;
 - `npm --prefix real_dev/web run build` passou;
-- `npm --prefix real_dev/api run build` ainda depende da instalação efetiva em `real_dev/api/node_modules` de `@nestjs/websockets`, `@nestjs/platform-socket.io` e `socket.io`.
+- `npm --prefix real_dev/api run build` passou depois da instalação efetiva em `real_dev/api/node_modules` de `@nestjs/websockets`, `@nestjs/platform-socket.io` e `socket.io`.
 
 ## Plano de testes
 
@@ -124,8 +137,11 @@ Backend:
 - texto vazio e texto demasiado longo são rejeitados;
 - rate limit bloqueia excesso;
 - handshake sem cookie falha;
-- `join` sem autorização emite `subject-chat:error`;
-- `send` persiste e emite para a room correcta.
+- `join` sem autorização responde com acknowledgement de erro e não entra na room;
+- `send` persiste uma vez, responde com acknowledgement e só depois emite para a room correta;
+- sessão revogada após o handshake falha no próximo `join`/`send` e antes de um broadcast passivo;
+- retry com o mesmo `clientMessageId` devolve a mesma mensagem sem duplicação;
+- dois sockets da mesma sessão são ambos revogados depois de `sessionVersion` mudar.
 
 Frontend/build:
 
@@ -133,9 +149,19 @@ Frontend/build:
 - `npm --prefix real_dev/api run build`
 - `npm --prefix real_dev/web run build`
 
+Frontend/component/E2E:
+
+- handlers são instalados antes de `connect()` e removidos no cleanup;
+- o draft só é limpo após acknowledgement positivo;
+- timeout, offline, `403`, `5xx` e `SESSION_REVOKED` têm estados distintos;
+- reconnect/retry/broadcast fora de ordem são reconciliados e deduplicados;
+- a rota do chat é lazy e `socket.io-client` não aparece no chunk público nem na primeira rota não-chat;
+- axe não reporta violações `serious` ou `critical` e o fluxo funciona apenas por teclado.
+
 ## Riscos e decisões em aberto
 
-- As dependências WebSocket têm de estar instaladas em `real_dev/api` e `real_dev/web` para build/test passarem.
+- As dependências WebSocket têm de continuar sincronizadas entre `package.json`, `package-lock.json` e `node_modules`.
+- A arquitetura é single-instance local. Uma futura passagem a multi-instância reabre a decisão de adapter/pub-sub e exige reauditoria da autorização de broadcasts.
 - Não há co-docência no modelo actual; professor responsável significa `Subject.teacherId`.
 - `ARCHIVED` existe no modelo, mas sem endpoint no MVP.
 - O MVP não inclui anexos, mensagens privadas, edição/apagamento, unread counts, presença online, moderação avançada ou migração do chat aluno-aluno.

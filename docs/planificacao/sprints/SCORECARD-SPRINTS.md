@@ -6,9 +6,12 @@
 - `area`: `project`
 - `owner`: `Nuno`
 - `status`: `ativo`
-- `last_updated`: `2026-04-19`
+- `last_updated`: `2026-07-10`
 
 ## Contrato de avaliacao (pesos oficiais)
+
+Este scorecard acompanha exclusivamente os alunos/sprints. `PLANEADA`, `EM_CURSO` e `FECHADA`
+não são evidence de implementação; consultar `ESTADO-REFERENCIA-REAL_DEV.md` para `real_dev`.
 | criterio | peso |
 | --- | --- |
 | Cobertura/rastreabilidade | 25 |
@@ -47,4 +50,5 @@
 - `Vermelho`: desvio >= 5 unidades, bloqueio em BK `P0` ou quebra de rastreabilidade.
 
 ## Changelog
+- `2026-07-10`: explicitado que o scorecard não é uma fonte de estado da implementação real.
 - `2026-04-19`: scorecard migrado para schema canónico único entre as PAPs.

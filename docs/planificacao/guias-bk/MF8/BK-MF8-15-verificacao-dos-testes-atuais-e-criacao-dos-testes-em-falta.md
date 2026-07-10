@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF8-14`
 - `rf_rnf`: `RNF41`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF8-16`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-15-verificacao-dos-testes-atuais-e-criacao-dos-testes-em-falta.md`
-- `last_updated`: `2026-07-02`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 

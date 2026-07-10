@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF2-04`
 - `rf_rnf`: `RF28`
@@ -17,13 +18,17 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF8-13`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-12-realizacao-de-mini-testes-oficiais-por-aluno.md`
-- `last_updated`: `2026-07-02`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
 Neste BK vais permitir que um aluno inscrito numa disciplina realize um mini-teste oficial publicado pelo professor, envie as respostas pela sessão autenticada e receba uma pontuação calculada no backend.
 
 O resultado do professor continua intacto: o `OfficialTest` criado em `BK-MF2-04` é a versão oficial read-only, e este BK cria uma tentativa separada do aluno para que `BK-MF8-13` consiga construir rankings sem alterar a prova original.
+
+Contrato final obrigatório: `DRAFT → PUBLISHED → CLOSED`; apenas `DRAFT` é editável. O editor aceita 1–60 perguntas, exatamente quatro opções distintas e uma resposta correta escolhida explicitamente. Existem `POST .../tests/:testId/publish`, `POST .../tests/:testId/close` e `GET .../tests/:testId/attempts/me`.
+
+Cada aluno tem no máximo três tentativas por teste, numeradas atomicamente dentro de transaction/índice único. Soluções completas só aparecem após a terceira tentativa ou quando o teste fica `CLOSED`; uma resposta anterior nunca antecipa as restantes soluções.
 
 #### Importância
 
@@ -38,6 +43,8 @@ Este BK fecha essa lacuna funcional. Sem ele, a app tem testes oficiais, mas nã
 - Validar no backend que o aluno está inscrito na turma da disciplina.
 - Calcular pontuação no backend a partir da versão oficial criada pelo professor.
 - Persistir a tentativa separada do `OfficialTest`.
+- Reutilizar a tentativa ativa/numeração atómica e bloquear a quarta com erro estável.
+- Devolver `attemptCount`, `attemptNumber`, tentativas próprias e soluções conforme a regra de disclosure.
 - Mostrar na UI os estados de carregamento, vazio, erro, submissão e resultado.
 - Criar testes focados para aluno não inscrito, teste não publicado e pontuação calculada.
 

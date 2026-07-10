@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF39`
@@ -17,13 +18,15 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF8-07`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-06-suporte-a-importacao-utf-8-e-pt-pt.md`
-- `last_updated`: `2026-07-01`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
 Neste BK vais garantir que o StudyFlow trata texto importado em UTF-8 e em português de Portugal sem perder acentos, cedilhas ou mensagens compreensíveis para o aluno.
 
 No fim, tópicos escritos pelo aluno, texto extraído de URLs, PDF e DOCX, e jobs de indexação textual passam por uma normalização comum antes de serem guardados como fonte processável. A app também passa a falhar de forma clara quando o material não tem texto legível, em vez de marcar conteúdo vazio como pronto para IA.
+
+Após reload, a UI hidrata `GET /api/student/study-areas/:studyAreaId/material-index-jobs?latestByMaterial=true`. O polling faz um único pedido em voo, usa `AbortSignal`, timeout recursivo e estados monotónicos.
 
 #### Importância
 
@@ -644,7 +647,7 @@ export function getMaterialIndexJob(jobId: string): Promise<MaterialIndexJob> {
 // apps/web/src/components/materials/MaterialList.tsx
 import { useEffect, useState } from "react";
 import {
-    getMaterialIndexJob,
+    listLatestMaterialIndexJobs,
     indexPrivateMaterial,
     MaterialIndexJob,
     StudyMaterial,
@@ -666,35 +669,47 @@ export function MaterialList({ materials, studyAreaId }: MaterialListProps) {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const activeJobs = Object.values(jobsByMaterial).filter((job) =>
-            ["QUEUED", "PROCESSING"].includes(job.status),
-        );
-        if (activeJobs.length === 0) return undefined;
+        const abortController = new AbortController();
+        let timer: number | undefined;
+        let disposed = false;
+        const order = { QUEUED: 0, PROCESSING: 1, DONE: 2, FAILED: 2 } as const;
 
-        const timer = window.setInterval(async () => {
-            const updatedJobs = await Promise.all(
-                activeJobs.map(async (job) => {
-                    try {
-                        return await getMaterialIndexJob(job._id);
-                    } catch {
-                        // A mensagem pública evita expor nome de ficheiro, texto extraído ou storage key.
-                        setError("Não foi possível atualizar o estado da indexação.");
-                        return job;
+        const pollLatest = async () => {
+            try {
+                const latest = await listLatestMaterialIndexJobs(
+                    studyAreaId,
+                    abortController.signal,
+                );
+                if (disposed) return;
+                setJobsByMaterial((current) => {
+                    const next = { ...current };
+                    for (const job of latest) {
+                        const previous = next[job.materialId];
+                        if (!previous || order[job.status] >= order[previous.status]) {
+                            next[job.materialId] = job;
+                        }
                     }
-                }),
-            );
-
-            setJobsByMaterial((current) => {
-                const next = { ...current };
-                for (const job of updatedJobs) {
-                    next[job.materialId] = job;
+                    return next;
+                });
+                if (latest.some((job) => ["QUEUED", "PROCESSING"].includes(job.status))) {
+                    timer = window.setTimeout(() => {
+                        pollLatest().catch(() => undefined);
+                    }, 1500);
                 }
-                return next;
-            });
-        }, 1500);
+            } catch {
+                if (!abortController.signal.aborted) {
+                    setError("Não foi possível atualizar o estado da indexação.");
+                }
+            }
+        };
 
-        return () => window.clearInterval(timer);
-    }, [jobsByMaterial]);
+        pollLatest().catch(() => undefined);
+        return () => {
+            disposed = true;
+            abortController.abort();
+            if (timer !== undefined) window.clearTimeout(timer);
+        };
+    }, [studyAreaId]);
 
     /**
      * Inicia indexação e guarda o job devolvido pela API.

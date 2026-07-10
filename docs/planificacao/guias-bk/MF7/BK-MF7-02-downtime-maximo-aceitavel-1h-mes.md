@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P2`
 - `estado`: `TODO`
+- `real_dev_status`: `MITIGADO_POR_ESCOPO`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF24`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF7-03`
 - `guia_path`: `docs/planificacao/guias-bk/MF7/BK-MF7-02-downtime-maximo-aceitavel-1h-mes.md`
-- `last_updated`: `2026-06-26`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 

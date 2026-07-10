@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF4-09`
 - `rf_rnf`: `RF58`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF5-01`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-10-definir-quotas-de-ia-por-aluno-turma-grupo-e-monitorizar-consumo.md`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -52,14 +53,14 @@ BK-MF4-09 define modelos e limites, mas não mede nem reserva consumo por contex
 
 ##### Estado depois
 
-Fica `ai-quotas` com políticas mensais e uso acumulado por `USER`, `CLASS` ou `GROUP`, pronto para ser chamado antes do provider.
+Fica `ai-quotas` com políticas mensais e uso acumulado por `USER`, `CLASS` ou `GROUP`, integrado exclusivamente na fachada governada.
 
 ##### Decisões de escopo
 
 - `CANONICO`: admin define quotas.
 - `DERIVADO`: período mensal usa formato `YYYY-MM`.
 - `DERIVADO`: unidade de consumo é número inteiro calculado pelo service IA antes da chamada.
-- `DERIVADO`: reserva ocorre antes do provider para prevenir excesso.
+- `DERIVADO`: a fachada reserva antes da invocação externa para prevenir excesso.
 
 #### Pre-requisitos
 
@@ -86,7 +87,7 @@ Quota não deve ser verificada apenas com leitura seguida de escrita, porque doi
 - Modelo/schema: `AiQuotaPolicy`, `AiQuotaUsage`.
 - Service: `AiQuotasService`.
 - Controller: `AiQuotasController`.
-- Integração: services IA chamam `reserveUsage` antes de `AI_PROVIDER`.
+- Integração: `GovernedAiExecutionService` chama `reserveUsage` atomicamente antes da invocação privada.
 - Cliente: `ai-quotas-client.ts`.
 - Componente: `AiQuotasPanel`.
 - Testes: `ai-quotas.service.spec.ts`.
@@ -102,7 +103,7 @@ Quota não deve ser verificada apenas com leitura seguida de escrita, porque doi
 - CRIAR: `apps/api/src/modules/ai-quotas/ai-quotas.controller.ts`
 - CRIAR: `apps/api/src/modules/ai-quotas/ai-quotas.module.ts`
 - CRIAR: `apps/api/src/modules/ai-quotas/ai-quotas.service.spec.ts`
-- EDITAR: services IA que chamam `AI_PROVIDER`
+- EDITAR: `apps/api/src/modules/ai/governed-ai-execution.service.ts`
 - CRIAR: `apps/web/src/features/ai-quotas/ai-quotas-client.ts`
 - CRIAR: `apps/web/src/features/ai-quotas/ai-quotas-panel.tsx`
 - EDITAR: `apps/api/src/app.module.ts`
@@ -161,7 +162,7 @@ import { AiModelPurpose } from "../../ai-model-policies/dto/upsert-ai-model-poli
 import { AiQuotaScopeType } from "./upsert-ai-quota-policy.dto.js";
 
 /**
- * Reserva de consumo feita por um service IA antes do provider.
+ * Reserva atómica chamada apenas pela fachada governada.
  */
 export class ReserveAiUsageDto {
     @IsEnum(AiQuotaScopeType)
@@ -423,34 +424,31 @@ export class AiQuotasModule {}
 7. Cenário negativo/erro esperado.
    Não admin recebe `ADMIN_ROLE_REQUIRED`.
 
-### Passo 4 - Integrar nos services IA
+### Passo 4 - Integrar na fachada governada
 
 1. Objetivo funcional do passo no contexto da app.
-   Reservar quota antes de chamar o provider.
+   Reservar quota antes da invocação privada, sem expor `AiQuotasService` aos services de domínio.
 2. Ficheiros envolvidos:
-   - EDITAR: services IA que chamam `AI_PROVIDER`
+   - EDITAR: `apps/api/src/modules/ai/governed-ai-execution.service.ts`
 3. Instruções do que fazer.
-   A ordem é consentimento, política de modelo, quota e provider.
+   A ordem integral é autorização, consentimento, policy, limites, guardrails, quota atómica, invocação, validação e audit.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// Contrato dentro de um service IA de aluno antes de AI_PROVIDER
-await this.aiConsentsService.assertGranted(actor.id, AiConsentPurpose.PRIVATE_AREA_AI);
-const policy = await this.aiModelPoliciesService.resolveForUse(AiModelPurpose.PRIVATE_AREA_AI);
 await this.aiQuotasService.reserveUsage({
-    scopeType: AiQuotaScopeType.USER,
-    scopeId: actor.id,
-    purpose: policy.purpose,
-    units: Math.max(1, Math.ceil(prompt.length / 1000)),
+    scope: input.quota.scope,
+    targetId: input.quota.targetId,
+    purpose: authorization.purpose,
+    units,
 });
 ```
 
 5. Explicação do código.
-   A unidade é derivada do tamanho do prompt para MVP. A reserva antes do provider impede chamadas que já excedem quota.
+   A unidade deriva do tamanho do prompt. A reserva anterior à invocação impede consumo acima da quota.
 6. Validação do passo.
    Com quota excedida, o provider não deve ser chamado.
 7. Cenário negativo/erro esperado.
-   Se `reserveUsage` for chamado depois do provider, há consumo não governado.
+   Se `reserveUsage` for chamado depois da invocação, há consumo não governado.
 
 ### Passo 5 - Criar frontend admin
 
@@ -470,7 +468,7 @@ import { requestMf3Json } from "../mf3/request-mf3-json.js";
 export type AiQuotaPolicyInput = {
     scopeType: "USER" | "CLASS" | "GROUP";
     scopeId?: string;
-    purpose: "PRIVATE_AREA_AI" | "STUDY_GROUP_AI" | "CLASS_AI" | "PROJECT_AI" | "SUMMARY" | "STUDY_TOOL";
+    purpose: "PRIVATE_AREA_AI" | "GROUP_AI" | "CLASS_AI" | "PROJECT_AI" | "SOURCE_GROUNDED_AI" | "EXTERNAL_KNOWLEDGE_AI" | "ADAPTIVE_EXPLANATION" | "SUMMARY" | "STUDY_TOOL" | "ROOM_AI";
     monthlyLimit: number;
 };
 
@@ -556,7 +554,7 @@ describe("AiQuotasService", () => {
 - Admin define quota por scope/finalidade.
 - Uso é acumulado por mês.
 - Reserva atómica bloqueia excesso.
-- Services IA reservam antes do provider.
+- `GovernedAiExecutionService` reserva antes da invocação externa.
 - O erro público é `AI_QUOTA_EXCEEDED`.
 
 #### Validação final
@@ -574,7 +572,7 @@ describe("AiQuotasService", () => {
 
 #### Handoff
 
-BK-MF5-01 pode assumir que chamadas IA já têm consentimento, política de modelo e quota antes do provider.
+BK-MF5-01 pode assumir que toda a execução passa por consentimento, policy, limites e quota na fachada.
 
 #### Changelog
 

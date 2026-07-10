@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF28`
@@ -17,11 +18,13 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF7-07`
 - `guia_path`: `docs/planificacao/guias-bk/MF7/BK-MF7-06-testes-automatizados-para-modulos-criticos.md`
-- `last_updated`: `2026-06-26`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais criar uma matriz de testes críticos e uma suite de contrato para IA com fontes. O resultado observável é um teste automatizado que prova um caminho principal com citações e dois cenários negativos: ausência de fontes citáveis e resposta inválida do provider IA.
+Neste BK vais criar a matriz de testes da release: API unit/integration/contracts; web unit/component com Vitest, jsdom, React Testing Library e user-event; axe; e E2E isolado. O fluxo IA é testado através da fachada governada, sem rede externa.
+
+Coverage frontend global: pelo menos 70% lines/60% branches; sessão, router, polling e validadores: 90%/85%. Axe não aceita violações `serious`/`critical`. O teste arquitetural é o único lugar onde se procura o token de provider e falha se qualquer classe de produção fora da fachada o injetar.
 
 No fim, a equipa consegue demonstrar `RNF28` com código, validação e evidence, sem depender de decisões escondidas nem de memória oral.
 
@@ -38,6 +41,7 @@ Este BK é incremental: consome o mapa técnico de `BK-MF7-05`, reutiliza contra
 - Validar um caminho principal e dois cenários negativos por ser um BK `P1`.
 - Preservar autenticação, autorização, ownership, membership, quotas e guardrails já definidos quando o fluxo tocar dados privados ou IA.
 - Produzir evidence com expected/observed, sem guardar dados privados.
+- Executar três suites Chromium completas e consecutivas, mais smoke crítico Firefox/WebKit, com portas, Mongo, Redis e runId exclusivos e `reuseExistingServer=false`.
 
 #### Scope-out
 
@@ -79,7 +83,7 @@ Este BK é incremental: consome o mapa técnico de `BK-MF7-05`, reutiliza contra
 - **Professor:** utilizador que gere turmas, disciplinas, materiais oficiais e limites pedagógicos.
 - **Fonte processável:** texto extraído e autorizado que pode sustentar uma resposta IA.
 - **Citação:** referência curta com `sourceLabel`, `locator` e excerto limitado, usada para explicar de onde veio uma resposta IA.
-- **Provider IA:** integração isolada que recebe um prompt autorizado e devolve JSON validado pelo service.
+- **Fachada IA:** fronteira governada que aplica o pipeline completo antes da integração externa.
 - **Evidence:** prova objetiva de funcionamento e falha controlada, usada em PR e defesa PAP.
 - **Qualidade automatizada:** conjunto de testes, comandos e evidence que prova contratos críticos sem depender apenas de revisão manual.
 
@@ -87,11 +91,11 @@ Este BK é incremental: consome o mapa técnico de `BK-MF7-05`, reutiliza contra
 
 - **Teste de contrato:** prova que entradas, saídas, erros e efeitos laterais continuam estáveis. Neste BK, o contrato é: uma resposta IA só pode ser persistida quando há fontes citáveis e resposta válida do provider.
 - **Módulo crítico:** área cuja falha compromete segurança, privacidade, dados pedagógicos ou defesa PAP. IA com fontes é crítica porque mistura materiais de estudo, resposta pedagógica e risco de alucinação.
-- **Caminho principal:** cenário em que a app recebe fontes autorizadas, chama o provider IA, persiste a resposta e devolve citações. Sem este teste, o BK só provaria falhas.
-- **Cenário negativo:** teste que confirma falha controlada. Aqui existem dois negativos P1: sem fontes citáveis e provider com resposta inválida.
+- **Caminho principal:** a app recebe fontes autorizadas, delega na fachada, persiste a resposta validada e devolve citações.
+- **Cenário negativo:** sem fontes citáveis e output governado inválido.
 - **Fonte processável:** excerto textual já extraído e autorizado pelo `MaterialIndexService`. O service de IA não deve inventar fontes nem consultar materiais diretamente.
 - **Autorização e ownership:** o teste usa `MaterialIndexService.findReadableDoneJob` porque esse service já concentra a validação de leitura do job. Isto evita duplicar regras e impede acesso cruzado a materiais.
-- **Provider isolado:** o teste injeta o provider por `AI_PROVIDER`, sem chamar serviços externos. Assim, a suite é determinística e não depende de chaves, rede ou custo.
+- **Fachada isolada:** o teste injeta um mock de `GovernedAiExecutionService`, sem chamar serviços externos. O token do provider só aparece no teste arquitetural que procura bypasses.
 - **Privacidade e RGPD:** a evidence deve usar dados fictícios controlados. Não se guardam cookies, passwords, prompts privados completos, materiais reais nem respostas privadas de alunos.
 - **Evidence de PR:** prova curta com comando, expected, observed, negativos e risco restante. Ela prepara o gate de deploy do próximo BK.
 
@@ -103,7 +107,7 @@ Este BK é incremental: consome o mapa técnico de `BK-MF7-05`, reutiliza contra
 - Service(s): `SourceGroundedAiService` e `MaterialIndexService`.
 - Controller/route: não altera controller; `SourceGroundedAiController` continua protegido por `SessionGuard`.
 - Guard/middleware: reutiliza sessão autenticada e validação de leitura já concentrada no backend.
-- Provider IA: usa `AI_PROVIDER` injetado com mock determinístico.
+- Fachada IA: usa `GovernedAiExecutionService` com mock determinístico.
 - Segurança/autorização: o teste confirma que o provider não é chamado sem fontes citáveis e que respostas inválidas não são persistidas.
 - Testes: Jest unitário/contrato com um caminho principal e dois negativos.
 - Handoff para o próximo BK: `BK-MF7-07` exige testes verdes antes de deploy.
@@ -214,7 +218,7 @@ import { getModelToken } from "@nestjs/mongoose";
 import { Test, TestingModule } from "@nestjs/testing";
 import { Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
-import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider.js";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service.js";
 import {
     MaterialIndexJobView,
     MaterialIndexService,
@@ -251,11 +255,8 @@ type SourceGroundedContractContext = {
             [AuthenticatedUser, string]
         >;
     };
-    aiProvider: {
-        generateStudyTool: jest.Mock<
-            Promise<Record<string, unknown>>,
-            [Parameters<AiProvider["generateStudyTool"]>[0]]
-        >;
+    governedAiExecutionService: {
+        execute: jest.Mock<Promise<{ answer: string }>, [Record<string, unknown>]>;
     };
 };
 
@@ -305,10 +306,10 @@ describe("SourceGroundedAiService contrato crítico", () => {
                 student,
                 "64f000000000000000000001",
             );
-            expect(context.aiProvider.generateStudyTool).toHaveBeenCalledWith(
+            expect(context.governedAiExecutionService.execute).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    type: "EXPLANATION",
-                    prompt: expect.stringContaining("Fontes autorizadas"),
+                    purpose: "SOURCE_GROUNDED_AI",
+                    authorizedSources: expect.any(Array),
                 }),
             );
             expect(context.answerModel.create).toHaveBeenCalledWith(
@@ -338,7 +339,7 @@ describe("SourceGroundedAiService contrato crítico", () => {
             ).rejects.toBeInstanceOf(UnprocessableEntityException);
 
             // Sem fontes, a IA não pode inventar uma resposta factual para o aluno.
-            expect(context.aiProvider.generateStudyTool).not.toHaveBeenCalled();
+            expect(context.governedAiExecutionService.execute).not.toHaveBeenCalled();
             expect(context.answerModel.create).not.toHaveBeenCalled();
         } finally {
             await context.moduleRef.close();
@@ -378,7 +379,7 @@ describe("SourceGroundedAiService contrato crítico", () => {
  * Cria o contexto de teste com dependências injetadas pelo NestJS.
  *
  * @param options.chunks Chunks textuais já autorizados pelo MaterialIndexService.
- * @param options.providerAnswer Resposta devolvida pelo provider IA isolado.
+ * @param options.providerAnswer Resposta devolvida pela fachada simulada.
  * @returns Service e mocks tipados para validar caminho principal e negativos.
  */
 async function makeContractContext(options: {
@@ -395,12 +396,9 @@ async function makeContractContext(options: {
             .fn<Promise<MaterialIndexJobView>, [AuthenticatedUser, string]>()
             .mockResolvedValue(makeIndexedJob(options.chunks)),
     };
-    const aiProvider = {
-        generateStudyTool: jest
-            .fn<
-                Promise<Record<string, unknown>>,
-                [Parameters<AiProvider["generateStudyTool"]>[0]]
-            >()
+    const governedAiExecutionService = {
+        execute: jest
+            .fn<Promise<{ answer: string }>, [Record<string, unknown>]>()
             .mockResolvedValue({ answer: options.providerAnswer ?? "Resposta citada." }),
     };
 
@@ -412,7 +410,7 @@ async function makeContractContext(options: {
                 useValue: answerModel,
             },
             { provide: MaterialIndexService, useValue: materialIndexService },
-            { provide: AI_PROVIDER, useValue: aiProvider },
+            { provide: GovernedAiExecutionService, useValue: governedAiExecutionService },
         ],
     }).compile();
 
@@ -421,7 +419,7 @@ async function makeContractContext(options: {
         service: moduleRef.get(SourceGroundedAiService),
         answerModel,
         materialIndexService,
-        aiProvider,
+        governedAiExecutionService,
     };
 }
 
@@ -459,11 +457,11 @@ function makePersistedAnswer(input: PersistInput): PersistedAnswer {
 
 5. Explicação do código.
 
-O código implementa o contrato principal de `BK-MF7-06`. O primeiro teste prova o caminho principal: o service recebe uma fonte autorizada, chama o provider IA, persiste a resposta e devolve uma citação com `sourceLabel` e `locator`. Isto cumpre `RNF28` porque não valida apenas a existência do ficheiro; valida comportamento real do módulo crítico.
+O primeiro teste prova que o service recebe fonte autorizada, chama a fachada e persiste uma resposta citada.
 
-O segundo teste cobre o negativo de ausência de fontes. Quando `MaterialIndexService` devolve um job sem chunks, o service lança `UnprocessableEntityException`, não chama o provider IA e não persiste resposta. Esta proteção evita alucinação e exposição de resposta não fundamentada.
+Sem chunks, o service lança `UnprocessableEntityException`, não chama a fachada e não persiste resposta.
 
-O terceiro teste cobre o negativo de provider inválido. Mesmo com fonte autorizada, uma resposta vazia é rejeitada com `ServiceUnavailableException` e não é guardada no histórico. Assim, o BK cobre dois erros diferentes: falta de fonte antes do provider e output inválido depois do provider.
+O terceiro teste cobre output vazio rejeitado pela execução governada e confirma ausência de persistência.
 
 Os helpers têm JSDoc porque fazem parte do contrato didático do teste. `makeContractContext` usa o container de testes do NestJS para injetar dependências como na app real, sem arrancar servidor HTTP, sem ligar a MongoDB e sem depender de chaves externas.
 
@@ -537,7 +535,7 @@ Tabela mínima de evidence para anexar ao PR ou relatório técnico:
 | Caso | Expected | Observed a registar |
 | --- | --- | --- |
 | Caminho principal | `npm --prefix apps/api run test:unit -- source-grounded-ai` passa com resposta citada. | Output Jest do teste `persiste resposta com citações quando existem fontes autorizadas`. |
-| Negativo 1 | Sem chunks, o service lança `UnprocessableEntityException` e não chama o provider. | Output Jest do teste `bloqueia resposta quando não há fontes citáveis`. |
+| Negativo 1 | Sem chunks, o service lança `UnprocessableEntityException` e não chama a fachada. | Output Jest do teste `bloqueia resposta quando não há fontes citáveis`. |
 | Negativo 2 | Provider com `answer` vazio lança `ServiceUnavailableException` e não persiste resposta. | Output Jest do teste `rejeita resposta inválida do provider e não persiste conteúdo inseguro`. |
 | Privacidade | Evidence não contém credenciais, cookies, materiais privados, prompts privados nem respostas completas da IA. | Confirmação textual no PR. |
 
@@ -650,4 +648,4 @@ O próximo BK deve reutilizar esta suite como gate mínimo para o módulo de IA 
 #### Changelog
 
 - `2026-06-26`: contrato de testes automatizados documentado com tutorial técnico linear, código completo, validação, negativos, evidence e caminhos públicos `apps/...`.
-- `2026-06-26`: cobertura `P1` corrigida para incluir caminho principal, negativo sem fontes e negativo de resposta inválida do provider IA.
+- `2026-07-10`: contratos IA passam a testar `GovernedAiExecutionService`; o token externo fica reservado ao teste arquitetural de bypasses.

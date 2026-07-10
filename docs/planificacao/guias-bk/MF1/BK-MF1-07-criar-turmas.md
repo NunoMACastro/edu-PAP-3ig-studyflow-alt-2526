@@ -8,6 +8,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RF19`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF1-08`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-07-criar-turmas.md`
-- `last_updated`: `2026-07-08`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Implementar `RF19`: permitir que um professor crie turmas oficiais e consulte apenas as suas turmas. Este BK também acrescenta, como decisão `DERIVADO`, o fluxo mínimo para associar alunos por email, porque `RF23`, `RF24` e os BKs seguintes dependem de existir um aluno inscrito numa turma.
@@ -25,7 +26,7 @@ Implementar `RF19`: permitir que um professor crie turmas oficiais e consulte ap
 Turmas são a fronteira principal da área docente. Disciplinas, materiais oficiais, voz da IA, IA limitada e publicações usam a turma para saber quem é o professor responsável e que alunos podem consultar conteúdo. Por isso, a turma não pode depender de um `teacherId` enviado pelo browser.
 
 ## Scope-in
-- Preparar ligação local ao MongoDB Atlas para a seed e para a API.
+- Preparar o replica set MongoDB local/loopback para a seed e para a API.
 - Criar uma seed local de desenvolvimento para validar professor e aluno com sessão real.
 - Criar `SchoolClass`.
 - Listar turmas do professor autenticado.
@@ -48,7 +49,8 @@ Turmas são a fronteira principal da área docente. Disciplinas, materiais ofici
 - Não existe fronteira persistente para turmas oficiais.
 
 ## Estado depois
-- Existe `MONGODB_URI` local configurado para um cluster MongoDB Atlas de desenvolvimento.
+- Existe `MONGODB_URI` sem userinfo, em loopback, para `studyflow_dev` e com
+  `replicaSet=studyflow-rs`.
 - Existe uma seed local, bloqueada em produção, para criar contas de validação de professor e aluno.
 - `SchoolClass` guarda professor, código, ano letivo e alunos.
 - Professor cria e lista as suas turmas.
@@ -58,7 +60,7 @@ Turmas são a fronteira principal da área docente. Disciplinas, materiais ofici
 ## Pré-requisitos
 - `BK-MF0-01` com `User`.
 - `BK-MF0-02` com `SessionGuard` e `AuthenticatedRequest`.
-- Conta MongoDB Atlas disponível para a equipa.
+- MongoDB local iniciado como replica set `studyflow-rs`.
 - Cluster de desenvolvimento criado no Atlas.
 - Variável `MONGODB_URI` configurada no ambiente local.
 - Dependência `bcrypt` disponível, herdada da MF0.
@@ -81,11 +83,15 @@ Turmas são a fronteira principal da área docente. Disciplinas, materiais ofici
 
 **Decisão derivada.** `RF19` fala em criar turmas, mas `RF23` e `RF24` dependem de alunos inscritos. Por isso, este BK acrescenta o fluxo mínimo de inscrição para a cadeia seguinte ficar demonstrável sem mexer manualmente na base de dados.
 
-**MongoDB Atlas.** Atlas é o serviço gerido onde a base de dados MongoDB pode ficar alojada. A aplicação não recebe uma “key”; recebe uma connection string guardada em `MONGODB_URI`, que inclui host, nome da base de dados e credenciais de um utilizador da base de dados.
+**MongoDB local com replica set.** O perfil PAP usa apenas loopback e uma base local explícita.
+O `replicaSet=studyflow-rs` permite transactions; URIs remotas ou com credenciais ficam fora do
+âmbito e são recusadas pelo loader.
 
 **Utilizador da base de dados.** O utilizador criado no Atlas deve ser diferente da conta pessoal usada para entrar no painel do Atlas. Para desenvolvimento, basta um utilizador com leitura e escrita na base de dados do StudyFlow. Isto evita usar permissões administrativas para correr a app.
 
-**Lista de acesso por IP.** O Atlas só aceita ligações de IPs autorizados. Para trabalho local, adiciona o IP público atual da máquina ou da rede da escola. Abrir acesso a todos os IPs é menos seguro e só deve ser temporário em ambiente de desenvolvimento, removendo essa regra depois dos testes.
+**Loopback.** A API e o MongoDB deste perfil só comunicam por `127.0.0.1`/`::1`. Não existe
+allowlist de IP público nem exceção temporária: pedir exposição remota muda o âmbito e exige nova
+auditoria.
 
 **Variáveis de ambiente.** `MONGODB_URI` deve ficar num ficheiro `.env` local que não entra no Git. Assim, a connection string não aparece em commits, screenshots de código ou relatório de defesa.
 
@@ -137,17 +143,19 @@ O código abaixo deve ser tratado como código final previsto, não como exemplo
 
 - `BK-MF0-01` com `User`.
 - `BK-MF0-02` com `SessionGuard` e `AuthenticatedRequest`.
-- Conta MongoDB Atlas disponível para a equipa.
+- MongoDB local disponível como replica set `studyflow-rs`.
 - Cluster de desenvolvimento criado no Atlas.
 - Variável `MONGODB_URI` configurada no ambiente local.
 - Dependência `bcrypt` disponível, herdada da MF0.
 - Frontend a chamar endpoints privados com `credentials: 'include'`.
 
-### Passo 1 - Preparar MongoDB Atlas e MONGODB_URI
+### Passo 1 - Preparar MongoDB local e `MONGODB_URI`
 
 1. Explicação simples do objetivo.
 
-    Neste passo vais preparar a ligação entre a API e uma base de dados MongoDB Atlas de desenvolvimento. A seed do passo seguinte precisa de `MONGODB_URI` para saber onde criar o professor e o aluno locais.
+    Neste passo vais preparar a ligação entre a API e a base MongoDB local. A seed do passo
+    seguinte precisa da URI loopback e das flags explícitas para saber onde criar dados
+    sintéticos, sem poder atingir uma base remota.
 
 2. Ficheiros envolvidos.
 
@@ -157,27 +165,38 @@ O código abaixo deve ser tratado como código final previsto, não como exemplo
 
 3. O que fazer.
 
-    No MongoDB Atlas, cria ou usa um cluster de desenvolvimento. Em seguida, cria um utilizador da base de dados com permissões de leitura e escrita para a base de dados do StudyFlow, adiciona o teu IP público atual à lista de acesso por IP e copia a connection string da opção de ligação da aplicação.
+    Usa exclusivamente o replica set Mongo local do perfil PAP endurecido. Não copies URIs de
+    Atlas, não autorizes IPs públicos e não coloques userinfo no URI. O loader comum deve recusar
+    destinos remotos, bases sem nome local/teste e ligações sem `replicaSet=studyflow-rs`.
 
-    No ficheiro local `apps/api/.env`, guarda a connection string em `MONGODB_URI`. Substitui o utilizador, a password e o host pelos valores reais do Atlas. Se a password tiver caracteres especiais, usa a versão codificada que o Atlas mostra na connection string.
+    No ficheiro local `apps/api/.env`, guarda apenas a URI loopback. O ficheiro real fica com
+    permissão `0600`, fora de evidence e nunca é copiado para o guia.
 
 4. Código completo, correto e integrado.
 
 ```env
 # apps/api/.env
-MONGODB_URI=mongodb+srv://studyflow_dev_user:<password>@<cluster-host>/studyflow_dev?retryWrites=true&w=majority
+MONGODB_URI=mongodb://127.0.0.1:27017/studyflow_dev?replicaSet=studyflow-rs
 NODE_ENV=development
+STUDYFLOW_DEPLOYMENT_SCOPE=local-pap
+HOST=127.0.0.1
+STUDYFLOW_TRUST_PROXY=false
 ```
 
 5. Explicação do código.
 
-    `MONGODB_URI` é a variável que a API e a seed vão ler para abrir ligação à base de dados. O nome `studyflow_dev` deixa claro que esta base é de desenvolvimento. `NODE_ENV=development` confirma que estás num ambiente local, o que é importante porque a seed do próximo passo recusa execução em produção.
+    `MONGODB_URI` é lida pelo loader tipado e identifica uma base local explícita. O replica set
+    é obrigatório para as transactions usadas nas invariantes críticas. `NODE_ENV` não basta
+    para autorizar seed/reset: continuam a ser exigidos scope local, flag e confirmação do nome
+    da base no respetivo comando.
 
     O ficheiro `.env` não deve ser enviado para o Git porque contém credenciais. A connection string deve usar um utilizador próprio da base de dados, não a conta pessoal do Atlas nem um utilizador com permissões administrativas globais.
 
 6. Como validar este passo.
 
-    Confirma no Atlas que o IP público atual está autorizado na lista de acesso por IP. Depois arranca a API ou executa a seed do passo seguinte e verifica que a ligação ao MongoDB não falha por autenticação nem por bloqueio de rede.
+    Confirma que o replica set local responde apenas em loopback. Depois arranca a API; uma seed
+    só pode ser executada com scope, flag e confirmação explícitos, sempre sobre dados locais ou
+    sintéticos.
 
 7. Erros comuns ou cenário negativo.
 
@@ -206,6 +225,7 @@ NODE_ENV=development
 import * as bcrypt from "bcrypt";
 import mongoose, { Model } from "mongoose";
 
+import { assertLocalDatabaseUri, loadStudyFlowConfig } from "../common/config/studyflow-config";
 import { User, UserRole, UserSchema } from "../modules/auth/schemas/user.schema";
 
 const BCRYPT_COST = 12;
@@ -261,15 +281,12 @@ async function ensureDevelopmentUser(
 }
 
 async function main(): Promise<void> {
-    if (process.env.NODE_ENV === "production") {
-        throw new Error("Esta seed não pode ser executada em produção.");
+    const config = loadStudyFlowConfig();
+    if (config.deploymentScope !== "local-pap" || process.env.STUDYFLOW_ALLOW_SEED !== "true") {
+        throw new Error("SEED_LOCAL_CONFIRMATION_REQUIRED");
     }
-
-    const mongoUri = process.env.MONGODB_URI;
-
-    if (!mongoUri) {
-        throw new Error("Define MONGODB_URI antes de executar a seed.");
-    }
+    assertLocalDatabaseUri(config.mongoUri);
+    const mongoUri = config.mongoUri;
 
     const connection = await mongoose.createConnection(mongoUri).asPromise();
 
@@ -1049,7 +1066,7 @@ Não há código novo neste passo. Usa-o para confirmar que os passos anteriores
 
 ## Validação operacional por passo
 
-- Passo 1: confirmar `MONGODB_URI` local, utilizador da base de dados e IP público autorizado no Atlas.
+- Passo 1: confirmar URI loopback sem userinfo e replica set `studyflow-rs`.
 - Passo 2: confirmar que a seed cria professor e aluno locais, recusa produção e não altera contas com papel incompatível.
 - Passos 3 e 4: confirmar schema e DTOs de turma com `teacherId` vindo da sessão e aluno adicionado por email.
 - Passos 5 e 6: validar criação apenas por professor, unicidade de `code` por professor e inscrição de aluno existente.
@@ -1066,7 +1083,7 @@ Não há código novo neste passo. Usa-o para confirmar que os passos anteriores
 ## Expected results
 - `apps/api/.env` local contém `MONGODB_URI` para uma base de dados Atlas de desenvolvimento.
 - O utilizador da base de dados tem permissões de leitura e escrita adequadas ao ambiente local.
-- O IP público usado no desenvolvimento está autorizado no Atlas.
+- MongoDB está limitado a loopback e o loader recusa destinos remotos.
 - A seed local cria `professor.dev@studyflow.local` com `role` `TEACHER` e `aluno.dev@studyflow.local` com `role` `STUDENT`.
 - A seed recusa execução com `NODE_ENV=production`.
 - A seed não altera uma conta existente com papel incompatível.
@@ -1080,7 +1097,7 @@ Não há código novo neste passo. Usa-o para confirmar que os passos anteriores
 ## Critérios de aceite
 - `MONGODB_URI` fica apenas em `.env` local e não é enviada para Git.
 - O Atlas usa utilizador próprio da base de dados, não uma conta pessoal nem permissões administrativas globais.
-- A lista de acesso por IP fica limitada ao IP público de desenvolvimento sempre que possível.
+- Não existe exposição pública nem allowlist externa neste perfil PAP.
 - A validação da cadeia docente usa sessão real criada a partir das contas locais de desenvolvimento.
 - A seed usa `MONGODB_URI`, `bcrypt` e o schema `User` da MF0.
 - A seed não corre em produção e não promove permissões de contas existentes.
@@ -1113,6 +1130,8 @@ Confirma também que `BK-MF1-08`, `BK-MF1-11` e `BK-MF1-12` conseguem depender d
 O próximo BK (`BK-MF1-08`) deve usar o professor de desenvolvimento para validar `SchoolClass.teacherId` e confirmar que a disciplina pertence ao professor autenticado. `BK-MF1-11` e `BK-MF1-12` devem usar o aluno de desenvolvimento inscrito em `studentIds` para proteger a leitura por alunos.
 
 ## Changelog
-- 2026-05-31: Acrescentado passo de preparação do MongoDB Atlas, `MONGODB_URI`, utilizador da base de dados e IP público autorizado.
+- 2026-05-31: Acrescentado o passo original de MongoDB Atlas (substituído pelo perfil local).
+- 2026-07-10: removidos Atlas, userinfo e IP público; replica set local e flags fail-closed passam
+  a ser o contrato copiável.
 - 2026-05-31: Acrescentada seed local segura para criar professor e aluno de desenvolvimento e desbloquear validação real da cadeia docente.
 - 2026-05-30: Guia reescrito para fechar módulo, endpoints, cliente frontend e fluxo derivado de inscrição de alunos.

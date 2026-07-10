@@ -9,6 +9,7 @@
 - `apoio`: `Kaua`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RF61`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF5-03`
 - `guia_path`: `docs/planificacao/guias-bk/MF5/BK-MF5-01-integracao-com-drives-google-onedrive-para-importacao-unidirecional-de-materiais-de-estudo.md`
-- `last_updated`: `2026-06-19`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 

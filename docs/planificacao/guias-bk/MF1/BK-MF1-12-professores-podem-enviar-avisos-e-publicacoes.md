@@ -8,6 +8,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF1-07`
 - `rf_rnf`: `RF24`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF2-01`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-12-professores-podem-enviar-avisos-e-publicacoes.md`
-- `last_updated`: `2026-05-30`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Implementar `RF24`: permitir que professores publiquem avisos e publicações numa turma, e que alunos inscritos os consultem.

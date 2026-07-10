@@ -8,6 +8,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF0-10`
 - `rf_rnf`: `RF35`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF2-12`
 - `guia_path`: `docs/planificacao/guias-bk/MF2/BK-MF2-11-assistente-ia-privado-por-area-de-estudo.md`
-- `last_updated`: `2026-06-08`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo do BK
 
@@ -45,13 +46,13 @@ Este BK entrega a experiência central de estudo individual com IA. Também prep
 
 ## Estado depois
 
-Existe `PrivateAreaAiModule` que importa `AiModule`, usa `AI_PROVIDER`, valida a área do aluno e guarda respostas com `sourceMaterialIds`.
+Existe `PrivateAreaAiModule` que importa `AiModule`, injeta `GovernedAiExecutionService`, valida a área do aluno e guarda respostas com `sourceMaterialIds`.
 
 ## Pré-requisitos
 
 - `StudyAreasModule` exporta `StudyAreasService`.
 - `MaterialsModule` exporta `MaterialsService`.
-- `AiModule` exporta `AI_PROVIDER`.
+- `AiModule` exporta `GovernedAiExecutionService`.
 
 ## Glossário
 
@@ -66,7 +67,7 @@ Existe `PrivateAreaAiModule` que importa `AiModule`, usa `AI_PROVIDER`, valida a
 - **Separação de perfis.** a IA privada não lê dados de turma ou professor. Este conceito vem de `RF35` e das dependências `BK-MF0-10`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-11 - Assistente IA privado por Área de Estudo.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
 - **Backend, validação e segurança.** O backend recebe a identidade pela sessão autenticada, valida DTOs antes do service e confirma ownership ou membership nos services herdados. Esta regra vem da fundação MF0/MF1 e segue para os BKs seguintes como contrato de segurança. Serve para impedir leitura ou escrita entre alunos, professores, turmas e disciplinas diferentes.
 - **Frontend tipado e sessão real.** O frontend usa cliente API tipado em `apps/web/src/lib/api/...`, envia cookies com `credentials: "include"`, mostra estados de carregamento, erro, vazio e sucesso, e não guarda tokens em `localStorage`. Isto evita chamadas anónimas, dados de actor no body e payloads sem tipo claro.
-- **IA, fontes e guardrails.** Este BK só envolve provider de IA quando o próprio requisito o pede. Quando não há chamada de IA, o guia limita-se a preparar fontes, autorização ou contexto sem prometer geração automática; quando há chamada de IA, o provider vem de `AiModule`/`AI_PROVIDER`, as fontes são recolhidas antes da chamada e a resposta só é persistida depois de validação mínima.
+- **IA, fontes e guardrails.** Este BK só envolve IA quando o requisito o pede. Os services de domínio consomem `GovernedAiExecutionService`; a fachada aplica consentimento, policy, limites, guardrails, quota e validação/audit. As fontes são autorizadas antes da execução e a resposta só é persistida depois de validação.
 
 ## Decisões documentais
 
@@ -77,7 +78,7 @@ Existe `PrivateAreaAiModule` que importa `AiModule`, usa `AI_PROVIDER`, valida a
 
 ## Arquitetura do BK
 
-`PrivateAreaAiService` valida aluno e área, recolhe materiais, chama `AI_PROVIDER`, valida resposta e persiste `PrivateAreaAiAnswer`. O módulo importa `AiModule` em vez de redefinir provider.
+`PrivateAreaAiService` valida aluno e área, recolhe materiais autorizados e chama `GovernedAiExecutionService` com finalidade `PRIVATE_AREA_AI`; a fachada valida consentimento, policy, guardrails, quota, output e audit antes de persistir `PrivateAreaAiAnswer`.
 
 ## Ficheiros previstos
 
@@ -181,7 +182,7 @@ import { ForbiddenException, Inject, Injectable, ServiceUnavailableException, Un
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request";
-import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service";
 import { MaterialsService } from "../materials/materials.service";
 import { StudyAreasService } from "../study-areas/study-areas.service";
 import { CreatePrivateAreaAiAnswerDto } from "./dto/private-area-ai-answer.dto";
@@ -194,7 +195,7 @@ export class PrivateAreaAiService {
         private readonly answers: Model<PrivateAreaAiAnswerDocument>,
         private readonly studyAreasService: StudyAreasService,
         private readonly materialsService: MaterialsService,
-        @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
+        private readonly aiExecution: GovernedAiExecutionService,
     ) {}
 
     async ask(actor: AuthenticatedUser, studyAreaId: string, dto: CreatePrivateAreaAiAnswerDto) {
@@ -205,7 +206,7 @@ export class PrivateAreaAiService {
         if (sources.length === 0) {
             throw new UnprocessableEntityException("A área ainda não tem fontes suficientes para IA.");
         }
-        const answerText = await this.generateAnswer(dto.question, sources.map((source) => source.contentText).join("\n"));
+        const answerText = await this.generateAnswer(actor, studyAreaId, dto.question, sources);
         const answer = await this.answers.create({ studyAreaId: area._id, studentId: new Types.ObjectId(actor.id), question: dto.question.trim(), answer: answerText, sourceMaterialIds: sources.map((source) => source._id.toString()) });
         return this.toView(answer);
     }
@@ -217,13 +218,37 @@ export class PrivateAreaAiService {
         return answers.map((answer) => this.toView(answer));
     }
 
-    private async generateAnswer(question: string, sourceText: string) {
+    private async generateAnswer(
+        actor: AuthenticatedUser,
+        studyAreaId: string,
+        question: string,
+        sources: Array<{ _id: Types.ObjectId; title: string; contentText: string }>,
+    ) {
         try {
-            return await this.aiProvider.generateText({
-                system: "Responde só com base nos materiais privados do aluno.",
-                user: [question, "Fontes:", sourceText].join("\n"),
-                sources: [{ id: "private-area", title: "Materiais privados" }],
+            const { result } = await this.aiExecution.execute({
+                userId: actor.id,
+                purpose: "PRIVATE_AREA_AI",
+                quota: { scope: "USER", targetId: actor.id },
+                sources,
+                guardrailText: question,
+                buildPrompt: (limitedSources) => [
+                    question,
+                    "Fontes:",
+                    ...limitedSources.map((source) => source.contentText),
+                ].join("\n"),
+                invoke: ({ provider, prompt, options }) => provider.generateText({
+                    system: "Responde só com base nos materiais privados do aluno.",
+                    user: prompt,
+                    sources: [{ id: studyAreaId, title: "Materiais privados" }],
+                    ...options,
+                }),
+                validateResult: (value) => {
+                    if (typeof value !== "string" || value.trim().length === 0) {
+                        throw new TypeError("Resposta IA privada inválida.");
+                    }
+                },
             });
+            return result;
         } catch (error) {
             throw new ServiceUnavailableException("IA privada indisponível neste momento.");
         }

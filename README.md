@@ -64,11 +64,17 @@ Fontes funcionais canónicas: [docs/RF.md](docs/RF.md), [docs/planificacao/backl
 
 ## 5. Arquitetura/Stack Recomendada (Alto Nível)
 - frontend modular em React/TypeScript/Tailwind para perfis de aluno, professor e administração;
-- backend Node.js LTS com NestJS, organizado por domínios (identidade, materiais, IA, turma, notificações);
+- backend Node.js com NestJS, organizado por domínios (identidade, materiais, IA, turma, notificações);
 - persistência principal em MongoDB via Mongoose ODM, com Redis para cache e sessões;
 - pipeline de indexação e recuperação documental para respostas fundamentadas;
 - camada de guardrails para políticas por contexto;
 - observabilidade de uso, desempenho e segurança.
+
+A implementação de referência endurecida fixa Node `24.11.1` e npm `11.6.2`, funciona apenas
+em `local-pap`, single-instance e loopback. O seu estado não é inferido deste plano de produto:
+consultar [o ledger de remediação](docs/PLANO-CORRECAO-AUDITORIA-COMPLETA-REAL_DEV-2026-07-09.md)
+e [o estado independente dos BK](docs/planificacao/ESTADO-REFERENCIA-REAL_DEV.md). Não existe
+declaração de prontidão para produção.
 
 ## 6. Escopo MVP vs Pós-PAP
 ### MVP (incluído)

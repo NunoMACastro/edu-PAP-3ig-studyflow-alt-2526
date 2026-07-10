@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import json
+from datetime import date
 from pathlib import Path
 import re
 import subprocess
@@ -9,7 +11,17 @@ import sys
 import unicodedata
 from collections import Counter, defaultdict
 
-TODAY = "2026-04-19"
+TODAY = date.today().isoformat()
+
+REAL_DEV_STATUSES = {
+    "VALIDADO",
+    "IMPLEMENTADO_NAO_VALIDADO",
+    "PARCIAL",
+    "MITIGADO_POR_ESCOPO",
+    "BLOQUEADO_OPERADOR",
+    "NAO_IMPLEMENTADO",
+    "NAO_APLICAVEL",
+}
 
 NEG_MIN_BY_PRIORITY = {"P0": 3, "P1": 2, "P2": 1}
 
@@ -64,6 +76,74 @@ def split_md_row(line: str) -> list[str]:
     return [p.strip() for p in line.strip().strip("|").split("|")]
 
 
+def validate_real_dev_status(value: str, source: str) -> str:
+    normalized = value.strip().replace("`", "")
+    if normalized not in REAL_DEV_STATUSES:
+        allowed = "|".join(sorted(REAL_DEV_STATUSES))
+        raise RuntimeError(f"real_dev_status inválido em {source}: {normalized!r}; esperado {allowed}")
+    return normalized
+
+
+def parse_reference_real_dev_statuses(plan_root: Path) -> dict[str, str]:
+    """Lê a autoridade manual sem alterar evidence ou estados."""
+
+    path = plan_root / "ESTADO-REFERENCIA-REAL_DEV.md"
+    if not path.exists():
+        return {}
+    lines = path.read_text(encoding="utf-8").splitlines()
+    statuses: dict[str, str] = {}
+
+    for index, line in enumerate(lines):
+        if not line.strip().startswith("|") or "bk_id" not in line or "real_dev_status" not in line:
+            continue
+        headers = split_md_row(line)
+        try:
+            bk_index = headers.index("bk_id")
+            status_index = headers.index("real_dev_status")
+        except ValueError:
+            continue
+        for row_line in lines[index + 2 :]:
+            if not row_line.strip().startswith("|"):
+                break
+            columns = split_md_row(row_line)
+            if len(columns) != len(headers):
+                continue
+            bk_id = columns[bk_index].replace("`", "").strip()
+            if not re.fullmatch(r"BK-MF\d+-\d+", bk_id):
+                continue
+            status = validate_real_dev_status(columns[status_index], f"{path}:{bk_id}")
+            if bk_id in statuses and statuses[bk_id] != status:
+                raise RuntimeError(f"real_dev_status duplicado e divergente em {path}: {bk_id}")
+            statuses[bk_id] = status
+        break
+
+    if not statuses:
+        for line in lines:
+            match = re.search(
+                r"\b(BK-MF\d+-\d+)\b.*\b(" + "|".join(sorted(REAL_DEV_STATUSES)) + r")\b",
+                line,
+            )
+            if match:
+                statuses[match.group(1)] = validate_real_dev_status(match.group(2), str(path))
+    return statuses
+
+
+def parse_existing_guide_statuses(plan_root: Path) -> dict[str, str]:
+    statuses: dict[str, str] = {}
+    for path in sorted((plan_root / "guias-bk").glob("MF*/BK-MF*.md")):
+        text = path.read_text(encoding="utf-8")
+        bk_match = re.search(r"^- `bk_id`: `([^`]+)`", text, flags=re.MULTILINE)
+        status_match = re.search(r"^- `real_dev_status`: `([^`]+)`", text, flags=re.MULTILINE)
+        if not bk_match or not status_match:
+            continue
+        bk_id = bk_match.group(1)
+        status = validate_real_dev_status(status_match.group(1), str(path))
+        if bk_id in statuses and statuses[bk_id] != status:
+            raise RuntimeError(f"Guias com real_dev_status divergente para {bk_id}")
+        statuses[bk_id] = status
+    return statuses
+
+
 def parse_global_rows_from_backlog(path: Path) -> list[dict[str, str]]:
     lines = path.read_text(encoding="utf-8").splitlines()
     header_idx = None
@@ -94,8 +174,14 @@ def parse_global_rows_from_backlog(path: Path) -> list[dict[str, str]]:
     return out
 
 
-def normalize_rows(raw_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+def normalize_rows(
+    raw_rows: list[dict[str, str]],
+    reference_statuses: dict[str, str] | None = None,
+    guide_statuses: dict[str, str] | None = None,
+) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
+    reference_statuses = reference_statuses or {}
+    guide_statuses = guide_statuses or {}
 
     for row in raw_rows:
         bk_id = row.get("bk_id", "").strip()
@@ -109,6 +195,27 @@ def normalize_rows(raw_rows: list[dict[str, str]]) -> list[dict[str, str]]:
 
         proximo = row.get("proximo_bk", "").strip() or row.get("proximo_bk_recomendado", "").strip() or "-"
 
+        explicit_status = row.get("real_dev_status", "").strip().replace("`", "")
+        reference_status = reference_statuses.get(bk_id, "")
+        guide_status = guide_statuses.get(bk_id, "")
+        available = [
+            ("ESTADO-REFERENCIA-REAL_DEV.md", reference_status),
+            ("tabela canónica", explicit_status),
+            ("guia existente", guide_status),
+        ]
+        non_empty = [(source, value) for source, value in available if value]
+        if not non_empty:
+            raise RuntimeError(
+                f"{bk_id} sem real_dev_status explícito; é proibido inferi-lo de estado={g('estado', 'TODO')}"
+            )
+        for source, value in non_empty:
+            validate_real_dev_status(value, f"{source}:{bk_id}")
+        distinct = {value for _, value in non_empty}
+        if len(distinct) > 1:
+            detail = ", ".join(f"{source}={value}" for source, value in non_empty)
+            raise RuntimeError(f"real_dev_status divergente para {bk_id}: {detail}")
+        real_dev_status = reference_status or explicit_status or guide_status
+
         rows.append(
             {
                 "bk_id": bk_id,
@@ -118,6 +225,7 @@ def normalize_rows(raw_rows: list[dict[str, str]]) -> list[dict[str, str]]:
                 "apoio": g("apoio"),
                 "prioridade": g("prioridade"),
                 "estado": g("estado", "TODO"),
+                "real_dev_status": real_dev_status,
                 "esforco": g("esforco", "S"),
                 "dependencias": g("dependencias", "-"),
                 "rf_rnf": g("rf_rnf"),
@@ -535,6 +643,12 @@ def apply_solver_assignments(rows: list[dict[str, str]], solver_payload: dict) -
             missing.append(bk_id)
             continue
         row = dict(row)
+        solver_status = data.get("real_dev_status")
+        if solver_status != row["real_dev_status"]:
+            raise RuntimeError(
+                f"Solver tentou alterar/omitir real_dev_status de {bk_id}: "
+                f"{row['real_dev_status']} -> {solver_status}"
+            )
         row["owner"] = data.get("owner", row["owner"])
         row["sprint"] = data.get("sprint", row["sprint"])
         row["classe_core_dual"] = data.get("classe_core_dual", "")
@@ -946,6 +1060,7 @@ def render_guide(row: dict[str, str]) -> str:
 - `apoio`: `{row['apoio']}`
 - `prioridade`: `{prioridade}`
 - `estado`: `{row['estado']}`
+- `real_dev_status`: `{row['real_dev_status']}`
 - `esforco`: `{row['esforco']}`
 - `dependencias`: `{deps_fmt}`
 - `rf_rnf`: `{row['rf_rnf']}`
@@ -1085,18 +1200,25 @@ Normalizar a planificacao da StudyFlow ao padrao OPSA/FaithFlix com governanca c
 17. `backlogs/ANEXO-BK-SPRINT-OWNER.md`
 18. `backlogs/ANEXO-CORE-DUAL-BK.md`
 19. `guias-bk/README.md`
-20. `CONFORMIDADE-PLANIFICACAO.md`
+20. `ESTADO-REFERENCIA-REAL_DEV.md` (autoridade manual da implementação/evidence)
+21. `CONFORMIDADE-PLANIFICACAO.md`
 
 ## Regra de precedencia
-- Em conflito de dados operacionais, prevalece a ordem da hierarquia canónica.
+- Em conflito sobre implementação real, prevalece `ESTADO-REFERENCIA-REAL_DEV.md`; o normalizador falha e nunca sobrescreve a decisão/evidence manual.
+- Em conflito pedagógico, prevalece a ordem da hierarquia canónica.
 - `MATRIZ-CANONICA-BK.md` e a fonte de referencia para ownership/prioridade/dependencias/rf_rnf.
 - `BACKLOG-MVP.md` e `guias-bk` herdam os metadados da matriz sem excecoes.
+
+## Dois estados independentes
+- `estado`: `TODO|IN_PROGRESS|DONE|BLOCKED`, apenas progresso pedagógico.
+- `real_dev_status`: `VALIDADO|IMPLEMENTADO_NAO_VALIDADO|PARCIAL|MITIGADO_POR_ESCOPO|BLOQUEADO_OPERADOR|NAO_IMPLEMENTADO|NAO_APLICAVEL`, apenas referência.
+- É proibido inferir um estado a partir do outro.
 
 ## Regra de atualizacao em cadeia
 1. Executar solver com constraints formais (`scripts/plan_constraints_studyflow.json` -> `scripts/solver_reassignments.json`).
 2. Atualizar matriz.
 3. Regenerar backlog e MF views.
-4. Regenerar guias BK e anexos de rastreabilidade.
+4. Atualizar apenas headers em falta e anexos; corpos/evidence manuais dos guias são preservados.
 5. Atualizar sprints/scorecard/gates.
 6. Executar `scripts/validate-planificacao.sh` e publicar relatorio de conformidade.
 
@@ -1114,6 +1236,7 @@ Normalizar a planificacao da StudyFlow ao padrao OPSA/FaithFlix com governanca c
 ## Meta documental oficial
 - Meta: `>=97/100`
 - Estado alvo apos normalizacao: `PASS` em auditoria automatica.
+- `PASS` é exclusivamente documental e não constitui release nem prontidão para produção.
 
 ## Changelog
 - `{TODAY}`: estrutura/layout normalizados para alinhamento total com baseline OPSA+FaithFlix.
@@ -1144,6 +1267,7 @@ def write_plano_implementacao(plan_root: Path, rows: list[dict[str, str]]) -> No
         "- Replaneamento deterministico por constraints: `scripts/plan_constraints_studyflow.json`.",
         "- Output operacional do solver: `scripts/solver_reassignments.json`.",
         "- Invariantes: IDs BK preservados e cobertura `RF/RNF/BK` sem orfaos.",
+        "- `estado` pedagógico e `real_dev_status` da referência são independentes; evidence manual nunca é regenerada.",
         "",
         "## Calendario macro",
     ]
@@ -1618,6 +1742,7 @@ def write_matrix(plan_root: Path, rows: list[dict[str, str]]) -> None:
                 r["apoio"],
                 r["prioridade"],
                 r["estado"],
+                r["real_dev_status"],
                 r["esforco"],
                 r["dependencias"],
                 r["rf_rnf"],
@@ -1651,6 +1776,7 @@ Matriz unica e canónica para garantir rastreabilidade `RF/RNF -> BK -> Sprint -
     'apoio',
     'prioridade',
     'estado',
+    'real_dev_status',
     'esforco',
     'dependencias',
     'rf_rnf',
@@ -1701,6 +1827,7 @@ def write_backlog(plan_root: Path, rows: list[dict[str, str]]) -> None:
                 r["apoio"],
                 r["prioridade"],
                 r["estado"],
+                r["real_dev_status"],
                 r["esforco"],
                 r["dependencias"],
                 r["rf_rnf"],
@@ -1727,6 +1854,7 @@ def write_backlog(plan_root: Path, rows: list[dict[str, str]]) -> None:
         "- Prioridade: `P0` (Must), `P1` (Should), `P2` (Could).",
         "- Politica pedagogica: `P0=>Reforco`, `P1/P2=>Core`.",
         "- Estado: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`.",
+        "- Real dev: estado independente vindo de `ESTADO-REFERENCIA-REAL_DEV.md`; nunca é inferido de `estado`.",
         "- Esforco: `S`, `M`, `L`.",
         "",
         "## Snapshot por macro",
@@ -1742,6 +1870,7 @@ def write_backlog(plan_root: Path, rows: list[dict[str, str]]) -> None:
                 "apoio",
                 "prioridade",
                 "estado",
+                "real_dev_status",
                 "esforco",
                 "dependencias",
                 "rf_rnf",
@@ -1763,7 +1892,7 @@ def write_backlog(plan_root: Path, rows: list[dict[str, str]]) -> None:
         lines.append(f"## {macro} - {MACRO_LABEL[macro]}")
         lines.append(
             fmt_md_table(
-                ["bk_id", "titulo", "owner", "apoio", "prioridade", "estado", "esforco", "dependencias", "rf_rnf", "sprint", "core_or_reforco", "proximo_bk"],
+                ["bk_id", "titulo", "owner", "apoio", "prioridade", "estado", "real_dev_status", "esforco", "dependencias", "rf_rnf", "sprint", "core_or_reforco", "proximo_bk"],
                 [
                     [
                         r["bk_id"],
@@ -1772,6 +1901,7 @@ def write_backlog(plan_root: Path, rows: list[dict[str, str]]) -> None:
                         r["apoio"],
                         r["prioridade"],
                         r["estado"],
+                        r["real_dev_status"],
                         r["esforco"],
                         r["dependencias"],
                         r["rf_rnf"],
@@ -1858,17 +1988,70 @@ def write_mf_views(plan_root: Path, rows: list[dict[str, str]]) -> None:
     (plan_root / "backlogs" / "MF-VIEWS.md").write_text("\n".join(lines), encoding="utf-8")
 
 
-def write_guias_docs(plan_root: Path, rows: list[dict[str, str]]) -> None:
-    guides_root = plan_root / "guias-bk"
+def add_missing_real_dev_status(text: str, bk_id: str, expected: str) -> str:
+    """Acrescenta apenas um header ausente; nunca altera um estado manual."""
 
-    # Clean old guides and rewrite canonical set.
-    for old in guides_root.glob("MF*/BK-MF*.md"):
-        old.unlink()
+    current = re.search(r"^- `real_dev_status`: `([^`]+)`", text, flags=re.MULTILINE)
+    if current:
+        actual = validate_real_dev_status(current.group(1), bk_id)
+        if actual != expected:
+            raise RuntimeError(
+                f"{bk_id}: real_dev_status manual={actual} diverge da autoridade={expected}; correção manual obrigatória"
+            )
+        return text
+    pedagogical = re.search(r"^- `estado`: `[^`]+`$", text, flags=re.MULTILINE)
+    if not pedagogical:
+        raise RuntimeError(f"{bk_id}: header estado ausente; não é seguro inserir real_dev_status")
+    insertion = pedagogical.group(0) + f"\n- `real_dev_status`: `{expected}`"
+    return text[: pedagogical.start()] + insertion + text[pedagogical.end() :]
+
+
+def index_existing_guides(guides_root: Path) -> dict[str, Path]:
+    indexed: dict[str, Path] = {}
+    for path in sorted(guides_root.glob("MF*/BK-MF*.md")):
+        text = path.read_text(encoding="utf-8")
+        match = re.search(r"^- `bk_id`: `([^`]+)`", text, flags=re.MULTILINE)
+        if not match:
+            continue
+        bk_id = match.group(1)
+        if bk_id in indexed:
+            raise RuntimeError(f"Guias duplicados para {bk_id}: {indexed[bk_id]} e {path}")
+        indexed[bk_id] = path
+    return indexed
+
+
+def write_guias_docs(
+    plan_root: Path,
+    rows: list[dict[str, str]],
+    *,
+    check: bool = False,
+) -> list[str]:
+    guides_root = plan_root / "guias-bk"
+    existing = index_existing_guides(guides_root)
+    issues: list[str] = []
 
     for r in rows:
         d = guides_root / r["macro"]
-        d.mkdir(parents=True, exist_ok=True)
-        (d / guide_filename(r)).write_text(render_guide(r), encoding="utf-8")
+        target = existing.get(r["bk_id"], d / guide_filename(r))
+        if target.exists():
+            current = target.read_text(encoding="utf-8")
+            updated = add_missing_real_dev_status(
+                current,
+                r["bk_id"],
+                r["real_dev_status"],
+            )
+            if updated != current:
+                issues.append(f"{r['bk_id']}: header real_dev_status ausente")
+                if not check:
+                    target.write_text(updated, encoding="utf-8")
+            continue
+        issues.append(f"{r['bk_id']}: guia ausente")
+        if not check:
+            d.mkdir(parents=True, exist_ok=True)
+            target.write_text(render_guide(r), encoding="utf-8")
+
+    if check:
+        return issues
 
     # README
     lines = [
@@ -1887,7 +2070,8 @@ def write_guias_docs(plan_root: Path, rows: list[dict[str, str]]) -> None:
         "- IDs BK mantidos sem alteracao.",
         "",
         "## Contrato de header obrigatorio",
-        "- Campos obrigatorios: `bk_id`, `macro`, `owner`, `apoio`, `prioridade`, `estado`, `esforco`, `dependencias`, `rf_rnf`, `fase_documental`, `sprint`, `core_or_reforco`, `proximo_bk`, `guia_path`, `last_updated`.",
+        "- Campos obrigatorios: `bk_id`, `macro`, `owner`, `apoio`, `prioridade`, `estado`, `real_dev_status`, `esforco`, `dependencias`, `rf_rnf`, `fase_documental`, `sprint`, `core_or_reforco`, `proximo_bk`, `guia_path`, `last_updated`.",
+        "- `real_dev_status` vem exclusivamente de `ESTADO-REFERENCIA-REAL_DEV.md`; nunca é inferido de `estado`.",
         "",
         "## Contrato semântico obrigatório",
         "- O `rf_rnf` do header deve estar refletido nos `Passos`, `Validacao` e `Cenarios negativos recomendados`.",
@@ -1920,6 +2104,7 @@ def write_guias_docs(plan_root: Path, rows: list[dict[str, str]]) -> None:
 - `apoio`: `...`
 - `prioridade`: `P0|P1|P2`
 - `estado`: `TODO|IN_PROGRESS|DONE|BLOCKED`
+- `real_dev_status`: `VALIDADO|IMPLEMENTADO_NAO_VALIDADO|PARCIAL|MITIGADO_POR_ESCOPO|BLOQUEADO_OPERADOR|NAO_IMPLEMENTADO|NAO_APLICAVEL`
 - `esforco`: `S|M|L`
 - `dependencias`: `BK-...|-`
 - `rf_rnf`: `RFxx|RNFxx`
@@ -2006,9 +2191,14 @@ def write_guias_docs(plan_root: Path, rows: list[dict[str, str]]) -> None:
         map_lines.append(f"| {r['macro']}/{r['bk_id']}.md | {r['macro']}/{guide_filename(r)} |")
     map_lines.extend(["", "## Changelog", f"- `{TODAY}`: migracao de naming concluida.", ""])
     (guides_root / "MAPA-MIGRACAO-LEGACY-PARA-CANONICO.md").write_text("\n".join(map_lines), encoding="utf-8")
+    return issues
 
 
 def write_relatorio_placeholder(plan_root: Path) -> None:
+    output_path = plan_root / "CONFORMIDADE-PLANIFICACAO.md"
+    if output_path.exists():
+        # O relatório contém evidence gerada pela auditoria; o normalizador não o substitui.
+        return
     content = f"""# CONFORMIDADE-PLANIFICACAO
 
 ## Header
@@ -2033,14 +2223,34 @@ Relatorio gerado automaticamente pelo pipeline de validacao (`scripts/validate-p
 ## Changelog
 - `{TODAY}`: ficheiro preparado para atualizacao automatica no fecho da validacao.
 """
-    (plan_root / "CONFORMIDADE-PLANIFICACAO.md").write_text(content, encoding="utf-8")
+    output_path.write_text(content, encoding="utf-8")
 
 
-def main() -> None:
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Normaliza a planificação StudyFlow sem promover estados da referência.")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Valida fontes e headers sem executar solver nem escrever documentos.",
+    )
+    args = parser.parse_args()
     plan_root = Path(__file__).resolve().parents[1]
 
     raw_rows = parse_global_rows_from_backlog(plan_root / "backlogs" / "BACKLOG-MVP.md")
-    rows = normalize_rows(raw_rows)
+    reference_statuses = parse_reference_real_dev_statuses(plan_root)
+    guide_statuses = parse_existing_guide_statuses(plan_root)
+    rows = normalize_rows(raw_rows, reference_statuses, guide_statuses)
+
+    if args.check:
+        issues = write_guias_docs(plan_root, rows, check=True)
+        if issues:
+            print("Normalização desatualizada:")
+            for issue in issues:
+                print(f"- {issue}")
+            return 1
+        print(f"Normalização consistente: {len(rows)} BK; nenhum ficheiro alterado.")
+        return 0
+
     constraints = load_constraints_contract(plan_root)
     solver_payload = run_solver_and_load(plan_root)
     rows = apply_solver_assignments(rows, solver_payload)
@@ -2064,7 +2274,12 @@ def main() -> None:
     write_relatorio_placeholder(plan_root)
 
     print(f"Normalizacao concluida: {len(rows)} BK processados.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        raise SystemExit(main())
+    except RuntimeError as error:
+        print(f"CHECK_FAILED: {error}", file=sys.stderr)
+        raise SystemExit(1) from None

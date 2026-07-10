@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF31`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF7-10`
 - `guia_path`: `docs/planificacao/guias-bk/MF7/BK-MF7-09-ia-explica-fontes-dos-conteudos-paginas-seccoes.md`
-- `last_updated`: `2026-06-27`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -37,7 +38,7 @@ Este BK é incremental: consome os contratos de fontes autorizadas, guardrails e
 - Integrar `normalizePublicCitation(...)` dentro de `SourceGroundedAiService.toCitation(...)`.
 - Mostrar `sourceLabel`, `locator` e `excerpt` no painel frontend de IA com fontes.
 - Preservar autenticação, autorização, ownership, membership, quotas e guardrails já definidos quando o fluxo toca dados privados ou IA.
-- Validar caminho principal e negativos P0: sem fonte localizável, sem excerto verificável e fonte proibida antes do provider.
+- Validar caminho principal e negativos P0: sem fonte localizável, sem excerto verificável e fonte proibida antes da fachada.
 - Produzir evidence com expected/observed.
 
 #### Scope-out
@@ -52,7 +53,7 @@ Este BK é incremental: consome os contratos de fontes autorizadas, guardrails e
 #### Estado antes e depois
 
 - Estado antes: MF6 deixa segurança, recuperação, guardrails e isolamento de IA preparados, e `SourceGroundedAiService` já valida cada `sourceJobId` com `findReadableDoneJob(...)`, mas a citação pública ainda não tem uma policy isolada para normalizar página/secção/excerto.
-- Estado depois: a app passa a ter `normalizePublicCitation(...)`, integração completa em `SourceGroundedAiService.toCitation(...)`, frontend a mostrar `excerpt` limitado e testes P0 que provam citação válida, falhas controladas e bloqueio antes do provider quando a fonte não é autorizada.
+- Estado depois: a app passa a ter `normalizePublicCitation(...)`, frontend com `excerpt` limitado e testes P0 que provam bloqueio antes da fachada quando a fonte não é autorizada.
 
 #### Pre-requisitos
 
@@ -112,7 +113,7 @@ Este BK é incremental: consome os contratos de fontes autorizadas, guardrails e
 - Cliente API: preserva `askSourceGroundedAi(...)`, que usa o cliente MF3 com `credentials: "include"`.
 - Frontend: edita `SourceGroundedAiPanel` para mostrar `sourceLabel`, `locator` e `excerpt`.
 - Segurança/autorização: cada job é autorizado no backend antes de ser usado como fonte.
-- Testes: policy com caminho principal e negativos; service com negativo de fonte proibida antes do provider.
+- Testes: policy com caminho principal e negativos; service com negativo de fonte proibida antes da fachada.
 - Handoff para o próximo BK: `BK-MF7-10` separa perfis e contextos de IA usando a mesma disciplina de fontes autorizadas.
 
 #### Ficheiros a criar/editar/rever
@@ -191,7 +192,7 @@ Confirma que a MF6 já entregou segurança, recovery e isolamento de IA. Este BK
 1. `SourceGroundedAiController` recebe sessão autenticada.
 2. `SourceGroundedAiService.ask(...)` chama `findReadableDoneJob(actor, jobId)`.
 3. Só depois de cada job ser autorizado é criada a citação pública.
-4. Só depois de existirem citações válidas é chamado o provider IA.
+4. Só depois de existirem citações válidas é chamada a `GovernedAiExecutionService`.
 
 4. Código completo, correto e integrado com a app final.
 
@@ -335,7 +336,7 @@ private toCitation(
 
 O import liga o service à policy nova. O método `toCitation(...)` fica completo e explícito: recebe um job já autorizado, recebe o chunk indexado e devolve a citação normalizada. Ao passar `chunk.text` completo para a policy, o corte de `excerpt` fica centralizado num só ficheiro e todos os fluxos source-grounded usam a mesma regra.
 
-O ponto de segurança continua antes desta função. Se `findReadableDoneJob(actor, jobId)` rejeitar a fonte, `toCitation(...)` não é chamado e o provider IA não recebe excertos de materiais proibidos.
+Se `findReadableDoneJob(actor, jobId)` rejeitar a fonte, `toCitation(...)` e a fachada não recebem excertos proibidos.
 
 6. Validação do passo.
 
@@ -562,8 +563,8 @@ describe("normalizePublicCitation", () => {
 
 ```ts
 // apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.spec.ts
-it("bloqueia fonte proibida antes de chamar o provider", async () => {
-    const { aiProvider, answerModel, materialIndexService, service } = makeService();
+it("bloqueia fonte proibida antes da fachada governada", async () => {
+    const { governedAiExecutionService, answerModel, materialIndexService, service } = makeService();
     materialIndexService.findReadableDoneJob.mockRejectedValueOnce(
         new Error("MATERIAL_INDEX_ACCESS_DENIED"),
     );
@@ -576,7 +577,7 @@ it("bloqueia fonte proibida antes de chamar o provider", async () => {
     ).rejects.toThrow("MATERIAL_INDEX_ACCESS_DENIED");
 
     // A validação de leitura acontece antes do prompt; se falha, o provider não recebe dados.
-    expect(aiProvider.generateStudyTool).not.toHaveBeenCalled();
+    expect(governedAiExecutionService.execute).not.toHaveBeenCalled();
     expect(answerModel.create).not.toHaveBeenCalled();
 });
 ```
@@ -585,7 +586,7 @@ it("bloqueia fonte proibida antes de chamar o provider", async () => {
 
 `citation-policy.spec.ts` prova o caminho principal e três negativos P0: nome de fonte vazio, localização vazia e excerto vazio. Estes negativos protegem a explicabilidade: uma citação sem nome, localização ou excerto não permite verificar a resposta.
 
-O teste adicional em `source-grounded-ai.service.spec.ts` prova a regra de segurança mais importante: se `findReadableDoneJob(...)` rejeita a fonte, o provider IA não é chamado e a resposta não é persistida. Isto preserva ownership/membership no backend e evita fuga de excertos privados.
+O teste prova que uma fonte rejeitada impede a chamada à fachada e a persistência, preservando ownership/membership.
 
 6. Validação do passo.
 
@@ -680,7 +681,7 @@ Resultado esperado:
 - `proof_backend_build`: output de `npm --prefix apps/api run build`.
 - `proof_backend_tests`: output de `npm --prefix apps/api run test:unit -- citation-policy source-grounded-ai`.
 - `proof_frontend_build`: output de `npm --prefix apps/web run build`.
-- `proof_negativos`: erros controlados para fonte sem nome, fonte sem localização, fonte sem excerto e fonte proibida antes do provider.
+- `proof_negativos`: erros controlados para fonte sem nome, localização/excerto e fonte proibida antes da fachada.
 - `proof_fontes`: lista limitada de `sourceLabel`, `locator` e `excerpt`.
 - `proof_privacidade`: confirmação de que não há dados pessoais ou privados em logs/evidence.
 - `proof_pedagogico`: explicação curta de como `RNF31` melhora a aplicação para alunos e professores.
@@ -694,10 +695,10 @@ O próximo BK deve reutilizar:
 - `normalizePublicCitation(...)`;
 - `SourceGroundedAiService.toCitation(...)` já normalizado;
 - UI que apresenta `sourceLabel`, `locator` e `excerpt`;
-- negativos que provam bloqueio antes do provider quando a fonte não é autorizada.
+- negativos que provam bloqueio antes da fachada quando a fonte não é autorizada.
 
 O próximo BK não deve criar outro contrato para a mesma responsabilidade.
 
 #### Changelog
 
-- `2026-06-27`: guia corrigido com policy completa, integração explícita em `SourceGroundedAiService.toCitation(...)`, UI com `excerpt`, testes P0, negativos de acesso antes do provider e handoff para `BK-MF7-10`.
+- `2026-07-10`: guia alinhado com a fachada governada, mantendo citações públicas normalizadas e negativos antes da execução.

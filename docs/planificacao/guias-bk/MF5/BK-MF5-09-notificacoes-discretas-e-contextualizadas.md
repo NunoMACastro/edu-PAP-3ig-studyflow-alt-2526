@@ -9,6 +9,7 @@
 - `apoio`: `Kaua`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF07`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF5-10`
 - `guia_path`: `docs/planificacao/guias-bk/MF5/BK-MF5-09-notificacoes-discretas-e-contextualizadas.md`
-- `last_updated`: `2026-06-20`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -400,7 +401,7 @@ Sem código neste passo. Este passo revê o comportamento dos ficheiros criados 
 
 5. Explicação do código.
 
-As notificações podem referir turmas ou grupos, por isso devem ser tratadas como dados contextuais do utilizador autenticado. O frontend mostra `title`, `body` e uma etiqueta de contexto curta. Não precisa mostrar `contextId`, `recipientIds` ou `suppressedRecipientIds`; esses campos são úteis para a API e para auditoria, mas não para a UI do tray.
+As notificações podem referir turmas ou grupos, por isso devem ser tratadas como dados contextuais do utilizador autenticado. O DTO destinado ao utilizador devolve apenas os campos necessários ao tray e nunca inclui `recipientIds` ou `suppressedRecipientIds`. Uma vista administrativa separada pode devolver somente `recipientCount` e `suppressedRecipientCount`, sem identificadores.
 
 6. Validação do passo.
 
@@ -408,7 +409,7 @@ Abre o tray com notificações reais ou controladas e confirma que a UI não mos
 
 7. Cenário negativo/erro esperado.
 
-Se o painel expuser `recipientIds` ou `contextId`, remove esses campos da interface.
+Se a resposta destinada ao utilizador expuser IDs ou listas de destinatários/supressões, o teste de contrato deve falhar; esconder esses campos apenas no componente não corrige a fuga da API.
 
 ### Passo 5 - Criar smoke do tray
 
@@ -464,8 +465,6 @@ test("MF5 mostra notificações in-app com o campo body", async ({ page }) => {
                     type: "TASK",
                     title: "Novo material disponível",
                     body: "A turma recebeu uma tarefa de estudo.",
-                    recipientIds: [],
-                    suppressedRecipientIds: [],
                 },
             ]),
         });

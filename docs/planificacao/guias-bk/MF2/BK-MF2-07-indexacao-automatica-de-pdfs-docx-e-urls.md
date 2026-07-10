@@ -8,6 +8,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF0-08, BK-MF1-09`
 - `rf_rnf`: `RF31`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF2-08`
 - `guia_path`: `docs/planificacao/guias-bk/MF2/BK-MF2-07-indexacao-automatica-de-pdfs-docx-e-urls.md`
-- `last_updated`: `2026-06-10`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo do BK
 
@@ -70,7 +71,7 @@ Existe `MaterialIndexModule` com jobs, estados e chunks com origem. A decisão d
 - **Privacidade por contexto.** material privado e oficial nunca partilham validação de acesso. Este conceito vem de `RF31` e das dependências `BK-MF0-08, BK-MF1-09`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-07 - Indexação automática de PDFs, DOCX e URLs.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
 - **Backend, validação e segurança.** O backend recebe a identidade pela sessão autenticada, valida DTOs antes do service e confirma ownership ou membership nos services herdados. Esta regra vem da fundação MF0/MF1 e segue para os BKs seguintes como contrato de segurança. Serve para impedir leitura ou escrita entre alunos, professores, turmas e disciplinas diferentes.
 - **Frontend tipado e sessão real.** O frontend usa cliente API tipado em `apps/web/src/lib/api/...`, envia cookies com `credentials: "include"`, mostra estados de carregamento, erro, vazio e sucesso, e não guarda tokens em `localStorage`. Isto evita chamadas anónimas, dados de actor no body e payloads sem tipo claro.
-- **IA, fontes e guardrails.** Este BK só envolve provider de IA quando o próprio requisito o pede. Quando não há chamada de IA, o guia limita-se a preparar fontes, autorização ou contexto sem prometer geração automática; quando há chamada de IA, o provider vem de `AiModule`/`AI_PROVIDER`, as fontes são recolhidas antes da chamada e a resposta só é persistida depois de validação mínima.
+- **IA, fontes e guardrails.** Este BK só envolve IA quando o requisito o pede. Os services de domínio consomem `GovernedAiExecutionService`; a fachada aplica consentimento, policy, limites, guardrails, quota e validação/audit. As fontes são autorizadas antes da execução e a resposta só é persistida depois de validação.
 
 ## Decisões documentais
 
@@ -198,10 +199,11 @@ export class StartMaterialIndexDto {
 
 2. Ficheiros envolvidos.
     - CRIAR: `apps/api/src/modules/material-index/material-index.service.ts`
+    - CRIAR: `apps/api/src/common/security/ssrf-safe-fetch.ts`
 
 3. O que fazer.
 
-    Implementa o service usando os métodos herdados de MF0/MF1 e nunca confies em IDs de utilizador enviados pelo cliente.
+    Implementa o service usando os métodos herdados de MF0/MF1 e nunca confies em IDs de utilizador enviados pelo cliente. `ssrf-safe-fetch.ts` usa um dispatcher/connector dedicado por hop, fixa a ligação num IP da lista validada e rejeita o socket se `remoteAddress` não for exatamente um desses IPs ou deixar de ser público; aplica ainda timeout e limite de bytes antes de devolver o body.
 
 4. Código completo, correto e integrado.
 
@@ -215,13 +217,14 @@ import {
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { lookup } from "node:dns/promises";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import mammoth from "mammoth";
+import ipaddr from "ipaddr.js";
 import { Model, Types } from "mongoose";
 import pdfParse from "pdf-parse";
 import { AuthenticatedUser } from "../../common/types/authenticated-request";
+import { fetchWithPinnedAddress } from "../../common/security/ssrf-safe-fetch";
 import { MaterialsService } from "../materials/materials.service";
+import { MaterialStorageService } from "../materials/material-storage.service";
 import { OfficialMaterialsService } from "../official-materials/official-materials.service";
 import { SubjectsService } from "../subjects/subjects.service";
 import {
@@ -245,13 +248,11 @@ type IndexableMaterial = {
 
 @Injectable()
 export class MaterialIndexService {
-    private readonly storageRoot =
-        process.env.MATERIALS_STORAGE_DIR ?? "storage/materials";
-
     constructor(
         @InjectModel(MaterialIndexJob.name)
         private readonly jobs: Model<MaterialIndexJobDocument>,
         private readonly materialsService: MaterialsService,
+        private readonly storage: MaterialStorageService,
         private readonly subjectsService: SubjectsService,
         private readonly officialMaterialsService: OfficialMaterialsService,
     ) {}
@@ -382,13 +383,13 @@ export class MaterialIndexService {
         }
 
         if (material.storageKey && this.isPdf(material)) {
-            const fileBuffer = await readFile(join(this.storageRoot, material.storageKey));
+            const fileBuffer = await this.storage.read(material.storageKey);
             const parsed = await pdfParse(fileBuffer);
             return this.toChunks(parsed.text, material.title ?? material.storageKey, "pdf");
         }
 
         if (material.storageKey && this.isDocx(material)) {
-            const fileBuffer = await readFile(join(this.storageRoot, material.storageKey));
+            const fileBuffer = await this.storage.read(material.storageKey);
             const parsed = await mammoth.extractRawText({ buffer: fileBuffer });
             return this.toChunks(parsed.value, material.title ?? material.storageKey, "docx");
         }
@@ -419,9 +420,12 @@ export class MaterialIndexService {
         let currentUrl = initialUrl;
 
         for (let redirects = 0; redirects <= 5; redirects += 1) {
-            await this.assertPublicHttpUrl(currentUrl);
-
-            const response = await fetch(currentUrl.toString(), { redirect: "manual" });
+            const addresses = await this.assertPublicHttpUrl(currentUrl);
+            const response = await fetchWithPinnedAddress(currentUrl, {
+                addresses,
+                redirect: "manual",
+                validatePeerAddress: (address) => !this.isPrivateAddress(address),
+            });
 
             if (![301, 302, 303, 307, 308].includes(response.status)) {
                 return response;
@@ -454,6 +458,7 @@ export class MaterialIndexService {
         if (addresses.some((entry) => this.isPrivateAddress(entry.address))) {
             throw new UnprocessableEntityException("URLs resolvidas para redes privadas não podem ser indexadas.");
         }
+        return addresses;
     }
 
     private toChunks(text: string, sourceLabel: string, locator: string): MaterialTextChunk[] {
@@ -493,35 +498,9 @@ export class MaterialIndexService {
     }
 
     private isPrivateAddress(address: string) {
-        const normalized = address.toLowerCase();
-        const ipv4 = normalized.startsWith("::ffff:")
-            ? normalized.slice("::ffff:".length)
-            : normalized;
-
-        if (
-            normalized === "::1" ||
-            normalized === "::" ||
-            normalized.startsWith("fc") ||
-            normalized.startsWith("fd") ||
-            normalized.startsWith("fe80:")
-        ) {
-            return true;
-        }
-
-        const octets = ipv4.split(".").map((value) => Number(value));
-        if (octets.length !== 4 || octets.some((value) => Number.isNaN(value))) {
-            return false;
-        }
-
-        const [first, second] = octets;
-        return (
-            first === 0 ||
-            first === 10 ||
-            first === 127 ||
-            (first === 169 && second === 254) ||
-            (first === 172 && second >= 16 && second <= 31) ||
-            (first === 192 && second === 168)
-        );
+        if (!ipaddr.isValid(address)) return true;
+        const parsed = ipaddr.process(address); // normaliza também IPv4-mapped IPv6
+        return parsed.range() !== "unicast";
     }
 
     private assertStudent(actor: AuthenticatedUser) {
@@ -550,11 +529,11 @@ export class MaterialIndexService {
 
 5. Explicação do código.
 
-    Este service concentra a regra de negócio do BK. Recebe o utilizador autenticado, valida o papel esperado, confirma ownership ou membership nos services herdados e só depois consulta ou grava dados. Para `TOPIC`/`TEXT`, usa texto direto; para `URL`, faz leitura HTTP controlada, rejeita hosts locais, resolve DNS antes do pedido e revalida cada redirect antes de o seguir; para `PDF` e `DOCX`, lê o ficheiro guardado e extrai texto com dependências próprias. A saída é um job `DONE` com chunks ordenados, ou `FAILED` com erro controlado. Isto evita que `BK-MF2-08` receba uma fonte falsa, reduz risco de SSRF e impede acessos cruzados entre alunos, professores, turmas, disciplinas e áreas de estudo.
+    Este service concentra a regra de negócio do BK. Recebe o utilizador autenticado, valida o papel esperado, confirma ownership ou membership nos services herdados e só depois consulta ou grava dados. Para `TOPIC`/`TEXT`, usa texto direto; para `URL`, faz leitura HTTP controlada, rejeita hosts locais e usa `ipaddr.js` para bloquear IPv4, IPv6 e IPv4-mapped privados, reservados, link-local, multicast, CGNAT e metadata. O conector HTTP deve ficar preso a um dos endereços DNS já validados e voltar a validar `socket.remoteAddress` antes de enviar/aceitar dados; cada redirect repete URL, DNS e ligação, sem reutilizar o dispatcher anterior. Para `PDF` e `DOCX`, lê o ficheiro guardado e extrai texto com dependências próprias. A saída é um job `DONE` com chunks ordenados, ou `FAILED` com erro controlado. Isto evita DNS rebinding/SSRF e acessos cruzados.
 
 6. Como validar este passo.
 
-    Testa quatro casos: sem sessão, sessão com papel errado, URL que aponta ou redireciona para rede privada e sessão válida com contexto pertencente ao actor.
+    Testa: sem sessão, papel errado, `127.0.0.1`, `::1`, `::ffff:127.0.0.1`, link-local/metadata, DNS rebinding e redirect público para rede privada; todos devem bloquear antes de consumir o body.
 
 7. Erros comuns ou cenário negativo.
 

@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF0-07`
 - `rf_rnf`: `RF08`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF0-09`
 - `guia_path`: `docs/planificacao/guias-bk/MF0/BK-MF0-08-submeter-materiais-pdf-docx-urls-topicos.md`
-- `last_updated`: `2026-06-01`
+- `last_updated`: `2026-07-10`
 
 ## O que vamos fazer neste BK
 
@@ -173,7 +174,7 @@ import { HydratedDocument, Types } from "mongoose";
 
 export type MaterialDocument = HydratedDocument<Material>;
 export type MaterialType = "PDF" | "DOCX" | "URL" | "TOPIC";
-export type MaterialStatus = "PENDING_PROCESSING" | "READY" | "FAILED";
+export type MaterialStatus = "STAGING" | "PENDING_PROCESSING" | "READY" | "FAILED";
 
 @Schema({ timestamps: true, collection: "materials" })
 export class Material {
@@ -196,7 +197,7 @@ export class Material {
 
     @Prop({
         required: true,
-        enum: ["PENDING_PROCESSING", "READY", "FAILED"],
+        enum: ["STAGING", "PENDING_PROCESSING", "READY", "FAILED"],
         default: "PENDING_PROCESSING",
     })
     status!: MaterialStatus;
@@ -206,6 +207,9 @@ export class Material {
 
     @Prop()
     storageKey?: string;
+
+    @Prop({ match: /^[0-9a-f]{64}$/ })
+    sha256?: string;
 
     @Prop()
     originalName?: string;
@@ -255,10 +259,23 @@ O schema separa materiais submetidos de fontes processáveis. PDF/DOCX/URL não 
 4. Código completo, correto e integrado.
 
 ```ts
+import { IsIn, IsOptional, IsString, IsUrl, MaxLength, MinLength } from "class-validator";
+
 export class CreateMaterialDto {
+    @IsIn(["URL", "TOPIC"])
     type!: "URL" | "TOPIC";
+
+    @IsString()
+    @MinLength(1)
+    @MaxLength(160)
     title!: string;
+
+    @IsOptional()
+    @IsUrl({ require_protocol: true, protocols: ["http", "https"] })
     url?: string;
+
+    @IsOptional()
+    @IsString()
     topicText?: string;
 }
 ```
@@ -361,31 +378,95 @@ O backend valida MIME e tamanho. A extensão do ficheiro não é suficiente para
 
 ```ts
 import { Injectable } from "@nestjs/common";
-import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
-import { join } from "path";
+import { createHash, randomUUID } from "node:crypto";
+import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { Express } from "express";
+
+export type StagedMaterial = {
+    storageKey: string;
+    sha256: string;
+    sizeBytes: number;
+};
 
 @Injectable()
 export class MaterialStorageService {
-    private readonly root =
-        process.env.MATERIALS_STORAGE_DIR ?? "storage/materials";
+    private readonly root = this.resolveExternalRoot();
+    private readonly stagingRoot = join(this.root, ".staging");
 
-    async save(file: Express.Multer.File): Promise<string> {
-        await mkdir(this.root, { recursive: true });
+    async stage(file: Express.Multer.File): Promise<StagedMaterial> {
+        await this.ensureRoots();
         const extension = file.mimetype === "application/pdf" ? "pdf" : "docx";
         const storageKey = `${randomUUID()}.${extension}`;
+        const stagedPath = this.safePath(this.stagingRoot, storageKey);
+        await writeFile(stagedPath, file.buffer, { mode: 0o600, flag: "wx" });
+        await chmod(stagedPath, 0o600);
+        return {
+            storageKey,
+            sha256: createHash("sha256").update(file.buffer).digest("hex"),
+            sizeBytes: file.size,
+        };
+    }
 
-        // Guardamos só storageKey na base. Nunca devolvemos caminho absoluto ao frontend.
-        await writeFile(join(this.root, storageKey), file.buffer);
-        return storageKey;
+    async promote(storageKey: string): Promise<void> {
+        await rename(
+            this.safePath(this.stagingRoot, storageKey),
+            this.safePath(this.root, storageKey),
+        );
+    }
+
+    async abort(storageKey: string): Promise<void> {
+        await rm(this.safePath(this.stagingRoot, storageKey), { force: true });
+    }
+
+    async delete(storageKey: string): Promise<void> {
+        await rm(this.safePath(this.root, storageKey), { force: true });
+    }
+
+    async read(storageKey: string): Promise<Buffer> {
+        return readFile(this.safePath(this.root, storageKey));
+    }
+
+    // O reconciliador periódico remove staging expirado e ficheiros sem metadata.
+    async reconcile(knownStorageKeys: ReadonlySet<string>): Promise<void> {
+        void knownStorageKeys;
+        // Listar com idade mínima, não seguir symlinks e apagar idempotentemente.
+    }
+
+    private async ensureRoots(): Promise<void> {
+        await mkdir(this.root, { recursive: true, mode: 0o700 });
+        await mkdir(this.stagingRoot, { recursive: true, mode: 0o700 });
+        await chmod(this.root, 0o700);
+        await chmod(this.stagingRoot, 0o700);
+    }
+
+    private resolveExternalRoot(): string {
+        const configured = process.env.MATERIALS_STORAGE_DIR;
+        if (!configured || !isAbsolute(configured)) {
+            throw new Error("MATERIALS_STORAGE_DIR_ABSOLUTE_REQUIRED");
+        }
+        const root = resolve(configured);
+        const checkout = resolve(process.cwd());
+        if (!relative(checkout, root).startsWith("..")) {
+            throw new Error("MATERIALS_STORAGE_DIR_MUST_BE_OUTSIDE_CHECKOUT");
+        }
+        return root;
+    }
+
+    private safePath(root: string, storageKey: string): string {
+        if (!/^[0-9a-f-]{36}\.(pdf|docx)$/.test(storageKey)) {
+            throw new TypeError("INVALID_STORAGE_KEY");
+        }
+        return join(root, storageKey);
     }
 }
 ```
 
 5. Explicação do código.
 
-Este storage é aceitável para desenvolvimento/PAP local. Como não há storage externo documentado, o guia não inventa S3/Drive.
+Este storage destina-se ao runtime PAP local: raiz absoluta fora do checkout, diretórios `0700`, ficheiros `0600`, chave UUID, SHA-256, staging e promoção atómica. `delete()` e `reconcile()` permitem outbox, rollback e recuperação de órfãos sem inventar S3/Drive.
+
+Toda a eliminação de metadata que tenha `storageKey` cria, na mesma transaction Mongo, uma entrada `FileDeletionOutbox` idempotente. O runner tenta `storage.delete()` com backoff e marca a entrada como concluída; no arranque, o reconciliador retoma entradas pendentes e limpa staging expirado. Nunca se apaga primeiro a metadata, porque um crash nesse intervalo tornaria o ficheiro órfão e invisível.
 
 6. Como validar este passo.
 
@@ -432,6 +513,8 @@ import {
 
 @Injectable()
 export class MaterialsService {
+    private static readonly USER_STORAGE_QUOTA_BYTES = 250 * 1024 * 1024;
+
     constructor(
         @InjectModel(Material.name)
         private readonly materialModel: Model<MaterialDocument>,
@@ -458,19 +541,42 @@ export class MaterialsService {
     ) {
         await this.assertOwnArea(userId, studyAreaId);
         validateMaterialUpload(file);
+        const normalizedTitle = (title?.trim() || file.originalname.trim()).slice(0, 161);
+        if (normalizedTitle.length < 1 || normalizedTitle.length > 160) {
+            throw new BadRequestException({ code: "INVALID_TITLE", message: "O título deve ter entre 1 e 160 caracteres." });
+        }
+        const [usage] = await this.materialModel.aggregate<{ total: number }>([
+            { $match: { userId: new Types.ObjectId(userId) } },
+            { $group: { _id: null, total: { $sum: "$sizeBytes" } } },
+        ]);
+        if ((usage?.total ?? 0) + file.size > MaterialsService.USER_STORAGE_QUOTA_BYTES) {
+            throw new BadRequestException({ code: "STORAGE_QUOTA_EXCEEDED", message: "A quota de 250 MiB foi excedida." });
+        }
 
-        const storageKey = await this.storage.save(file);
-        return this.materialModel.create({
-            userId: new Types.ObjectId(userId),
-            studyAreaId: new Types.ObjectId(studyAreaId),
-            type: materialTypeFromMime(file.mimetype),
-            title: title?.trim() || file.originalname,
-            status: "PENDING_PROCESSING",
-            storageKey,
-            originalName: file.originalname,
-            mimeType: file.mimetype,
-            sizeBytes: file.size,
-        });
+        const staged = await this.storage.stage(file);
+        let material: MaterialDocument | undefined;
+        try {
+            material = await this.materialModel.create({
+                userId: new Types.ObjectId(userId),
+                studyAreaId: new Types.ObjectId(studyAreaId),
+                type: materialTypeFromMime(file.mimetype),
+                title: normalizedTitle,
+                status: "STAGING",
+                storageKey: staged.storageKey,
+                sha256: staged.sha256,
+                originalName: file.originalname.slice(0, 255),
+                mimeType: file.mimetype,
+                sizeBytes: staged.sizeBytes,
+            });
+            await this.storage.promote(staged.storageKey);
+            material.status = "PENDING_PROCESSING";
+            await material.save();
+            return material;
+        } catch (error) {
+            await this.storage.abort(staged.storageKey);
+            if (material) await this.materialModel.deleteOne({ _id: material._id });
+            throw error;
+        }
     }
 
     async submitTextMaterial(
@@ -691,7 +797,7 @@ import { Material, MaterialSchema } from "./schemas/material.schema";
     ],
     controllers: [MaterialsController],
     providers: [MaterialsService, MaterialStorageService],
-    exports: [MaterialsService],
+    exports: [MaterialsService, MaterialStorageService],
 })
 export class MaterialsModule {}
 ```
@@ -1060,7 +1166,7 @@ Esta UI mostra o estado do material. Na MF0, apenas tópicos manuais ficam `READ
 - `apps/api`: `npm test` -> PASS (19 suites, 68 tests).
 - `apps/api`: `npm run build` -> PASS.
 - `apps/web`: `npm run build` -> PASS.
-- Testes negativos cobertos neste ciclo: `LOGIN_RATE_LIMITED`, resposta pública de materiais sem `storageKey`/`contentText`, `AI_PROVIDER_TIMEOUT`, `NO_PROCESSABLE_SOURCES`, provider IA não configurado e JSON IA inválido.
+- Testes negativos cobertos neste ciclo: `LOGIN_RATE_LIMITED`, resposta pública de materiais sem `storageKey`/`contentText`, `AI_EXECUTION_TIMEOUT`, `NO_PROCESSABLE_SOURCES`, execução IA não configurada e output IA inválido.
 - Não executado neste ciclo: smoke manual/browser/e2e com MongoDB, Redis e OpenAI reais.
 
 - Output de PDF/DOCX válido.

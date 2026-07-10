@@ -9,6 +9,7 @@
 - `apoio`: `Kaua`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF0-05`
 - `rf_rnf`: `RF48`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF4-01`
 - `guia_path`: `docs/planificacao/guias-bk/MF3/BK-MF3-12-alertar-alunos-sobre-rotinas-objetivos-e-sessoes-de-estudo-agendadas.md`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -104,8 +105,8 @@ Este BK transforma o requisito RF48 numa entrega copiável e testável. A funcio
 #### Arquitetura do BK
 
 - Endpoint: `GET /api/study-alerts`.
-- Backend: `real_dev/api/src/modules/study-alerts`.
-- Frontend: `real_dev/web/src/features/study-alerts`.
+- Backend: `apps/api/src/modules/study-alerts`.
+- Frontend: `apps/web/src/features/study-alerts`.
 - DTO principal: `StudyAlertsQueryDto`.
 - Service principal: `StudyAlertsService`.
 - Controller principal: `StudyAlertsController`.
@@ -114,14 +115,14 @@ Este BK transforma o requisito RF48 numa entrega copiável e testável. A funcio
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/api/src/modules/study-alerts/dto/study-alerts-query.dto.ts`
-- CRIAR: `real_dev/api/src/modules/study-alerts/schemas/study-alert-read.schema.ts`
-- CRIAR: `real_dev/api/src/modules/study-alerts/study-alerts.service.ts`
-- CRIAR: `real_dev/api/src/modules/study-alerts/study-alerts.controller.ts`
-- CRIAR: `real_dev/api/src/modules/study-alerts/study-alerts.module.ts`
-- CRIAR: `real_dev/web/src/features/study-alerts/load-study-alerts.ts`
-- CRIAR: `real_dev/web/src/features/study-alerts/study-alerts-panel.tsx`
-- REVER: `real_dev/api/src/app.module.ts` para importar o módulo criado.
+- CRIAR: `apps/api/src/modules/study-alerts/dto/study-alerts-query.dto.ts`
+- CRIAR: `apps/api/src/modules/study-alerts/schemas/study-alert-read.schema.ts`
+- CRIAR: `apps/api/src/modules/study-alerts/study-alerts.service.ts`
+- CRIAR: `apps/api/src/modules/study-alerts/study-alerts.controller.ts`
+- CRIAR: `apps/api/src/modules/study-alerts/study-alerts.module.ts`
+- CRIAR: `apps/web/src/features/study-alerts/load-study-alerts.ts`
+- CRIAR: `apps/web/src/features/study-alerts/study-alerts-panel.tsx`
+- REVER: `apps/api/src/app.module.ts` para importar o módulo criado.
 
 #### Tutorial técnico linear
 
@@ -132,14 +133,14 @@ Este BK transforma o requisito RF48 numa entrega copiável e testável. A funcio
 1. Objetivo funcional do passo no contexto da app.
    Garantir que o endpoint recebe dados claros e rejeita input inválido antes do service.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/study-alerts/dto/study-alerts-query.dto.ts`
+   - CRIAR: `apps/api/src/modules/study-alerts/dto/study-alerts-query.dto.ts`
    - LOCALIZAÇÃO: `ficheiro completo`
 3. Instruções do que fazer.
    Cria o DTO com validações declarativas e nomes iguais ao payload documentado neste BK.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/study-alerts/dto/study-alerts-query.dto.ts
+// apps/api/src/modules/study-alerts/dto/study-alerts-query.dto.ts
 import { Transform } from "class-transformer";
 import { IsBoolean, IsOptional } from "class-validator";
 
@@ -173,14 +174,14 @@ export class StudyAlertsQueryDto {
 1. Objetivo funcional do passo no contexto da app.
    Guardar dados mínimos do fluxo para histórico, defesa e integração com BKs seguintes.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/study-alerts/schemas/study-alert-read.schema.ts`
+   - CRIAR: `apps/api/src/modules/study-alerts/schemas/study-alert-read.schema.ts`
    - LOCALIZAÇÃO: `ficheiro completo`
 3. Instruções do que fazer.
    Cria o schema Mongoose do resultado produzido por este BK.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/study-alerts/schemas/study-alert-read.schema.ts
+// apps/api/src/modules/study-alerts/schemas/study-alert-read.schema.ts
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
 
@@ -221,14 +222,14 @@ StudyAlertReadSchema.index({ userId: 1, alertKey: 1 }, { unique: true });
 1. Objetivo funcional do passo no contexto da app.
    Concentrar regras de negócio, ownership, membership, erros e efeitos de persistência num ponto testável.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/study-alerts/study-alerts.service.ts`
+   - CRIAR: `apps/api/src/modules/study-alerts/study-alerts.service.ts`
    - LOCALIZAÇÃO: `classe completa do service`
 3. Instruções do que fazer.
    Cria o service e injeta apenas módulos herdados ou ficheiros criados neste BK.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/study-alerts/study-alerts.service.ts
+// apps/api/src/modules/study-alerts/study-alerts.service.ts
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import {
@@ -392,14 +393,14 @@ export class StudyAlertsService {
 1. Objetivo funcional do passo no contexto da app.
    Ligar `GET /api/study-alerts` ao service sem colocar regras sensíveis no controller.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/study-alerts/study-alerts.controller.ts`
+   - CRIAR: `apps/api/src/modules/study-alerts/study-alerts.controller.ts`
    - LOCALIZAÇÃO: `classe completa do controller`
 3. Instruções do que fazer.
    Cria o controller com `SessionGuard`, `@Req() request: AuthenticatedRequest` e delegação direta para o service.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/study-alerts/study-alerts.controller.ts
+// apps/api/src/modules/study-alerts/study-alerts.controller.ts
 import { Controller, Get, Query, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
@@ -443,15 +444,15 @@ export class StudyAlertsController {
 1. Objetivo funcional do passo no contexto da app.
    Permitir que a aplicação carregue controller, service, schema e dependências num módulo coeso.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/study-alerts/study-alerts.module.ts`
-   - EDITAR: `real_dev/api/src/app.module.ts`
+   - CRIAR: `apps/api/src/modules/study-alerts/study-alerts.module.ts`
+   - EDITAR: `apps/api/src/app.module.ts`
    - LOCALIZAÇÃO: `módulo completo e lista de imports do AppModule`
 3. Instruções do que fazer.
    Cria o módulo e adiciona `StudyAlertsModule` à lista de imports do AppModule, preservando os módulos existentes.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/study-alerts/study-alerts.module.ts
+// apps/api/src/modules/study-alerts/study-alerts.module.ts
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "../auth/auth.module.js";
@@ -496,14 +497,14 @@ export class StudyAlertsModule {}
 1. Objetivo funcional do passo no contexto da app.
    Isolar a chamada HTTP para que o componente não tenha URLs, métodos ou parsing espalhados.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/web/src/features/study-alerts/load-study-alerts.ts`
+   - CRIAR: `apps/web/src/features/study-alerts/load-study-alerts.ts`
    - LOCALIZAÇÃO: `ficheiro completo`
 3. Instruções do que fazer.
    Cria uma função de API com payload e resposta tipados.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/src/features/study-alerts/load-study-alerts.ts
+// apps/web/src/features/study-alerts/load-study-alerts.ts
 import { NotificationContext } from "../notification-preferences/update-notification-preferences.js";
 import { requestMf3Json } from "../mf3/request-mf3-json.js";
 
@@ -541,14 +542,14 @@ export function loadStudyAlerts(onlyUpcoming = true): Promise<StudyAlert[]> {
 1. Objetivo funcional do passo no contexto da app.
    Dar ao aluno um ecrã simples para testar o endpoint sem ferramentas externas.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/web/src/features/study-alerts/study-alerts-panel.tsx`
+   - CRIAR: `apps/web/src/features/study-alerts/study-alerts-panel.tsx`
    - LOCALIZAÇÃO: `componente completo`
 3. Instruções do que fazer.
    Cria o componente com formulário, loading, erro, vazio e sucesso.
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/features/study-alerts/study-alerts-panel.tsx
+// apps/web/src/features/study-alerts/study-alerts-panel.tsx
 import { useEffect, useState } from "react";
 import { loadStudyAlerts, StudyAlert } from "./load-study-alerts.js";
 
@@ -616,18 +617,18 @@ export function StudyAlertsPanel() {
 1. Objetivo funcional do passo no contexto da app.
    Registar o contrato mínimo que a equipa deve cobrir com testes e evidência.
 2. Ficheiros envolvidos:
-   - REVER: `real_dev/api/src/modules/mf3-http-contracts.spec.ts`
+   - REVER: `apps/api/src/modules/mf3-http-contracts.spec.ts`
    - LOCALIZAÇÃO: `teste de contrato MF3 e teste unitário do módulo`
 3. Instruções do que fazer.
    Revê os testes Jest já configurados para a MF3 e confirma o cenário deste BK sem adicionar dependências novas.
 4. Código completo, correto e integrado com a app final.
 
-Sem código neste passo. Este passo é de validação: usa os testes Jest existentes em `real_dev/api/src/modules/mf3-http-contracts.spec.ts` e o teste unitário do módulo correspondente, sem adicionar dependências novas.
+Sem código neste passo. Este passo é de validação: usa os testes Jest existentes em `apps/api/src/modules/mf3-http-contracts.spec.ts` e o teste unitário do módulo correspondente, sem adicionar dependências novas.
 
 5. Explicação do código.
    A validação usa Jest e os testes de contrato existentes da MF3 para confirmar rota, autenticação, DTO e cenário negativo sem introduzir dependências HTTP externas.
 6. Validação do passo.
-   Executa os testes unitários da API e confirma que o ficheiro `real_dev/api/src/modules/mf3-http-contracts.spec.ts` cobre o endpoint documentado.
+   Executa os testes unitários da API e confirma que o ficheiro `apps/api/src/modules/mf3-http-contracts.spec.ts` cobre o endpoint documentado.
 7. Cenário negativo/erro esperado.
    Não marques o BK como concluído sem pelo menos um negativo de autenticação/autorização e um negativo de validação.
 

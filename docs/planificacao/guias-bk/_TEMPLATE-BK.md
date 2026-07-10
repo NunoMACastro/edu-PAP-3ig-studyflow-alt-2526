@@ -12,7 +12,8 @@
 - `owner`: `...`
 - `apoio`: `...`
 - `prioridade`: `P0|P1|P2`
-- `estado`: `TODO|IN_PROGRESS|DONE|BLOCKED`
+- `estado`: `TODO|DONE`
+- `real_dev_status`: `VALIDADO|IMPLEMENTADO_NAO_VALIDADO|PARCIAL|MITIGADO_POR_ESCOPO|BLOQUEADO_OPERADOR|NAO_IMPLEMENTADO|NAO_APLICAVEL`
 - `esforco`: `S|M|L`
 - `dependencias`: `BK-...|-`
 - `rf_rnf`: `RFxx|RNFxx|RFxx,RNFyy`
@@ -55,7 +56,7 @@ Explica porque este BK existe no StudyFlow, que RF/RNF cumpre, que problema de a
 - RF/RNF aplicaveis.
 - BKs anteriores obrigatorios.
 - Documentos canonicos a consultar, incluindo `CORE-DUAL-CONTRATO.md` e `ANEXO-CORE-DUAL-BK.md` quando aplicavel.
-- Ficheiros reais em `real_dev/api` e `real_dev/web`, se existirem.
+- Ficheiros reais em `apps/api` e `apps/web`, se existirem.
 
 #### Glossario
 
@@ -80,10 +81,10 @@ Explica a teoria minima para o aluno perceber o raciocinio: aluno, professor, tu
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/api/...`
-- EDITAR: `real_dev/api/...`
-- CRIAR: `real_dev/web/...`
-- EDITAR: `real_dev/web/...`
+- CRIAR: `apps/api/...`
+- EDITAR: `apps/api/...`
+- CRIAR: `apps/web/...`
+- EDITAR: `apps/web/...`
 - REVER: `docs/planificacao/guias-bk/MF*/BK-...md`
 
 #### Tutorial tecnico linear
@@ -157,7 +158,7 @@ Repetir exatamente a estrutura do Passo 1.
 
 #### Validacao final
 
-- Executar validadores reais de `real_dev/api/package.json` e `real_dev/web/package.json`.
+- Executar validadores reais de `apps/api/package.json` e `apps/web/package.json`.
 - Executar smoke principal.
 - Executar negativos de sessao ausente, acesso cruzado, falta de fontes, role sem acesso e input invalido quando aplicavel.
 

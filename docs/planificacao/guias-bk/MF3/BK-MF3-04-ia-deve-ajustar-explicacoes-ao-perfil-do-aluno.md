@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF1-01`
 - `rf_rnf`: `RF40`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF3-05`
 - `guia_path`: `docs/planificacao/guias-bk/MF3/BK-MF3-04-ia-deve-ajustar-explicacoes-ao-perfil-do-aluno.md`
-- `last_updated`: `2026-06-26`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -104,25 +105,25 @@ Este BK transforma o requisito RF40 numa entrega copiável e testável. A funcio
 #### Arquitetura do BK
 
 - Endpoint: `POST /api/ai/adaptive-explanations`.
-- Backend: `real_dev/api/src/modules/adaptive-explanations`.
-- Frontend: `real_dev/web/src/features/adaptive-explanations`.
+- Backend: `apps/api/src/modules/adaptive-explanations`.
+- Frontend: `apps/web/src/features/adaptive-explanations`.
 - DTO principal: `AskAdaptiveExplanationDto`.
 - Service principal: `AdaptiveExplanationsService`.
 - Controller principal: `AdaptiveExplanationsController`.
 - Módulo principal: `AdaptiveExplanationsModule`.
-- Persistência herdada: `real_dev/api/src/modules/ai/schemas/adaptive-explanation.schema.ts`.
+- Persistência herdada: `apps/api/src/modules/ai/schemas/adaptive-explanation.schema.ts`.
 - Handoff: `BK-MF3-05`.
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/api/src/modules/adaptive-explanations/dto/ask-adaptive-explanation.dto.ts`
-- REVER: `real_dev/api/src/modules/ai/schemas/adaptive-explanation.schema.ts`
-- CRIAR: `real_dev/api/src/modules/adaptive-explanations/adaptive-explanations.service.ts`
-- CRIAR: `real_dev/api/src/modules/adaptive-explanations/adaptive-explanations.controller.ts`
-- CRIAR: `real_dev/api/src/modules/adaptive-explanations/adaptive-explanations.module.ts`
-- CRIAR: `real_dev/web/src/features/adaptive-explanations/ask-adaptive-explanation.ts`
-- CRIAR: `real_dev/web/src/features/adaptive-explanations/adaptive-explanation-panel.tsx`
-- REVER: `real_dev/api/src/app.module.ts` para importar o módulo criado.
+- CRIAR: `apps/api/src/modules/adaptive-explanations/dto/ask-adaptive-explanation.dto.ts`
+- REVER: `apps/api/src/modules/ai/schemas/adaptive-explanation.schema.ts`
+- CRIAR: `apps/api/src/modules/adaptive-explanations/adaptive-explanations.service.ts`
+- CRIAR: `apps/api/src/modules/adaptive-explanations/adaptive-explanations.controller.ts`
+- CRIAR: `apps/api/src/modules/adaptive-explanations/adaptive-explanations.module.ts`
+- CRIAR: `apps/web/src/features/adaptive-explanations/ask-adaptive-explanation.ts`
+- CRIAR: `apps/web/src/features/adaptive-explanations/adaptive-explanation-panel.tsx`
+- REVER: `apps/api/src/app.module.ts` para importar o módulo criado.
 
 #### Tutorial técnico linear
 
@@ -133,14 +134,14 @@ Este BK transforma o requisito RF40 numa entrega copiável e testável. A funcio
 1. Objetivo funcional do passo no contexto da app.
    Garantir que o endpoint recebe dados claros e rejeita input inválido antes do service.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/adaptive-explanations/dto/ask-adaptive-explanation.dto.ts`
+   - CRIAR: `apps/api/src/modules/adaptive-explanations/dto/ask-adaptive-explanation.dto.ts`
    - LOCALIZAÇÃO: `ficheiro completo`
 3. Instruções do que fazer.
    Cria o DTO com validações declarativas e nomes iguais ao payload documentado neste BK.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/adaptive-explanations/dto/ask-adaptive-explanation.dto.ts
+// apps/api/src/modules/adaptive-explanations/dto/ask-adaptive-explanation.dto.ts
 import { IsMongoId, IsString, MaxLength, MinLength } from "class-validator";
 
 /**
@@ -175,14 +176,14 @@ export class AskMf3AdaptiveExplanationDto {
 1. Objetivo funcional do passo no contexto da app.
    Confirmar que a MF3 reutiliza a persistência já entregue pela IA adaptativa, sem criar um segundo modelo para o mesmo conceito.
 2. Ficheiros envolvidos:
-   - REVER: `real_dev/api/src/modules/ai/schemas/adaptive-explanation.schema.ts`
+   - REVER: `apps/api/src/modules/ai/schemas/adaptive-explanation.schema.ts`
    - LOCALIZAÇÃO: `schema herdado de MF1`
 3. Instruções do que fazer.
    Revê o schema já existente e confirma que o novo endpoint MF3 usa o service herdado em vez de duplicar persistência.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/ai/schemas/adaptive-explanation.schema.ts
+// apps/api/src/modules/ai/schemas/adaptive-explanation.schema.ts
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
 
@@ -227,21 +228,21 @@ AdaptiveExplanationSchema.index({ userId: 1, studyAreaId: 1, createdAt: -1 });
 6. Validação do passo.
    Confirma que `AdaptiveExplanationsService` injeta `AdaptiveLearningService` e não injeta um modelo Mongoose novo deste módulo.
 7. Cenário negativo/erro esperado.
-   Não cries outro modelo `AdaptiveExplanation` dentro de `real_dev/api/src/modules/adaptive-explanations`; isso duplicaria o contrato herdado e confundiria BKs seguintes.
+   Não cries outro modelo `AdaptiveExplanation` dentro de `apps/api/src/modules/adaptive-explanations`; isso duplicaria o contrato herdado e confundiria BKs seguintes.
 
 ### Passo 3 - Implementar o service de aplicação
 
 1. Objetivo funcional do passo no contexto da app.
    Concentrar regras de negócio, ownership, membership, erros e efeitos de persistência num ponto testável.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/adaptive-explanations/adaptive-explanations.service.ts`
+   - CRIAR: `apps/api/src/modules/adaptive-explanations/adaptive-explanations.service.ts`
    - LOCALIZAÇÃO: `classe completa do service`
 3. Instruções do que fazer.
    Cria o service e injeta apenas módulos herdados ou ficheiros criados neste BK.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/adaptive-explanations/adaptive-explanations.service.ts
+// apps/api/src/modules/adaptive-explanations/adaptive-explanations.service.ts
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { AdaptiveLearningService } from "../ai/adaptive-learning.service.js";
@@ -292,14 +293,14 @@ export class AdaptiveExplanationsService {
 1. Objetivo funcional do passo no contexto da app.
    Ligar `POST /api/ai/adaptive-explanations` ao service sem colocar regras sensíveis no controller.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/adaptive-explanations/adaptive-explanations.controller.ts`
+   - CRIAR: `apps/api/src/modules/adaptive-explanations/adaptive-explanations.controller.ts`
    - LOCALIZAÇÃO: `classe completa do controller`
 3. Instruções do que fazer.
    Cria o controller com `SessionGuard`, `@Req() request: AuthenticatedRequest` e delegação direta para o service.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/adaptive-explanations/adaptive-explanations.controller.ts
+// apps/api/src/modules/adaptive-explanations/adaptive-explanations.controller.ts
 import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
@@ -343,15 +344,15 @@ export class AdaptiveExplanationsController {
 1. Objetivo funcional do passo no contexto da app.
    Permitir que a aplicação carregue controller, service, schema e dependências num módulo coeso.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/adaptive-explanations/adaptive-explanations.module.ts`
-   - EDITAR: `real_dev/api/src/app.module.ts`
+   - CRIAR: `apps/api/src/modules/adaptive-explanations/adaptive-explanations.module.ts`
+   - EDITAR: `apps/api/src/app.module.ts`
    - LOCALIZAÇÃO: `módulo completo e lista de imports do AppModule`
 3. Instruções do que fazer.
    Cria o módulo e adiciona `AdaptiveExplanationsModule` à lista de imports do AppModule, preservando os módulos existentes.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/adaptive-explanations/adaptive-explanations.module.ts
+// apps/api/src/modules/adaptive-explanations/adaptive-explanations.module.ts
 import { Module } from "@nestjs/common";
 import { AiModule } from "../ai/ai.module.js";
 import { AuthModule } from "../auth/auth.module.js";
@@ -381,14 +382,14 @@ export class AdaptiveExplanationsModule {}
 1. Objetivo funcional do passo no contexto da app.
    Isolar a chamada HTTP para que o componente não tenha URLs, métodos ou parsing espalhados.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/web/src/features/adaptive-explanations/ask-adaptive-explanation.ts`
+   - CRIAR: `apps/web/src/features/adaptive-explanations/ask-adaptive-explanation.ts`
    - LOCALIZAÇÃO: `ficheiro completo`
 3. Instruções do que fazer.
    Cria uma função de API com payload e resposta tipados.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/src/features/adaptive-explanations/ask-adaptive-explanation.ts
+// apps/web/src/features/adaptive-explanations/ask-adaptive-explanation.ts
 import { AdaptiveExplanation } from "../../lib/apiClient.js";
 import { requestMf3Json } from "../mf3/request-mf3-json.js";
 
@@ -421,14 +422,14 @@ export function askMf3AdaptiveExplanation(input: {
 1. Objetivo funcional do passo no contexto da app.
    Dar ao aluno um ecrã simples para testar o endpoint sem ferramentas externas.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/web/src/features/adaptive-explanations/adaptive-explanation-panel.tsx`
+   - CRIAR: `apps/web/src/features/adaptive-explanations/adaptive-explanation-panel.tsx`
    - LOCALIZAÇÃO: `componente completo`
 3. Instruções do que fazer.
    Cria o componente com formulário, loading, erro, vazio e sucesso.
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/features/adaptive-explanations/adaptive-explanation-panel.tsx
+// apps/web/src/features/adaptive-explanations/adaptive-explanation-panel.tsx
 import { FormEvent, useState } from "react";
 import { AdaptiveExplanation } from "../../lib/apiClient.js";
 import { askMf3AdaptiveExplanation } from "./ask-adaptive-explanation.js";
@@ -504,18 +505,18 @@ export function AdaptiveExplanationPanel() {
 1. Objetivo funcional do passo no contexto da app.
    Registar o contrato mínimo que a equipa deve cobrir com testes e evidência.
 2. Ficheiros envolvidos:
-   - REVER: `real_dev/api/src/modules/mf3-http-contracts.spec.ts`
+   - REVER: `apps/api/src/modules/mf3-http-contracts.spec.ts`
    - LOCALIZAÇÃO: `teste de contrato MF3 e teste unitário do módulo`
 3. Instruções do que fazer.
    Revê os testes Jest já configurados para a MF3 e confirma o cenário deste BK sem adicionar dependências novas.
 4. Código completo, correto e integrado com a app final.
 
-Sem código neste passo. Este passo é de validação: usa os testes Jest existentes em `real_dev/api/src/modules/mf3-http-contracts.spec.ts` e o teste unitário do módulo correspondente, sem adicionar dependências novas.
+Sem código neste passo. Este passo é de validação: usa os testes Jest existentes em `apps/api/src/modules/mf3-http-contracts.spec.ts` e o teste unitário do módulo correspondente, sem adicionar dependências novas.
 
 5. Explicação do código.
    A validação usa Jest e os testes de contrato existentes da MF3 para confirmar rota, autenticação, DTO e cenário negativo sem introduzir dependências HTTP externas.
 6. Validação do passo.
-   Executa os testes unitários da API e confirma que o ficheiro `real_dev/api/src/modules/mf3-http-contracts.spec.ts` cobre o endpoint documentado.
+   Executa os testes unitários da API e confirma que o ficheiro `apps/api/src/modules/mf3-http-contracts.spec.ts` cobre o endpoint documentado.
 7. Cenário negativo/erro esperado.
    Não marques o BK como concluído sem pelo menos um negativo de autenticação/autorização e um negativo de validação.
 

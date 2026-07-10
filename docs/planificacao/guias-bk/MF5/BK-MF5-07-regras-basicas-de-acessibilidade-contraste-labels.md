@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF05`
@@ -17,11 +18,13 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF5-08`
 - `guia_path`: `docs/planificacao/guias-bk/MF5/BK-MF5-07-regras-basicas-de-acessibilidade-contraste-labels.md`
-- `last_updated`: `2026-06-19`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais implementar um componente `FormField` para garantir labels, textos de ajuda, erros associados ao campo e contraste legível nos formulários principais. Depois vais aplicar esse componente nos formulários reais de turmas e materiais.
+Neste BK vais implementar o contrato transversal de acessibilidade: labels, textos de ajuda e erros associados, `fieldset`/`legend` em grupos, live regions, skip link, foco visível e contraste verificável. Depois vais aplicá-lo nos formulários e fluxos principais.
+
+Critérios mensuráveis: contraste mínimo `4,5:1` para texto normal e `3:1` para controlos/limites visuais; todos os campos inválidos usam `aria-invalid` e `aria-describedby`; a navegação por teclado mantém foco visível; axe não reporta violações `serious` ou `critical`.
 
 #### Importância
 
@@ -33,8 +36,9 @@ Neste BK vais implementar um componente `FormField` para garantir labels, textos
 - Aplicar `FormField` em `apps/web/src/pages/teacher/TeacherClassesPage.tsx`.
 - Aplicar `FormField` em `apps/web/src/components/materials/MaterialSubmitForm.tsx`.
 - Associar label, ajuda e erro com IDs estáveis.
-- Garantir contraste com classes Tailwind já usadas no projeto.
-- Criar smoke Playwright focado em labels e atributos acessíveis.
+- Usar `fieldset`/`legend` para escolhas relacionadas, live regions para feedback e skip link para o conteúdo principal.
+- Garantir contraste de 4,5:1 no texto e 3:1 nos controlos, sem depender apenas de cor.
+- Criar testes component/E2E com teclado e axe, além dos asserts de labels e atributos.
 
 #### Scope-out
 

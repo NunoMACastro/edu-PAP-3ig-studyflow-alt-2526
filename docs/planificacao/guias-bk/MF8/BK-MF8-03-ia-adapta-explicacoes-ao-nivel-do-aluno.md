@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF36`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF8-04`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-03-ia-adapta-explicacoes-ao-nivel-do-aluno.md`
-- `last_updated`: `2026-07-02`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -650,7 +651,7 @@ Resultado esperado: uma área sem materiais processáveis devolve `422` com `NO_
 
 7. Cenário negativo/erro esperado.
 
-Força o provider a devolver `sourceMaterialIds` que não existem nas fontes autorizadas. O esperado é `ServiceUnavailableException` com `AI_PROVIDER_INVALID_ADAPTIVE_EXPLANATION`, sem `explanationModel.create(...)` e sem evento de histórico.
+Força a fachada simulada a devolver `sourceMaterialIds` fora das fontes autorizadas. O esperado é `ServiceUnavailableException` com `AI_INVALID_ADAPTIVE_EXPLANATION`, sem persistência nem evento de histórico.
 
 
 ### Passo 5 - Ligar cliente React e painel da interface
@@ -1210,8 +1211,8 @@ Se algum teste falhar, não marques o BK como concluído. Regista o erro observa
 - Executar a pesquisa textual obrigatória da prompt nos guias MF8 e confirmar que não há linguagem interna, caminhos privados ou padrões inseguros.
 - `npm --prefix apps/api test -- adaptive-explanations`
 - `npm --prefix apps/api test -- adaptive-learning`
-- `npm --prefix real_dev/api test -- room-ai.service.spec.ts --runInBand`
-- `npm --prefix real_dev/api test -- room-ai-pedagogy.spec.ts --runInBand`
+- `npm --prefix apps/api test -- room-ai.service.spec.ts --runInBand`
+- `npm --prefix apps/api test -- room-ai-pedagogy.spec.ts --runInBand`
 - `git diff --check`
 - `bash scripts/validate-planificacao.sh`
 

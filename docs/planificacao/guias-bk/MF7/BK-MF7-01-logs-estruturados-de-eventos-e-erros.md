@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF23`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF7-02`
 - `guia_path`: `docs/planificacao/guias-bk/MF7/BK-MF7-01-logs-estruturados-de-eventos-e-erros.md`
-- `last_updated`: `2026-06-26`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 

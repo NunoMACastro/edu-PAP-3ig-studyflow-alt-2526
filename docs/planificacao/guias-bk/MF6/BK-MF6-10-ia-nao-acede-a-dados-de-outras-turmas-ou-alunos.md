@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF20`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF6-11`
 - `guia_path`: `docs/planificacao/guias-bk/MF6/BK-MF6-10-ia-nao-acede-a-dados-de-outras-turmas-ou-alunos.md`
-- `last_updated`: `2026-06-23`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -37,10 +38,10 @@ Este BK fecha a MF6 na parte de privacidade da IA: a app pode ter IA privada, IA
 
 - Rever o contrato de `RNF20`.
 - Validar o fluxo `source-grounded AI` com `MaterialIndexService.findReadableDoneJob`.
-- Garantir que `SourceGroundedAiService` autoriza cada `sourceJobId` antes de chamar `AI_PROVIDER`.
+- Garantir que `SourceGroundedAiService` autoriza cada `sourceJobId` antes de delegar na `GovernedAiExecutionService`.
 - Manter o DTO source-grounded limitado a `sourceJobIds` e `question`.
 - Confirmar que IA privada, IA de sala e IA de turma usam fontes filtradas pelo backend.
-- Acrescentar teste negativo para fonte proibida antes do provider.
+- Acrescentar teste negativo para fonte proibida antes da fachada governada.
 - Produzir evidence sem prompts privados, documentos reais, cookies, tokens ou dados pessoais.
 
 #### Scope-out
@@ -79,7 +80,7 @@ Antes de começar, lê:
 - **Actor:** utilizador autenticado recebido pelo backend.
 - **Fonte autorizada:** job de indexação que o backend confirmou que o actor pode ler.
 - **Prompt:** texto enviado ao provider de IA. Não deve conter dados fora do contexto autorizado.
-- **Provider:** integração isolada por `AI_PROVIDER`.
+- **Fachada IA:** `GovernedAiExecutionService` é a única fronteira de execução externa; o fluxo source-grounded não injeta nem exporta o provider.
 - **Citação:** excerto limitado devolvido com a resposta para justificar a origem.
 - **Fonte privada:** documento da área pessoal do aluno.
 - **Fonte de sala:** documento partilhado numa sala onde o aluno é membro.
@@ -257,7 +258,7 @@ O primeiro comando deve ficar sem ocorrências no módulo source-grounded. Se ex
 
 7. Cenário negativo/erro esperado.
 
-Se um aluno enviar manualmente um id de fonte que não pode ler, o DTO pode aceitar o formato do id, mas o service deve rejeitar a leitura antes do provider.
+Se um aluno enviar manualmente um id de fonte que não pode ler, o DTO pode aceitar o formato, mas o service rejeita a leitura antes da fachada governada.
 
 ### Passo 3 - Autorizar cada fonte antes de montar o prompt
 
@@ -273,7 +274,7 @@ Garantir que `SourceGroundedAiService` só constrói prompts com fontes autoriza
 
 3. Instruções do que fazer.
 
-Confirma que o service importa `AuthenticatedUser` a partir de `common/types/authenticated-request.js`, injeta `AI_PROVIDER` e chama `findReadableDoneJob(actor, jobId)` para cada fonte antes de selecionar chunks.
+Confirma que o service importa `AuthenticatedUser`, injeta `GovernedAiExecutionService` e chama `findReadableDoneJob(actor, jobId)` para cada fonte antes de selecionar chunks.
 
 4. Código completo, correto e integrado com a app final.
 
@@ -282,15 +283,13 @@ Confirma que o service importa `AuthenticatedUser` a partir de `common/types/aut
  * Implementa as regras de negócio de IA com fontes obrigatórias e concentra validações do domínio.
  */
 import {
-    Inject,
     Injectable,
-    ServiceUnavailableException,
     UnprocessableEntityException,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
-import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider.js";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service.js";
 import {
     MaterialIndexJobView,
     MaterialIndexService,
@@ -318,8 +317,8 @@ export type SourceGroundedAiAnswerView = {
 /**
  * Serviço de respostas com citações obrigatórias.
  *
- * A resposta é pedida ao provider isolado de IA depois de o backend validar
- * fontes autorizadas. O prompt inclui apenas excertos processáveis e impede
+ * A resposta é pedida à fachada governada depois de o backend validar
+ * fontes autorizadas. A execução inclui apenas excertos processáveis e impede
  * conhecimento externo, preservando o contrato anti-alucinação do BK.
  */
 @Injectable()
@@ -329,14 +328,13 @@ export class SourceGroundedAiService {
      *
      * @param answerModel Modelo Mongoose injetado para ler e persistir IA com fontes obrigatórias.
      * @param materialIndexService Service injetado para reutilizar regras de indexação textual de materiais sem duplicar validações.
-     * @param aiProvider Provider injetado para isolar integração externa e facilitar testes.
+     * @param governedAiExecutionService Fachada governada injetada para executar IA.
      */
     constructor(
         @InjectModel(SourceGroundedAiAnswer.name)
         private readonly answerModel: Model<SourceGroundedAiAnswerDocument>,
         private readonly materialIndexService: MaterialIndexService,
-        @Inject(AI_PROVIDER)
-        private readonly aiProvider: AiProvider,
+        private readonly governedAiExecutionService: GovernedAiExecutionService,
     ) {}
 
     /**
@@ -371,7 +369,7 @@ export class SourceGroundedAiService {
             });
         }
 
-        const answer = await this.generateAnswer(input.question, citations);
+        const answer = await this.generateAnswer(actor, input.question, citations);
 
         // Persistir as citações junto da resposta permite auditoria posterior do output da IA.
         const document = await this.answerModel.create({
@@ -446,61 +444,35 @@ export class SourceGroundedAiService {
     }
 
     /**
-     * Chama o provider IA com um prompt limitado aos excertos citados.
+     * Delega a execução na fachada com fontes previamente autorizadas.
      *
      * @param question Pergunta original.
      * @param citations Citações autorizadas.
      * @returns Resposta validada.
      */
     private async generateAnswer(
+        actor: AuthenticatedUser,
         question: string,
         citations: SourceGroundedCitation[],
     ): Promise<string> {
-        const prompt = [
-            "Responde em português de Portugal e só usa factos suportados pelas fontes.",
-            "Não acrescentes conhecimento externo nem conteúdo não citado.",
-            "Pergunta:",
-            question.trim(),
-            "Fontes autorizadas:",
-            citations
-                .map(
-                    (citation, index) =>
-                        `Fonte ${index + 1} (${citation.sourceJobId}, ${citation.locator}): ${citation.excerpt}`,
-                )
-                .join("\n"),
-            "Devolve JSON com a chave answer.",
-        ].join("\n");
-
-        let providerResult: Record<string, unknown>;
-        try {
-            // Mesmo usando IA, o backend mantém a regra de só responder com excertos citados.
-            providerResult = await this.aiProvider.generateStudyTool({
-                prompt,
-                type: "EXPLANATION",
-            });
-        } catch {
-            throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_UNAVAILABLE",
-                message: "A IA está temporariamente indisponível.",
-            });
-        }
-
-        const answer = providerResult.answer;
-        if (typeof answer !== "string" || answer.trim().length === 0) {
-            throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_INVALID_RESPONSE",
-                message: "A IA devolveu uma resposta inválida.",
-            });
-        }
-
-        return answer.trim();
+        const result = await this.governedAiExecutionService.execute({
+            actor,
+            purpose: "SOURCE_GROUNDED_AI",
+            userInput: question.trim(),
+            authorizedSources: citations.map((citation) => ({
+                id: citation.sourceJobId,
+                locator: citation.locator,
+                excerpt: citation.excerpt,
+            })),
+        });
+        return result.answer;
     }
 }
 ```
 
 5. Explicação do código.
 
-A linha de defesa principal é `findReadableDoneJob(actor, jobId)`. Se essa função rejeitar a fonte, a execução pára e o provider não recebe excertos. O service também limita o excerto devolvido em cada citação, persiste a resposta com o `actorId` e valida se o provider devolveu texto.
+A linha de defesa principal é `findReadableDoneJob(actor, jobId)`. Se rejeitar a fonte, a execução para antes da fachada. A fachada aplica consentimento, policy, limites, guardrails, quota atómica, chamada externa, validação de output e audit seguro.
 
 6. Validação do passo.
 
@@ -518,7 +490,7 @@ Se trocares temporariamente `findReadableDoneJob` por uma leitura direta por id,
 
 1. Objetivo funcional do passo no contexto da app.
 
-Provar automaticamente que uma fonte sem autorização não chega ao provider de IA.
+Provar automaticamente que uma fonte sem autorização não chega à fachada governada.
 
 2. Ficheiros envolvidos:
 
@@ -526,7 +498,7 @@ Provar automaticamente que uma fonte sem autorização não chega ao provider de
 
 3. Instruções do que fazer.
 
-Mantém o teste positivo, mantém o teste sem chunks e acrescenta um teste em que `findReadableDoneJob` rejeita uma fonte. Nesse cenário, `generateStudyTool` e `answerModel.create` não podem ser chamados.
+Mantém o teste positivo, mantém o teste sem chunks e acrescenta um teste em que `findReadableDoneJob` rejeita uma fonte. Nesse cenário, `execute` e `answerModel.create` não podem ser chamados.
 
 4. Código completo, correto e integrado com a app final.
 
@@ -548,7 +520,7 @@ describe("SourceGroundedAiService", () => {
     const materialId = "507f1f77bcf86cd799439014";
 
     it("cria resposta com citações de chunks autorizados", async () => {
-        const { aiProvider, answerModel, materialIndexService, service } =
+        const { governedAiExecutionService, answerModel, materialIndexService, service } =
             makeService();
 
         await expect(
@@ -578,16 +550,16 @@ describe("SourceGroundedAiService", () => {
                 citations: expect.any(Array),
             }),
         );
-        expect(aiProvider.generateStudyTool).toHaveBeenCalledWith(
+        expect(governedAiExecutionService.execute).toHaveBeenCalledWith(
             expect.objectContaining({
-                type: "EXPLANATION",
-                prompt: expect.stringContaining("Fontes autorizadas"),
+                purpose: "SOURCE_GROUNDED_AI",
+                authorizedSources: expect.any(Array),
             }),
         );
     });
 
-    it("bloqueia fonte sem autorização antes de chamar o provider", async () => {
-        const { aiProvider, answerModel, materialIndexService, service } =
+    it("bloqueia fonte sem autorização antes da fachada governada", async () => {
+        const { governedAiExecutionService, answerModel, materialIndexService, service } =
             makeService();
         materialIndexService.findReadableDoneJob.mockRejectedValueOnce(
             new ForbiddenException({
@@ -603,7 +575,7 @@ describe("SourceGroundedAiService", () => {
             }),
         ).rejects.toBeInstanceOf(ForbiddenException);
 
-        expect(aiProvider.generateStudyTool).not.toHaveBeenCalled();
+        expect(governedAiExecutionService.execute).not.toHaveBeenCalled();
         expect(answerModel.create).not.toHaveBeenCalled();
     });
 
@@ -658,23 +630,23 @@ function makeService() {
             ],
         }),
     };
-    const aiProvider = {
-        generateStudyTool: jest
+    const governedAiExecutionService = {
+        execute: jest
             .fn()
             .mockResolvedValue({ answer: "Resposta gerada pelo provider." }),
     };
     const service = new SourceGroundedAiService(
         answerModel as never,
         materialIndexService as never,
-        aiProvider as never,
+        governedAiExecutionService as never,
     );
-    return { aiProvider, answerModel, materialIndexService, service };
+    return { governedAiExecutionService, answerModel, materialIndexService, service };
 }
 ```
 
 5. Explicação do código.
 
-O teste negativo confirma a ordem da segurança. A fonte é rejeitada pelo serviço de indexação antes de existir prompt, por isso o provider e a persistência não são chamados.
+O teste negativo confirma a ordem da segurança. A fonte é rejeitada antes da fachada, por isso a execução e a persistência não são chamadas.
 
 6. Validação do passo.
 
@@ -686,7 +658,7 @@ npm --prefix apps/api run test:unit -- source-grounded-ai
 
 7. Cenário negativo/erro esperado.
 
-Se `generateStudyTool` for chamado neste teste, a implementação está insegura: significa que dados potencialmente privados chegaram ao provider.
+Se `execute` for chamado neste teste, a implementação está insegura: significa que dados potencialmente privados chegaram à fronteira de execução.
 
 ### Passo 5 - Rever IA privada, IA de sala e IA de turma
 
@@ -726,12 +698,12 @@ A source-grounded AI cobre perguntas com fontes explícitas. A app também tem I
 Executa:
 
 ```bash
-rg -n "getMyStudyArea|ensureMember|findSubjectForStudent|listReadyTextSources|findUsableSharesForRoom|listProcessedForSubject|generateStudyTool" apps/api/src/modules/private-area-ai apps/api/src/modules/study-rooms apps/api/src/modules/class-ai
+rg -n "getMyStudyArea|ensureMember|findSubjectForStudent|listReadyTextSources|findUsableSharesForRoom|listProcessedForSubject|GovernedAiExecutionService" apps/api/src/modules/private-area-ai apps/api/src/modules/study-rooms apps/api/src/modules/class-ai
 ```
 
 7. Cenário negativo/erro esperado.
 
-Se algum fluxo chamar o provider antes de validar área privada, membership ou disciplina, esse fluxo deve ser corrigido antes de fechar o BK.
+Se algum fluxo invocar a fachada antes de validar área privada, membership ou disciplina, esse fluxo deve ser corrigido antes de fechar o BK.
 
 ### Passo 6 - Confirmar ausência de logs e evidence sensível
 
@@ -806,7 +778,7 @@ Executa:
 ```bash
 npm --prefix apps/api run build
 npm --prefix apps/api run test:unit -- source-grounded-ai
-rg -n "findReadableDoneJob|AI_PROVIDER|AuthenticatedUser|generateStudyTool" apps/api/src/modules/source-grounded-ai apps/api/src/common/types/authenticated-request.ts
+rg -n "findReadableDoneJob|GovernedAiExecutionService|AuthenticatedUser|execute" apps/api/src/modules/source-grounded-ai apps/api/src/common/types/authenticated-request.ts
 ```
 
 7. Cenário negativo/erro esperado.
@@ -818,10 +790,10 @@ Se a build ou o teste source-grounded falhar, não marques o BK como concluído.
 - `AskSourceGroundedAiDto` mantém apenas `sourceJobIds` e `question`.
 - `SourceGroundedAiController` usa `SessionGuard` e passa `request.user` ao service.
 - `SourceGroundedAiService` importa `AuthenticatedUser` de `apps/api/src/common/types/authenticated-request.ts`.
-- `SourceGroundedAiService` injeta `AI_PROVIDER` e usa o contrato `AiProvider`.
+- `SourceGroundedAiService` injeta `GovernedAiExecutionService` e não conhece o provider.
 - Cada fonte passa por `MaterialIndexService.findReadableDoneJob(actor, jobId)` antes da seleção de chunks.
 - O provider não é chamado quando uma fonte não está autorizada.
-- O teste de fonte proibida confirma que `generateStudyTool` e `answerModel.create` não são chamados.
+- O teste de fonte proibida confirma que a fachada e `answerModel.create` não são chamados.
 - IA privada, IA de sala e IA de turma foram revistas quanto a área própria, membership e disciplina.
 - Evidence não inclui prompts completos, documentos privados, cookies, tokens, ids de sessão ou dados pessoais.
 
@@ -832,7 +804,7 @@ Executa, no mínimo:
 ```bash
 npm --prefix apps/api run build
 npm --prefix apps/api run test:unit -- source-grounded-ai
-rg -n "findReadableDoneJob|AI_PROVIDER|AuthenticatedUser|generateStudyTool" apps/api/src/modules/source-grounded-ai apps/api/src/common/types/authenticated-request.ts
+rg -n "findReadableDoneJob|GovernedAiExecutionService|AuthenticatedUser|execute" apps/api/src/modules/source-grounded-ai apps/api/src/common/types/authenticated-request.ts
 rg -n "contextType|resourceId|ownerId|roomId|classId" apps/api/src/modules/source-grounded-ai
 ```
 
@@ -840,7 +812,7 @@ Resultado esperado:
 
 - build sem erros;
 - testes source-grounded verdes;
-- presença explícita de `findReadableDoneJob`, `AI_PROVIDER` e `AuthenticatedUser`;
+- presença explícita de `findReadableDoneJob`, `GovernedAiExecutionService` e `AuthenticatedUser`;
 - ausência de campos de permissão vindos do cliente no módulo source-grounded.
 
 #### Evidence para PR/defesa
@@ -850,7 +822,7 @@ Regista evidence neste formato:
 ```md
 Comando: npm --prefix apps/api run test:unit -- source-grounded-ai
 Resultado: PASS na suite SourceGroundedAiService
-Negativo validado: fonte sem autorização rejeitada antes de chamar AI_PROVIDER
+Negativo validado: fonte sem autorização rejeitada antes da fachada governada
 Interpretação: RNF20 fica protegido porque a IA só recebe excertos de fontes autorizadas pelo backend
 ```
 
@@ -868,4 +840,4 @@ Acrescenta também:
 
 #### Changelog
 
-- `2026-06-23`: guia reescrito para `RNF20` com estrutura comum da MF6, contratos reais da API, `AuthenticatedUser` correto, `AI_PROVIDER`, autorização por `findReadableDoneJob`, teste negativo de fonte proibida e handoff para `BK-MF6-11`.
+- `2026-07-10`: execução source-grounded alinhada com `GovernedAiExecutionService`, mantendo autorização por `findReadableDoneJob` e teste negativo antes da fachada.

@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF02`
@@ -17,11 +18,11 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF5-05`
 - `guia_path`: `docs/planificacao/guias-bk/MF5/BK-MF5-04-layout-responsivo-para-desktop-tablet-mobile.md`
-- `last_updated`: `2026-06-19`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais implementar um frame responsivo reutilizável e aplicá-lo em páginas reais do aluno e do professor. O objetivo é que a aplicação continue legível em telemóvel, tablet e desktop, sem scroll horizontal, sobreposição de botões ou perda de estados de erro/carregamento.
+Neste BK vais implementar um frame responsivo reutilizável e aplicá-lo em páginas reais do aluno e do professor. O objetivo é que a aplicação continue legível em telemóvel, tablet e desktop, sem scroll horizontal, sobreposição de botões ou perda de estados de erro/carregamento. A aceitação mobile é explícita a `320`, `360`, `375` e `390` px.
 
 #### Importância
 
@@ -33,7 +34,8 @@ Neste BK vais implementar um frame responsivo reutilizável e aplicá-lo em pág
 - Reutilizar `PageHeader` criado em `BK-MF5-03`.
 - Editar `StudyAreaMaterialsPage.tsx` para usar frame responsivo.
 - Editar `TeacherClassesPage.tsx` para usar frame responsivo.
-- Criar smoke Playwright para validar 390px, 768px e 1440px.
+- Criar smoke Playwright para validar 320, 360, 375, 390, 768 e 1440 px.
+- Garantir alvos interativos de pelo menos 44 px, disclosure mobile abaixo do header, Escape, clique exterior e devolução de foco.
 
 #### Scope-out
 
@@ -590,6 +592,9 @@ const teacher = {
 };
 
 const viewports = [
+    { height: 720, width: 320 },
+    { height: 800, width: 360 },
+    { height: 812, width: 375 },
     { height: 844, width: 390 },
     { height: 1024, width: 768 },
     { height: 900, width: 1440 },
@@ -655,7 +660,7 @@ test("MF5 responsive: turmas do professor mantêm layout em mobile, tablet e des
 
 5. Explicação do código.
 
-O teste usa as mesmas credenciais E2E por variáveis de ambiente já usadas pelos smokes existentes. Entra pela UI para preservar o comportamento real de sessão e cookies HttpOnly. Depois percorre três larguras: 390px, 768px e 1440px.
+O teste usa credenciais E2E por variáveis de ambiente e entra pela UI para preservar sessão e cookies HttpOnly. Percorre 320, 360, 375, 390, 768 e 1440 px, valida ausência de overflow e confirma que os controlos críticos têm pelo menos 44 px.
 
 `expectNoHorizontalScroll` mede `scrollWidth` e `clientWidth`. Se a página tiver um elemento a rebentar a largura, o teste falha. Isto cumpre `RNF02` com evidence objetiva. O teste não valida ownership, porque esse contrato pertence aos endpoints backend; aqui valida apenas o comportamento visual.
 
@@ -677,7 +682,7 @@ Confirmar que o resultado é utilizável por aluno e professor, não apenas que 
     - REVER: `apps/web/src/pages/student/StudyAreaMaterialsPage.tsx`
     - REVER: `apps/web/src/pages/teacher/TeacherClassesPage.tsx`
     - REVER: `apps/web/tests/e2e/mf5-responsive-layout.spec.ts`
-    - LOCALIZAÇÃO: browser em 390px, 768px e 1440px.
+    - LOCALIZAÇÃO: browser em 320, 360, 375, 390, 768 e 1440 px.
 
 3. Instruções do que fazer.
 
@@ -736,7 +741,7 @@ Se `BK-MF5-05` criar outro componente de layout para resolver feedback, está a 
 - `ResponsivePageFrame.tsx` existe e exporta `ResponsivePageFrame`.
 - `StudyAreaMaterialsPage.tsx` usa `PageHeader` e `ResponsivePageFrame`.
 - `TeacherClassesPage.tsx` usa `PageHeader` e `ResponsivePageFrame`.
-- As páginas não criam scroll horizontal em 390px, 768px e 1440px.
+- As páginas não criam scroll horizontal em 320, 360, 375, 390, 768 e 1440 px.
 - O frontend continua sem decidir ownership, membership, role ou permissão.
 - O smoke `mf5-responsive-layout.spec.ts` existe e valida overflow horizontal.
 
@@ -751,7 +756,7 @@ Se `BK-MF5-05` criar outro componente de layout para resolver feedback, está a 
 
 - Output do build web.
 - Output do smoke Playwright responsivo.
-- Prints de `/app/areas`, `/app/professor/turmas` ou páginas com frame em 390px, 768px e 1440px.
+- Prints de `/app/areas`, `/app/professor/turmas` ou páginas com frame em 320, 360, 375, 390, 768 e 1440 px.
 - Nota: `RNF02 cumprida com ResponsivePageFrame, min-w-0, ordem mobile previsível e smoke sem scroll horizontal`.
 
 #### Handoff

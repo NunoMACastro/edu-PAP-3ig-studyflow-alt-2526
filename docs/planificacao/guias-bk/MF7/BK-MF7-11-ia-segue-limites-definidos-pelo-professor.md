@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF33`
@@ -17,11 +18,11 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF8-01`
 - `guia_path`: `docs/planificacao/guias-bk/MF7/BK-MF7-11-ia-segue-limites-definidos-pelo-professor.md`
-- `last_updated`: `2026-06-27`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais aplicar limites definidos pelo professor antes de chamar a IA da disciplina. O resultado observável é uma política que valida número de fontes, tamanho do prompt e estado ativo da funcionalidade.
+Neste BK vais aplicar limites docentes dentro da `GovernedAiExecutionService`. A fachada valida finalidade ativa, número de fontes e tamanho do input/prompt antes de reservar quota e chamar a integração externa.
 
 No fim, a equipa consegue demonstrar `RNF33` com código, validação e evidence, sem depender de decisões escondidas nem de memória oral.
 
@@ -49,8 +50,8 @@ Este BK é incremental: consome contratos já fechados nas MFs anteriores e entr
 
 #### Estado antes e depois
 
-- Estado antes: MF6 deixa segurança, recuperação, guardrails e isolamento de IA preparados, e a app já tem políticas de modelo, quotas e voz docente herdada, mas ainda falta explicitar a ordem segura que aplica limites antes do provider IA.
-- Estado depois: a app passa a ter a sequência `resolveForUse("CLASS_AI")`, `assertPromptWithinLimit(...)`, `reserveUsage(...)` e `generateClassAnswer(...)`, preparando `BK-MF8-01`.
+- Estado antes: MF6 deixa guardrails, políticas, quotas e voz docente, mas falta centralizar a ordem segura.
+- Estado depois: `GovernedAiExecutionService` aplica a sequência completa e prepara `BK-MF8-01`.
 
 #### Pre-requisitos
 
@@ -107,8 +108,8 @@ Este BK é incremental: consome contratos já fechados nas MFs anteriores e entr
 - Controller/route: controllers existentes mantêm sessão e delegam no service.
 - Guard/middleware: reutiliza `SessionGuard` quando o endpoint for privado; health e operação pública nunca expõem dados pessoais.
 - Cliente API: usa clientes existentes com `credentials: 'include'` quando houver frontend autenticado.
-- Segurança/autorização: limites e voz efetiva são aplicados no backend, depois de membership e antes do provider IA.
-- Testes: unitário de `assertPromptWithinLimit(...)`, teste de service para caminho principal e três negativos P0 antes do provider.
+- Segurança/autorização: limites e voz efetiva são aplicados na fachada depois de membership.
+- Testes: unitário de limites, service e três negativos P0 antes da integração externa.
 - Handoff para o próximo BK: `BK-MF8-01` passa a trabalhar segurança e enviesamento sobre IA já limitada.
 
 #### Ficheiros a criar/editar/rever
@@ -140,7 +141,7 @@ Confirmar que `BK-MF7-11` entrega `RNF33` sem alterar ID, owner, prioridade, spr
 Lê `RNF33` em `docs/RNF.md`, confirma a linha `BK-MF7-11` na matriz e regista as decisões seguintes:
 - `CANONICO`: `RNF33` exige que a IA siga limites definidos pelo professor.
 - `DERIVADO`: reaproveitar política de modelo, quota e voz docente já existentes.
-- `DERIVADO`: bloquear prompt antes do provider para evitar custo e resposta fora de contrato.
+- `DERIVADO`: bloquear input/prompt antes da reserva e integração externa.
 
 4. Código completo, correto e integrado com a app final.
 
@@ -230,7 +231,7 @@ export type ResolvedAiModelPolicy = {
 /**
  * Garante que o prompt final respeita o limite definido para a finalidade IA.
  *
- * @param prompt Prompt final que seria enviado ao provider.
+ * @param prompt Prompt final validado dentro da fachada.
  * @param policy Política efetiva resolvida para a finalidade IA.
  * @throws PayloadTooLargeException quando o prompt excede o limite permitido.
  */
@@ -283,7 +284,7 @@ Ligar o contrato principal ao ponto correto da app sem duplicar módulos.
 
 3. Instruções do que fazer.
 
-Confirma e preserva esta ordem: validar role, validar membership da disciplina, validar perfil/contexto herdado de `BK-MF7-10`, resolver consentimento e política, limitar número de fontes, construir prompt com voz docente, validar tamanho do prompt, reservar quota e só depois chamar o provider. Se faltar algum destes passos, adiciona-o no local indicado.
+No service de domínio valida role, membership e perfil/contexto. Depois delega fontes autorizadas e voz docente na fachada, que aplica consentimento, finalidade/policy, limites, guardrails, reserva atómica de quota, integração externa, validação de output e audit seguro.
 
 Não deixes o frontend enviar limites finais. O professor configura políticas por endpoints administrativos, mas `ClassAiService` é quem aplica os limites no backend.
 
@@ -294,10 +295,7 @@ No topo de `apps/api/src/modules/class-ai/class-ai.service.ts`, confirma estes i
 ```ts
 // apps/api/src/modules/class-ai/class-ai.service.ts
 import * as aiContextPolicy from "../ai/context/ai-context-policy.js";
-import {
-    AiModelPoliciesService,
-    assertPromptWithinLimit,
-} from "../ai-model-policies/ai-model-policies.service.js";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service.js";
 ```
 
 No mesmo ficheiro, mantém a assinatura pública e substitui o método `askClassAi(...)` por esta versão:
@@ -320,9 +318,6 @@ async askClassAi(
         await this.subjectsService.findSubjectForStudent(actor.id, subjectId);
 
     aiContextPolicy.assertAiContextProfile("CLASS_SUBJECT", "TEACHER_CLASS");
-    await this.aiConsentsService.assertGranted(actor.id, "CLASS_AI");
-    const policy = await this.aiModelPoliciesService.resolveForUse("CLASS_AI");
-
     const materials = await this.materialsService.listProcessedForSubject(
         subject._id,
     );
@@ -338,29 +333,16 @@ async askClassAi(
         classId: subject.classId.toString(),
         subjectId: subject._id.toString(),
     });
-    const limitedMaterials = materials.slice(0, policy.maxSourceCount);
-    const prompt = buildClassAiPrompt({
-        subjectName: subject.name,
-        question: input.question.trim(),
-        materials: limitedMaterials,
-        voice,
-    });
-    assertPromptWithinLimit(prompt, policy);
-    await this.aiQuotasService.reserveUsage({
-        scope: "CLASS",
-        targetId: String(schoolClass._id),
-        purpose: "CLASS_AI",
-        units: this.estimateUsageUnits(prompt),
-    });
 
     try {
-        // O provider só é chamado depois de contexto, consentimento, política, limite de prompt e quota.
-        const result = await this.aiProvider.generateClassAnswer({
-            prompt,
-            options: { model: policy.model, timeoutMs: policy.timeoutMs },
+        const result = await this.governedAiExecutionService.execute({
+            actor,
+            purpose: "CLASS_AI",
+            context: { classId: String(schoolClass._id), subjectId: String(subject._id) },
+            userInput: input.question.trim(),
+            authorizedSources: materials,
+            teacherVoice: voice,
         });
-        // A resposta só é aceite se citar materiais oficiais permitidos para esta disciplina.
-        this.validateResult(result, limitedMaterials);
 
         const interaction = await this.interactionModel.create({
             subjectId: new Types.ObjectId(subject._id),
@@ -385,8 +367,8 @@ async askClassAi(
             metadata: {
                 purpose: "CLASS_AI",
                 classId: String(schoolClass._id),
-                model: policy.model,
-                sourceCount: limitedMaterials.length,
+                model: result.model,
+                sourceCount: result.sourceMaterialIds.length,
             },
         });
 
@@ -397,7 +379,7 @@ async askClassAi(
             question: interaction.question,
             answer: interaction.answer,
             voiceRulesApplied: interaction.voiceRulesApplied,
-            sources: limitedMaterials.filter((material) =>
+            sources: materials.filter((material) =>
                 result.sourceMaterialIds.includes(material._id),
             ),
             createdAt: created.createdAt,
@@ -413,8 +395,7 @@ async askClassAi(
             metadata: {
                 purpose: "CLASS_AI",
                 classId: String(schoolClass._id),
-                model: policy.model,
-                sourceCount: limitedMaterials.length,
+                sourceCount: materials.length,
             },
         });
         if (
@@ -425,7 +406,7 @@ async askClassAi(
             throw error;
         }
         throw new ServiceUnavailableException({
-            code: "AI_PROVIDER_UNAVAILABLE",
+            code: "AI_EXECUTION_UNAVAILABLE",
             message: "A IA está temporariamente indisponível.",
         });
     }
@@ -434,13 +415,11 @@ async askClassAi(
 
 5. Explicação do código.
 
-A integração começa por confirmar que o utilizador é aluno e que pertence à disciplina. Depois reutiliza `assertAiContextProfile(...)`, entregue no `BK-MF7-10`, para garantir que os limites docentes só são aplicados à IA da turma/disciplina. O consentimento e a política são resolvidos antes de preparar a chamada externa, porque uma funcionalidade desativada não deve chegar ao provider.
-
-O número de fontes é limitado por `policy.maxSourceCount`; o prompt é construído com materiais oficiais e voz docente; `assertPromptWithinLimit(prompt, policy)` bloqueia contexto demasiado grande; `reserveUsage(...)` reserva quota antes do custo externo; e `generateClassAnswer(...)` só é chamado quando todos estes gates passam. A auditoria regista metadados técnicos mínimos, sem copiar prompt privado, resposta completa ou materiais oficiais para logs.
+O domínio confirma aluno, membership, perfil, fontes e voz docente. A fachada aplica todos os controlos restantes numa única sequência e audita apenas metadados mínimos.
 
 6. Validação do passo.
 
-Resultado esperado: `ClassAiService.askClassAi(...)` chama `assertAiContextProfile(...)`, `assertGranted(...)`, `resolveForUse("CLASS_AI")`, `assertPromptWithinLimit(...)` e `reserveUsage(...)` antes de `generateClassAnswer(...)`. Os testes devem provar que o provider não é chamado quando a política está desativada, quando o prompt excede o limite ou quando a quota falha.
+Os testes da fachada provam que finalidade desativada, limite excedido e quota falhada impedem a integração externa; o teste de domínio prova que membership/perfil falham antes da fachada.
 
 7. Cenário negativo/erro esperado.
 
@@ -459,7 +438,7 @@ Provar que o contrato de `BK-MF7-11` funciona e falha de forma controlada com co
 
 3. Instruções do que fazer.
 
-Adiciona os testes abaixo. Para este BK `P0`, a evidence mínima é: caminho principal, unit test da função de limite, teste de service e três negativos antes do provider.
+Adiciona os testes abaixo. Para este BK `P0`, a evidence mínima inclui três negativos antes da integração externa.
 
 4. Código completo, correto e integrado com a app final.
 
@@ -481,7 +460,7 @@ describe("assertPromptWithinLimit", () => {
     });
 
     it("aceita prompt dentro do limite configurado", () => {
-        // A função valida o contrato antes de o ClassAiService chamar o provider externo.
+        // A função valida o contrato dentro da fachada antes da integração externa.
         expect(() =>
             assertPromptWithinLimit("explica limites", { maxPromptChars: 100 }),
         ).not.toThrow();
@@ -504,17 +483,13 @@ import {
 No mesmo ficheiro, acrescenta estes testes dentro de `describe("ClassAiService", ...)`:
 
 ```ts
-it("não chama o provider quando a política de IA da disciplina está desativada", async () => {
+it("não persiste quando a fachada indica finalidade desativada", async () => {
     const {
-        aiModelPoliciesService,
-        aiProvider,
-        aiQuotasService,
+        governedAiExecutionService,
         interactionModel,
-        materialsService,
         service,
     } = makeService();
-    // A policy desativada deve falhar cedo para não listar materiais nem preparar contexto de IA.
-    aiModelPoliciesService.resolveForUse.mockRejectedValueOnce(
+    governedAiExecutionService.execute.mockRejectedValueOnce(
         new ServiceUnavailableException({
             code: "AI_MODEL_POLICY_DISABLED",
             message: "Esta funcionalidade de IA está temporariamente desativada.",
@@ -531,33 +506,21 @@ it("não chama o provider quando a política de IA da disciplina está desativad
         },
     });
 
-    expect(aiModelPoliciesService.resolveForUse).toHaveBeenCalledWith("CLASS_AI");
-    expect(materialsService.listProcessedForSubject).not.toHaveBeenCalled();
-    expect(aiQuotasService.reserveUsage).not.toHaveBeenCalled();
-    expect(aiProvider.generateClassAnswer).not.toHaveBeenCalled();
+    expect(governedAiExecutionService.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ purpose: "CLASS_AI" }),
+    );
     expect(interactionModel.create).not.toHaveBeenCalled();
 });
 
-it("não reserva quota nem chama o provider quando o prompt excede o limite", async () => {
+it("não persiste quando a fachada rejeita o limite do prompt", async () => {
     const {
-        aiModelPoliciesService,
-        aiProvider,
-        aiQuotasService,
+        governedAiExecutionService,
         interactionModel,
-        materialsService,
         service,
     } = makeService();
-    materialsService.listProcessedForSubject.mockResolvedValue([
-        makeMaterial(materialId),
-    ]);
-    aiModelPoliciesService.resolveForUse.mockResolvedValueOnce({
-        enabled: true,
-        model: "gpt-test",
-        timeoutMs: 5000,
-        maxSourceCount: 10,
-        maxPromptChars: 10,
-    });
-    // O limite curto simula a regra docente e deve bloquear antes de reservar quota ou chamar o provider.
+    governedAiExecutionService.execute.mockRejectedValueOnce(
+        new PayloadTooLargeException({ code: "AI_PROMPT_LIMIT_EXCEEDED" }),
+    );
 
     await expect(
         service.askClassAi(student, subjectId, {
@@ -565,23 +528,16 @@ it("não reserva quota nem chama o provider quando o prompt excede o limite", as
         }),
     ).rejects.toBeInstanceOf(PayloadTooLargeException);
 
-    expect(aiQuotasService.reserveUsage).not.toHaveBeenCalled();
-    expect(aiProvider.generateClassAnswer).not.toHaveBeenCalled();
     expect(interactionModel.create).not.toHaveBeenCalled();
 });
 
-it("não chama o provider quando a reserva de quota falha", async () => {
+it("não persiste quando a reserva atómica de quota falha na fachada", async () => {
     const {
-        aiProvider,
-        aiQuotasService,
+        governedAiExecutionService,
         interactionModel,
-        materialsService,
         service,
     } = makeService();
-    materialsService.listProcessedForSubject.mockResolvedValue([
-        makeMaterial(materialId),
-    ]);
-    aiQuotasService.reserveUsage.mockRejectedValueOnce(
+    governedAiExecutionService.execute.mockRejectedValueOnce(
         new ServiceUnavailableException({
             code: "AI_QUOTA_EXCEEDED",
             message: "O limite de IA da turma foi atingido.",
@@ -598,21 +554,13 @@ it("não chama o provider quando a reserva de quota falha", async () => {
         },
     });
 
-    // Mesmo quando a quota é avaliada, a falha impede chamada externa e evita persistir uma resposta inexistente.
-    expect(aiQuotasService.reserveUsage).toHaveBeenCalledWith({
-        scope: "CLASS",
-        targetId: classId,
-        purpose: "CLASS_AI",
-        units: 1,
-    });
-    expect(aiProvider.generateClassAnswer).not.toHaveBeenCalled();
     expect(interactionModel.create).not.toHaveBeenCalled();
 });
 ```
 
 5. Explicação do código.
 
-O teste unitário prova a regra pequena: prompt dentro do limite passa, prompt acima do limite lança `PayloadTooLargeException`. Os testes de service provam a ordem real da aplicação. Quando a política está desativada, a app não lista materiais nem chama o provider. Quando o prompt é demasiado grande, a app não reserva quota nem chama o provider. Quando a quota falha, a app também não chama o provider nem grava interação.
+Os testes de domínio provam que erros estáveis devolvidos pela fachada não criam interações. Os testes unitários da própria fachada provam, com um spy da integração externa, que finalidade desativada, prompt excessivo e quota falhada impedem a chamada externa.
 
 Isto fecha os três negativos P0 de `RNF33` sem expor dados privados. Os dados usados são fixtures técnicas e não devem ser copiados de materiais reais de alunos ou professores.
 
@@ -724,8 +672,8 @@ Se a evidence disser apenas 'funciona', sem output, request/response, teste ou s
 - O guia mantém `bk_id`, `macro`, owner, apoio, prioridade, sprint, esforço, `rf_rnf` e `proximo_bk` alinhados com matriz e backlog.
 - Cada passo tem objetivo, ficheiros, instruções, código ou justificação sem código, explicação, validação e negativo.
 - O código apresentado tem JSDoc nos elementos relevantes e comentários didáticos junto das decisões importantes.
-- `ClassAiService.askClassAi(...)` aplica contexto, consentimento, política, limite de prompt e quota antes do provider.
-- `ClassAiService.askClassAi(...)` aplica voz docente efetiva resolvida antes do provider e guarda as regras usadas.
+- `ClassAiService.askClassAi(...)` valida contexto/fontes e delega na fachada.
+- A fachada aplica consentimento, policy, limites, quota, voz docente e validação de output.
 - Os testes P0 incluem caminho principal, unit, service e três negativos.
 - Não existe decisão de sessão, ownership, membership, role, quota, fonte IA ou privacidade feita apenas no frontend.
 - Não há exposição de cookies, passwords, prompts privados, respostas IA completas, materiais privados ou dados de outro contexto em logs/evidence.
@@ -760,6 +708,6 @@ O próximo BK deve reutilizar os ficheiros e decisões deste guia, sem criar out
 
 #### Changelog
 
-- `2026-06-27`: corrigida a prova P0 com integração em `ClassAiService.askClassAi(...)`, três negativos antes do provider, validação por camada e evidence objetiva.
+- `2026-07-10`: limites docentes centralizados na fachada governada, com três negativos antes da integração externa.
 - `2026-06-30`: documentada aplicação de voz efetiva herdada nos limites docentes.
 - `2026-06-26`: contrato de limites docentes de IA documentado com tutorial técnico linear, código completo, validação, negativos, evidence e caminhos públicos `apps/...`.

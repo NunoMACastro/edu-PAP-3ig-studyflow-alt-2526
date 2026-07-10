@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RF54`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF4-07`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-06-gestao-de-consentimentos-para-ia.md`
-- `last_updated`: `2026-06-18`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -48,7 +49,7 @@ RF54 protege privacidade e confiança. Sem consentimento explícito, funcionalid
 
 ##### Estado antes
 
-Os módulos de IA já existem e usam `AI_PROVIDER`, ownership e fontes. Não existe verificação transversal de consentimento por finalidade.
+Os módulos de IA já existem, mas qualquer chamada externa tem de ficar encapsulada em `GovernedAiExecutionService`, juntamente com ownership, consentimento, política, quota, guardrails e validação de output.
 
 ##### Estado depois
 
@@ -73,17 +74,19 @@ Fica um módulo `ai-consents` com histórico versionado e método de enforcement
 - Finalidade: motivo específico para tratamento IA.
 - Versão de política: identificador textual do texto de consentimento aceite.
 - Consentimento activo: último registo da finalidade com estado `GRANTED`.
-- Enforcement: bloqueio no service antes de chamar o provider.
+- Enforcement: bloqueio integral em `GovernedAiExecutionService` antes da invocação externa.
 
 #### Conceitos teóricos essenciais
 
 Consentimento não é uma flag global. No StudyFlow, cada funcionalidade de IA trata dados diferentes e tem riscos diferentes: a IA privada trabalha com materiais do aluno, a IA de grupo trabalha com fontes partilhadas, a IA da turma trabalha com materiais oficiais e a IA de projecto trabalha com o enunciado publicado. Por isso, o consentimento tem de ser separado por finalidade.
 
-Finalidade é o motivo técnico e funcional do tratamento. `PRIVATE_AREA_AI`, `STUDY_GROUP_AI`, `CLASS_AI` e `PROJECT_AI` não são apenas nomes de enum; são barreiras de privacidade. Um aluno pode aceitar uma finalidade e recusar outra. Isto evita que um consentimento amplo seja usado como permissão para todos os contextos de IA.
+Finalidade é o motivo técnico e funcional do tratamento. `PRIVATE_AREA_AI`, `GROUP_AI`, `CLASS_AI`, `PROJECT_AI` e `ROOM_AI` são barreiras de privacidade separadas. Um aluno pode aceitar uma finalidade e recusar outra; consentimento amplo nunca vale como permissão global.
 
 Consentimento activo é a última decisão guardada para uma finalidade. Se o último registo for `GRANTED`, a funcionalidade pode continuar o fluxo. Se for `REVOKED`, ou se não existir decisão, o backend deve bloquear com `AI_CONSENT_REQUIRED`. A revogação não apaga o histórico, porque a app precisa de rastreabilidade para defesa técnica e privacidade.
 
-O backend é o ponto de enforcement. O frontend mostra botões para conceder e revogar, mas não decide se a IA pode correr. Os services que chamam `AI_PROVIDER` devem chamar `AiConsentsService.assertGranted` antes de preparar prompt ou enviar dados para IA. Isto evita confiar no browser e protege mesmo que alguém tente chamar a API manualmente.
+O backend é o ponto de enforcement. O frontend mostra botões para conceder e revogar, mas não decide se a IA pode correr. Os services de domínio chamam exclusivamente `GovernedAiExecutionService.execute`; só essa fachada pode injetar o provider. A ordem obrigatória é autorização, consentimento, policy, limites, guardrails, reserva atómica de quota, provider, validação de output e audit seguro. Isto evita confiar no browser e protege mesmo que alguém tente chamar a API manualmente.
+
+> **Contrato normativo pós-remediação:** `ROOM_AI` começa desativada e não recebe consentimentos automáticos. Todos os exemplos deste BK devem ser implementados através de `GovernedAiExecutionService`; uma injeção direta do provider num service de domínio é uma falha arquitetural e deve ser bloqueada por teste.
 
 DTO, schema, service, controller e módulo têm papéis diferentes. O DTO valida o payload recebido; o schema define como a decisão fica guardada em MongoDB; o service concentra regras como listar, conceder, revogar e bloquear; o controller expõe rotas protegidas por sessão; o módulo exporta `AiConsentsService` para os services de IA.
 
@@ -113,7 +116,7 @@ Nos testes, o cenário mais importante é o default seguro: sem consentimento ac
 - CRIAR: `apps/api/src/modules/ai-consents/ai-consents.controller.ts`
 - CRIAR: `apps/api/src/modules/ai-consents/ai-consents.module.ts`
 - CRIAR: `apps/api/src/modules/ai-consents/ai-consents.service.spec.ts`
-- EDITAR: services IA que chamam `AI_PROVIDER`
+- EDITAR: services IA que consomem `GovernedAiExecutionService`
 - CRIAR: `apps/web/src/features/ai-consents/ai-consents-client.ts`
 - CRIAR: `apps/web/src/features/ai-consents/ai-consents-panel.tsx`
 - EDITAR: `apps/api/src/app.module.ts`
@@ -140,9 +143,15 @@ import { IsEnum, IsString, MaxLength, MinLength } from "class-validator";
  */
 export enum AiConsentPurpose {
     PRIVATE_AREA_AI = "PRIVATE_AREA_AI",
-    STUDY_GROUP_AI = "STUDY_GROUP_AI",
+    GROUP_AI = "GROUP_AI",
     CLASS_AI = "CLASS_AI",
     PROJECT_AI = "PROJECT_AI",
+    SOURCE_GROUNDED_AI = "SOURCE_GROUNDED_AI",
+    EXTERNAL_KNOWLEDGE_AI = "EXTERNAL_KNOWLEDGE_AI",
+    ADAPTIVE_EXPLANATION = "ADAPTIVE_EXPLANATION",
+    SUMMARY = "SUMMARY",
+    STUDY_TOOL = "STUDY_TOOL",
+    ROOM_AI = "ROOM_AI",
 }
 
 export const CURRENT_AI_CONSENT_VERSION = "2026-06-16";
@@ -355,7 +364,7 @@ export class AiConsentsService {
 5. Explicação do código.
    `AiConsentsService` é a fronteira de regras do módulo. `listMine` usa `actor.id` vindo da sessão para garantir que ninguém lista consentimentos de outro utilizador. `grant` e `revoke` criam sempre novos registos, por isso o histórico fica preservado e a app consegue explicar a última decisão. `assertGranted` consulta apenas o registo mais recente da finalidade e lança `ForbiddenException` com `AI_CONSENT_REQUIRED` quando não há consentimento activo.
 
-   Os services IA não consultam MongoDB directamente para saber se podem correr. Eles chamam `assertGranted` antes de preparar prompt ou contactar provider. Isto mantém a regra de privacidade num único ponto e evita duplicação. A conversão em `toView` impede que detalhes internos do documento sejam expostos ao frontend.
+   Os services de domínio não consultam consentimentos diretamente. Chamam a fachada, que usa `assertGranted` antes de preparar prompt ou contactar o provider privado. Isto mantém a regra de privacidade num único ponto; `toView` não expõe detalhes internos.
 6. Validação do passo.
    Com um último registo `GRANTED`, `assertGranted` deve resolver sem erro. Com ausência de registo ou último registo `REVOKED`, deve lançar `ForbiddenException` com `code: "AI_CONSENT_REQUIRED"`.
 7. Cenário negativo/erro esperado.
@@ -467,9 +476,9 @@ export class AiConsentsModule {}
 
 ```ts
 // apps/api/src/app.module.ts
-import "./common/config/load-env.js";
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
+import { loadStudyFlowConfig } from "./common/config/studyflow-config.js";
 import { AdaptiveExplanationsModule } from "./modules/adaptive-explanations/adaptive-explanations.module.js";
 import { AiGuardrailsModule } from "./modules/ai-guardrails/ai-guardrails.module.js";
 import { AiConsentsModule } from "./modules/ai-consents/ai-consents.module.js";
@@ -500,9 +509,7 @@ import { UnifiedSearchModule } from "./modules/unified-search/unified-search.mod
 
 @Module({
     imports: [
-        MongooseModule.forRoot(
-            process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017/studyflow",
-        ),
+        MongooseModule.forRoot(loadStudyFlowConfig().mongoUri),
         AuthModule,
         StudentsModule,
         StudyModule,
@@ -560,12 +567,12 @@ export class AppModule {}
     - EDITAR: `apps/api/src/modules/project-ai/project-ai.service.ts`
     - EDITAR: `apps/api/src/modules/project-ai/project-ai.module.ts`
 3. Instruções do que fazer.
-   Importa `AiConsentsModule` nos módulos IA, injeta `AiConsentsService` nos services e chama `assertGranted` no método público que inicia cada operação IA. A validação deve ficar depois das validações mínimas de acesso ao contexto e antes de ler fontes para o prompt, construir o prompt ou contactar `AI_PROVIDER`.
+   Importa `AiModule` nos módulos de domínio e injeta `GovernedAiExecutionService`. A fachada executa consentimento e restantes gates antes de construir o prompt ou contactar o provider; o service de domínio entrega-lhe apenas fontes já autorizadas, finalidade e âmbito de quota.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// Imports a acrescentar nos quatro services IA.
-import { AiConsentsService } from "../ai-consents/ai-consents.service.js";
+// Imports a acrescentar nos services IA.
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service.js";
 import { AiConsentPurpose } from "../ai-consents/dto/upsert-ai-consent.dto.js";
 ```
 
@@ -577,7 +584,7 @@ Em `apps/api/src/modules/private-area-ai/private-area-ai.service.ts`, o service 
 constructor(
     @InjectModel(PrivateAreaAiAnswer.name)
     private readonly answerModel: Model<PrivateAreaAiAnswerDocument>,
-    @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
+    private readonly aiExecution: GovernedAiExecutionService,
     private readonly studyAreasService: StudyAreasService,
     private readonly materialsService: MaterialsService,
     private readonly aiConsentsService: AiConsentsService,
@@ -588,7 +595,8 @@ Ainda dentro da classe `PrivateAreaAiService`, coloca este método privado a seg
 
 ```ts
 /**
- * Valida consentimento antes de ler fontes privadas ou chamar `AI_PROVIDER`.
+ * A autorização efémera antecede a leitura de fontes privadas; a execução
+ * completa usa a mesma fachada e consome esta autorização uma única vez.
  */
 private async assertPrivateAreaAiConsent(actor: AuthenticatedUser): Promise<void> {
     await this.aiConsentsService.assertGranted(
@@ -651,8 +659,7 @@ constructor(
     private readonly answerModel: Model<StudyGroupAiAnswerDocument>,
     private readonly studyGroupsService: StudyGroupsService,
     private readonly roomSharesService: RoomSharesService,
-    @Inject(AI_PROVIDER)
-    private readonly aiProvider: AiProvider,
+    private readonly aiExecution: GovernedAiExecutionService,
     private readonly aiConsentsService: AiConsentsService,
 ) {}
 ```
@@ -666,7 +673,7 @@ Cria o método privado a seguir ao `constructor`:
 private async assertStudyGroupAiConsent(actor: AuthenticatedUser): Promise<void> {
     await this.aiConsentsService.assertGranted(
         actor.id,
-        AiConsentPurpose.STUDY_GROUP_AI,
+        AiConsentPurpose.GROUP_AI,
     );
 }
 ```
@@ -714,7 +721,7 @@ Em `apps/api/src/modules/class-ai/class-ai.service.ts`, acrescenta `aiConsentsSe
 constructor(
     @InjectModel(ClassAiInteraction.name)
     private readonly interactionModel: Model<ClassAiInteractionDocument>,
-    @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
+    private readonly aiExecution: GovernedAiExecutionService,
     private readonly subjectsService: SubjectsService,
     private readonly materialsService: OfficialMaterialsService,
     private readonly voiceService: TeacherAiVoiceService,
@@ -786,7 +793,7 @@ Em `apps/api/src/modules/project-ai/project-ai.service.ts`, acrescenta `aiConsen
 constructor(
     @InjectModel(ProjectAiPlan.name)
     private readonly planModel: Model<ProjectAiPlanDocument>,
-    @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
+    private readonly aiExecution: GovernedAiExecutionService,
     private readonly projectsService: ClassProjectsService,
     private readonly aiConsentsService: AiConsentsService,
 ) {}
@@ -843,9 +850,9 @@ export class ProjectAiModule {}
 ```
 
 5. Explicação do código.
-   `AiConsentsService.assertGranted` é o ponto central de bloqueio. Os services IA continuam a validar role, ownership, membership e acesso ao contexto com os services que já existem na aplicação. Depois disso, antes de recolher fontes para o prompt ou chamar `AI_PROVIDER`, validam a finalidade IA correspondente. Isto evita transformar um consentimento geral numa permissão global e impede que a app trate dados com IA quando o último registo da finalidade não está `GRANTED`.
+   `GovernedAiExecutionService` é o ponto central de bloqueio e a única classe que recebe o provider. Os services IA continuam a validar role, ownership, membership e acesso ao contexto. Depois entregam fontes autorizadas à fachada, que valida finalidade, política, limites, guardrails e quota antes da chamada externa e valida/audita o resultado. Isto evita transformar um consentimento geral numa permissão global.
 6. Validação do passo.
-   Cada teste de service IA deve receber um dobro de teste de `AiConsentsService`. Quando `assertGranted` rejeita com `AI_CONSENT_REQUIRED`, o teste deve confirmar duas coisas: o método público falha com esse erro e o método do provider não é chamado.
+   Os testes de domínio usam um dobro de `GovernedAiExecutionService`; os testes da fachada usam doubles de consentimento/policy/quota/provider. Quando consentimento rejeita com `AI_CONSENT_REQUIRED`, confirmam o erro e zero invocações externas.
 
 ```ts
 aiConsentsService.assertGranted.mockRejectedValueOnce(
@@ -865,7 +872,7 @@ expect(aiProvider.generatePrivateAreaAnswer).not.toHaveBeenCalled();
 
 O método muda conforme o service testado: `ask` em `PrivateAreaAiService`, `ask` em `StudyGroupAiService`, `askClassAi` em `ClassAiService` e `createPlan` em `ProjectAiService`.
 7. Cenário negativo/erro esperado.
-   Se a chamada ao provider ocorrer antes de `assertGranted`, ou se o service ler fontes para o prompt antes de validar consentimento, o teste deve falhar. O erro esperado sem consentimento é `AI_CONSENT_REQUIRED`, não `AI_PROVIDER_UNAVAILABLE`, `NO_PRIVATE_AI_SOURCES`, `NO_GROUP_AI_SOURCES` ou outro erro posterior.
+   Se uma invocação externa ocorrer antes dos gates, o teste deve falhar. O erro esperado sem consentimento é `AI_CONSENT_REQUIRED`, não `AI_EXECUTION_UNAVAILABLE`, `NO_PRIVATE_AI_SOURCES`, `NO_GROUP_AI_SOURCES` ou outro erro posterior.
 
 ### Passo 5 - Criar cliente e painel
 
@@ -887,9 +894,15 @@ import { requestMf3Json } from "../mf3/request-mf3-json.js";
  */
 export type AiConsentPurpose =
     | "PRIVATE_AREA_AI"
-    | "STUDY_GROUP_AI"
+    | "GROUP_AI"
     | "CLASS_AI"
-    | "PROJECT_AI";
+    | "PROJECT_AI"
+    | "SOURCE_GROUNDED_AI"
+    | "EXTERNAL_KNOWLEDGE_AI"
+    | "ADAPTIVE_EXPLANATION"
+    | "SUMMARY"
+    | "STUDY_TOOL"
+    | "ROOM_AI";
 
 /**
  * Decisão pública de consentimento recebida da API.
@@ -945,10 +958,29 @@ import type { AiConsent, AiConsentPurpose } from "./ai-consents-client.js";
 
 const PURPOSES: AiConsentPurpose[] = [
     "PRIVATE_AREA_AI",
-    "STUDY_GROUP_AI",
+    "GROUP_AI",
     "CLASS_AI",
     "PROJECT_AI",
+    "SOURCE_GROUNDED_AI",
+    "EXTERNAL_KNOWLEDGE_AI",
+    "ADAPTIVE_EXPLANATION",
+    "SUMMARY",
+    "STUDY_TOOL",
+    "ROOM_AI",
 ];
+
+const PURPOSE_LABELS: Record<AiConsentPurpose, string> = {
+    PRIVATE_AREA_AI: "Assistente da área privada",
+    GROUP_AI: "Assistente do grupo de estudo",
+    CLASS_AI: "Assistente da disciplina",
+    PROJECT_AI: "Ajuda em projetos",
+    SOURCE_GROUNDED_AI: "Respostas baseadas em fontes",
+    EXTERNAL_KNOWLEDGE_AI: "Conhecimento externo limitado",
+    ADAPTIVE_EXPLANATION: "Explicações adaptadas",
+    SUMMARY: "Resumos",
+    STUDY_TOOL: "Ferramentas de estudo",
+    ROOM_AI: "Assistente da sala partilhada",
+};
 
 /**
  * Painel de consentimentos IA por finalidade.
@@ -1015,7 +1047,7 @@ export function AiConsentsPanel() {
                         disabled={pending}
                         onClick={() => toggle(purpose, granted)}
                     >
-                        {purpose}:{" "}
+                        {PURPOSE_LABELS[purpose]}:{" "}
                         {pending ? "a guardar" : granted ? "revogar" : "conceder"}
                     </button>
                 );
@@ -1181,7 +1213,7 @@ function makeService(latestConsent: unknown) {
 2. Ficheiros envolvidos:
     - REVER: todos os ficheiros deste BK e services IA editados
 3. Instruções do que fazer.
-   Confirma que todas as chamadas a `AI_PROVIDER` passam por consentimento.
+   Confirma que apenas `GovernedAiExecutionService` injeta o provider e que todas as chamadas de domínio passam pela fachada.
 4. Código completo, correto e integrado com a app final.
 
 Sem código neste passo.
@@ -1189,9 +1221,9 @@ Sem código neste passo.
 5. Explicação do código.
    A validação final liga privacidade ao runtime de IA. O consentimento não pode ficar apenas no painel.
 6. Validação do passo.
-   `rg -n "AI_PROVIDER|assertGranted" apps/api/src/modules`.
+   `rg -n "@Inject\\(AI_PROVIDER\\)" apps/api/src/modules --glob '!ai/governed-ai-execution.service.ts'` deve devolver zero resultados.
 7. Cenário negativo/erro esperado.
-   Um service IA que chama provider sem `assertGranted` deve ser corrigido antes do PR.
+   Qualquer service de domínio que injete o provider ou replique `assertGranted` fora da fachada deve ser corrigido antes do PR.
 
 #### Critérios de aceite
 
@@ -1206,8 +1238,8 @@ Sem código neste passo.
 
 - `npm run test:unit -- ai-consents`
 - `npm run test:integration`
-- `rg -n "AI_PROVIDER|assertGranted" apps/api/src/modules`
-- Confirmar que cada chamada a provider IA tem uma validação de consentimento antes de preparar prompt.
+- `rg -n "@Inject\\(AI_PROVIDER\\)" apps/api/src/modules --glob '!ai/governed-ai-execution.service.ts'`
+- Confirmar que cada operação IA usa a sequência integral de `GovernedAiExecutionService` antes de preparar prompt ou contactar o provider.
 
 #### Evidence para PR/defesa
 

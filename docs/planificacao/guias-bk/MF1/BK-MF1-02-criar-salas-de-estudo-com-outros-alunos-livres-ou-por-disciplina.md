@@ -8,6 +8,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF0-03`
 - `rf_rnf`: `RF14`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF1-03`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-02-criar-salas-de-estudo-com-outros-alunos-livres-ou-por-disciplina.md`
-- `last_updated`: `2026-05-31`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Implementar `RF14`: permitir que alunos criem salas de estudo livres ou associadas a uma disciplina, convidem membros por email e vejam apenas salas onde são membros.

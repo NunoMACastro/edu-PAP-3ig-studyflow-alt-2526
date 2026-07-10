@@ -1,47 +1,19 @@
-<!-- docs/ops/DEPLOY-ROLLBACK.md -->
+# StudyFlow — release e rollback no âmbito local
 
-# StudyFlow - deploy e rollback
+O StudyFlow desta auditoria não tem procedimento de deploy para staging ou
+produção. O alvo autorizado é exclusivamente `PAP_LOCAL_ENDURECIDA`, em loopback
+e single-instance.
 
-## Release candidata
+O procedimento executável canónico está em
+[real_dev/docs/ops/DEPLOY-ROLLBACK.md](../../real_dev/docs/ops/DEPLOY-ROLLBACK.md).
+Ele cobre snapshot autenticado da implementação e rollback local; os dados exigem
+o backup cifrado e restore para destinos locais vazios descritos no
+[runbook local](LOCAL-PAP-RUNBOOK.md).
 
-- Versão: preencher antes do deploy.
-- Responsável técnico: preencher antes do deploy.
-- Data prevista: preencher antes do deploy.
-- Ambiente: staging ou produção.
+O estado, os blockers e o manifesto atual pertencem ao
+[ledger de remediação](../PLANO-CORRECAO-AUDITORIA-COMPLETA-REAL_DEV-2026-07-09.md).
 
-## Checklist antes do deploy
-
-<!-- Esta checklist impede publicar uma release sem condições mínimas de recuperação. -->
-- Build da API executado com sucesso.
-- Testes unitários críticos executados com sucesso.
-- Versão definida em STUDYFLOW_RELEASE_VERSION.
-- Plano de rollback revisto pela equipa.
-
-## Deploy
-
-1. Confirmar que a versão candidata está identificada.
-2. Executar a validação de readiness.
-3. Publicar a release apenas se a validação passar.
-4. Guardar evidence dos comandos executados.
-
-## Critérios para rollback
-
-- Build publicado não inicia corretamente.
-- Erro crítico impede login ou uso principal da aplicação.
-- Falha operacional afeta alunos ou professores.
-- Evidence mostra regressão bloqueante após deploy.
-
-## Rollback
-
-<!-- Os passos de rollback ficam explícitos para evitar improviso durante uma falha. -->
-1. Parar a release atual.
-2. Restaurar a última versão estável conhecida.
-3. Confirmar que a aplicação volta a responder.
-4. Registar causa, hora de início, hora de recuperação e responsável.
-
-## Evidence obrigatória
-
-- Comando de readiness executado.
-- Resultado dos testes unitários críticos.
-- Versão publicada ou restaurada.
-- Decisão final: deploy mantido ou rollback executado.
+Este ficheiro não declara que um build, gate, backup, restore ou rollback passou.
+Essas conclusões só podem ser registadas após execução real, com exit code e
+manifesto SHA-256 correspondentes. Uma futura exposição pública reabre os riscos
+mitigados pelo âmbito local e exige um plano operacional próprio.

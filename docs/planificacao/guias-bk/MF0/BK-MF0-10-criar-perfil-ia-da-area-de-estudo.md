@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF0-08`
 - `rf_rnf`: `RF10`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF0-11`
 - `guia_path`: `docs/planificacao/guias-bk/MF0/BK-MF0-10-criar-perfil-ia-da-area-de-estudo.md`
-- `last_updated`: `2026-06-01`
+- `last_updated`: `2026-07-10`
 
 ## O que vamos fazer neste BK
 
@@ -600,7 +601,7 @@ O painel não mostra resumo falso. Só comunica o estado real do perfil.
 - `apps/api`: `npm test` -> PASS (19 suites, 68 tests).
 - `apps/api`: `npm run build` -> PASS.
 - `apps/web`: `npm run build` -> PASS.
-- Testes negativos cobertos neste ciclo: `LOGIN_RATE_LIMITED`, resposta pública de materiais sem `storageKey`/`contentText`, `AI_PROVIDER_TIMEOUT`, `NO_PROCESSABLE_SOURCES`, provider IA não configurado e JSON IA inválido.
+- Testes negativos cobertos neste ciclo: `LOGIN_RATE_LIMITED`, resposta pública de materiais sem `storageKey`/`contentText`, `AI_EXECUTION_TIMEOUT`, `NO_PROCESSABLE_SOURCES`, execução IA não configurada e output IA inválido.
 - Não executado neste ciclo: smoke manual/browser/e2e com MongoDB, Redis e OpenAI reais.
 
 - JSON dos três estados possíveis.

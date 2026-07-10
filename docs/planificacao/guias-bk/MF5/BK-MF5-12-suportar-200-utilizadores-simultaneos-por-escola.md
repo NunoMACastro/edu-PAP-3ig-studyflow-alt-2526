@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `PARCIAL`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF10`
@@ -17,11 +18,13 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF6-01`
 - `guia_path`: `docs/planificacao/guias-bk/MF5/BK-MF5-12-suportar-200-utilizadores-simultaneos-por-escola.md`
-- `last_updated`: `2026-06-20`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais criar um smoke test de concorrência para provar que a API do StudyFlow consegue responder a 200 pedidos autenticados em simultâneo num ambiente de teste que representa uma escola.
+Neste BK vais criar um smoke local de 200 pedidos autenticados concorrentes. O smoke corre contra uma instância isolada cuja identidade foi verificada, falha em qualquer status inesperado/erro de rede e integra obrigatoriamente `verify:local-release`.
+
+Este resultado demonstra apenas o alvo single-instance `PAP_LOCAL_ENDURECIDA`; não prova 200 sessões humanas reais, multi-instância nem prontidão para produção.
 
 #### Importância
 
@@ -36,6 +39,8 @@ Neste BK vais criar um smoke test de concorrência para provar que a API do Stud
 - Exigir cookie de teste em `STUDYFLOW_SMOKE_COOKIE`.
 - Medir `averageMs`, `p95Ms`, `maxMs`, contagem por status HTTP, erros de rede e respostas inesperadas.
 - Falhar quando o endpoint autenticado devolver `401`, `403`, outro status inesperado, erro de rede ou `5xx`.
+- Exigir `STUDYFLOW_DEPLOYMENT_SCOPE=local-pap`, host `127.0.0.1`, base/Redis exclusivos e um identificador de execução verificado.
+- Tornar o smoke obrigatório no gate `verify:local-release`, sem flag de bypass em aceitação.
 - Não imprimir body da resposta, cookie, dados pessoais, nomes, emails, materiais, prompts ou respostas IA.
 
 #### Scope-out

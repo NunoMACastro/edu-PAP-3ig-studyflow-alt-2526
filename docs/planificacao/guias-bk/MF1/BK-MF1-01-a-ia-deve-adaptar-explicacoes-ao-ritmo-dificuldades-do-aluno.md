@@ -8,6 +8,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF0-12`
 - `rf_rnf`: `RF13`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF1-02`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-01-a-ia-deve-adaptar-explicacoes-ao-ritmo-dificuldades-do-aluno.md`
-- `last_updated`: `2026-05-31`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Implementar `RF13`: permitir que a IA adapte explicações ao ritmo, dificuldades e estilo de estudo do aluno, usando apenas materiais processáveis da área de estudo do próprio aluno.
@@ -40,7 +41,7 @@ Adaptação pedagógica só é segura se continuar baseada em fontes. O perfil d
 ## Estado antes
 - `BK-MF0-07` criou áreas de estudo.
 - `BK-MF0-08` criou materiais com `contentText` quando estão prontos.
-- `BK-MF0-12` fechou a fundação de IA da MF0 com `AiAreaProfileService`, `SummariesService`, `StudyToolsService` e `AI_PROVIDER` exportados.
+- `BK-MF0-12` fechou a fundação de IA da MF0 com os services de domínio e `GovernedAiExecutionService` exportados.
 
 ## Estado depois
 - Aluno configura perfil numa área.
@@ -52,7 +53,7 @@ Adaptação pedagógica só é segura se continuar baseada em fontes. O perfil d
 - `StudyAreasService.getMyStudyArea`.
 - `Material` com `status: "READY"` e `contentText`.
 - `SessionGuard`.
-- `AiModule` final da MF0 com `AI_PROVIDER`, `AiAreaProfileService`, `SummariesService` e `StudyToolsService` preservados.
+- `AiModule` final da MF0 com `GovernedAiExecutionService`, `AiAreaProfileService`, `SummariesService` e `StudyToolsService` preservados.
 
 ## Glossário
 - **Perfil de aprendizagem**: preferências pedagógicas do aluno numa área.
@@ -69,9 +70,9 @@ Adaptação pedagógica só é segura se continuar baseada em fontes. O perfil d
 
 **Bloqueio sem fontes.** Se a área não tiver materiais prontos, o service devolve `422`. Isto ensina uma regra importante: é melhor falhar com uma mensagem clara do que gerar uma resposta bonita mas sem base factual.
 
-**Extensão acumulada do `AiModule`.** Este BK não substitui a fundação de IA da MF0. Ele acrescenta perfil adaptativo, explicações adaptadas e o método `generateAdaptiveExplanation`, mantendo `generateSummary`, `generateStudyTool`, `AiAreaProfileService`, `SummariesService`, `StudyToolsService` e o export de `AI_PROVIDER`.
+**Extensão acumulada do `AiModule`.** Este BK não substitui a fundação de IA da MF0. Acrescenta perfil e explicações adaptadas, mantendo os services existentes e consumindo `GovernedAiExecutionService`; nenhum service de domínio recebe o provider.
 
-**Fluxo de dados.** O aluno guarda o perfil no frontend, o controller recebe o pedido com a sessão, o service confirma que a área pertence ao aluno, recolhe materiais prontos, constrói o prompt, chama o provider IA e guarda a explicação com as fontes usadas.
+**Fluxo de dados.** O aluno guarda o perfil, o controller recebe a sessão, o service confirma ownership e recolhe materiais autorizados; `GovernedAiExecutionService` limita fontes, constrói o prompt, executa os gates e devolve output validado para persistência.
 
 **Decorators do NestJS.** Decorators como `@Controller`, `@Post`, `@Get`, `@Put`, `@Module` e `@Injectable` dizem ao NestJS que papel cada classe tem. O controller recebe pedidos HTTP, o service contém regras de negócio e o módulo liga tudo.
 
@@ -114,7 +115,7 @@ O código abaixo deve ser tratado como código final previsto, não como exemplo
 - `StudyAreasService.getMyStudyArea`.
 - `Material` com `status: "READY"` e `contentText`.
 - `SessionGuard`.
-- `AiModule` final da MF0 com `AI_PROVIDER`, `AiAreaProfileService`, `SummariesService` e `StudyToolsService` preservados.
+- `AiModule` final da MF0 com `GovernedAiExecutionService`, `AiAreaProfileService`, `SummariesService` e `StudyToolsService` preservados.
 
 ### Passo 1 - Criar schema do perfil
 
@@ -449,7 +450,7 @@ export class OpenAiProvider implements AiProvider {
 
         if (!apiKey || !model) {
             throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_NOT_CONFIGURED",
+                code: "AI_EXECUTION_NOT_CONFIGURED",
                 message: "O serviço de IA ainda não está configurado.",
             });
         }
@@ -464,7 +465,7 @@ export class OpenAiProvider implements AiProvider {
             return JSON.parse(response.output_text ?? "{}") as T;
         } catch {
             throw new BadGatewayException({
-                code: "AI_PROVIDER_INVALID_JSON",
+                code: "AI_EXECUTION_INVALID_OUTPUT",
                 message: "A IA devolveu uma resposta inválida.",
             });
         }
@@ -516,7 +517,7 @@ import { Material, MaterialDocument } from "../materials/schemas/material.schema
 import { StudyAreasService } from "../study-areas/study-areas.service";
 import { AskAdaptiveExplanationDto } from "./dto/ask-adaptive-explanation.dto";
 import { UpdateLearningProfileDto } from "./dto/update-learning-profile.dto";
-import { AI_PROVIDER, AiProvider } from "./providers/ai-provider";
+import { GovernedAiExecutionService } from "./governed-ai-execution.service";
 import { buildAdaptiveExplanationPrompt } from "./prompts/adaptive-explanation.prompt";
 import {
     AdaptiveExplanation,
@@ -534,8 +535,7 @@ export class AdaptiveLearningService {
         @InjectModel(Material.name)
         private readonly materialModel: Model<MaterialDocument>,
         private readonly studyAreasService: StudyAreasService,
-        @Inject(AI_PROVIDER)
-        private readonly aiProvider: AiProvider,
+        private readonly aiExecution: GovernedAiExecutionService,
     ) {}
 
     async getProfile(userId: string, studyAreaId: string) {
@@ -611,7 +611,21 @@ export class AdaptiveLearningService {
 
         let result: unknown;
         try {
-            result = await this.aiProvider.generateAdaptiveExplanation({ prompt });
+            ({ result } = await this.aiExecution.execute({
+                userId,
+                purpose: "ADAPTIVE_EXPLANATION",
+                quota: { scope: "USER", targetId: userId },
+                sources: materials,
+                guardrailText: dto.topic,
+                buildPrompt: () => prompt,
+                invoke: ({ provider, prompt: governedPrompt, options }) =>
+                    provider.generateAdaptiveExplanation({ prompt: governedPrompt, ...options }),
+                validateResult: (value) => {
+                    if (!value || typeof value !== "object") {
+                        throw new TypeError("Explicação adaptativa inválida.");
+                    }
+                },
+            }));
         } catch {
             throw new ServiceUnavailableException("A IA não está disponível neste momento.");
         }
@@ -712,7 +726,7 @@ export class AdaptiveLearningService {
 
 5. Explicação do código.
 
-    O service garante ownership da área, recolhe apenas materiais `READY` com `contentText`, bloqueia com `422` quando não há fontes e chama a IA só depois dessa validação. O resultado do provider é tratado como runtime não confiável: `answer` tem de ser texto não vazio e `sourceMaterialIds` têm de pertencer aos materiais autorizados. Falha do provider ou resposta inválida devolve `503`; área fora do aluno devolve `404`.
+    O service garante ownership, recolhe materiais `READY` e bloqueia com `422` sem fontes. A fachada trata o output externo como não confiável e o domínio confirma `answer`/`sourceMaterialIds` antes de persistir. Falha governada devolve erro estável; área alheia devolve `404`.
 
 6. Como validar este passo.
 
@@ -791,6 +805,7 @@ import { AdaptiveLearningController } from "./adaptive-learning.controller";
 import { AdaptiveLearningService } from "./adaptive-learning.service";
 import { AiAreaProfileController } from "./ai-area-profile.controller";
 import { AiAreaProfileService } from "./ai-area-profile.service";
+import { GovernedAiExecutionService } from "./governed-ai-execution.service";
 import { AI_PROVIDER, OpenAiProvider } from "./providers/ai-provider";
 import {
     AdaptiveExplanation,
@@ -830,10 +845,11 @@ import { SummariesService } from "./summaries.service";
         SummariesService,
         StudyToolsService,
         AdaptiveLearningService,
+        GovernedAiExecutionService,
         { provide: AI_PROVIDER, useClass: OpenAiProvider },
     ],
     exports: [
-        AI_PROVIDER,
+        GovernedAiExecutionService,
         AiAreaProfileService,
         SummariesService,
         StudyToolsService,
@@ -845,7 +861,7 @@ export class AiModule {}
 
 5. Explicação do código.
 
-    O controller novo expõe o fluxo adaptativo e o módulo preserva a fundação final da MF0: perfil IA da área, resumos, ferramentas de estudo e provider continuam registados. A MF1 acrescenta `AdaptiveLearningController` e `AdaptiveLearningService`, mais os schemas adaptativos, e mantém `AI_PROVIDER` exportado para módulos como `class-ai.module.ts` importarem `AiModule` sem duplicar provider.
+    O controller novo expõe o fluxo adaptativo e o módulo preserva a fundação final da MF0. A MF1 acrescenta `AdaptiveLearningController`/`AdaptiveLearningService` e exporta `GovernedAiExecutionService`; módulos como `class-ai.module.ts` importam `AiModule` sem acesso direto ao provider.
 
 6. Como validar este passo.
 

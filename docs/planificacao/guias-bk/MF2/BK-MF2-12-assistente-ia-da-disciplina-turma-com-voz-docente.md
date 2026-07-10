@@ -8,6 +8,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF1-10`
 - `rf_rnf`: `RF36`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF3-01`
 - `guia_path`: `docs/planificacao/guias-bk/MF2/BK-MF2-12-assistente-ia-da-disciplina-turma-com-voz-docente.md`
-- `last_updated`: `2026-06-08`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo do BK
 
@@ -52,7 +53,7 @@ Este BK fecha a MF2 com um assistente oficial de disciplina. Ele tem impacto dir
 - `TeacherAiModule` exporta `TeacherAiVoiceService`.
 - `SubjectsModule` exporta `SubjectsService.findSubjectForStudent`.
 - `OfficialMaterialsModule` exporta `OfficialMaterialsService.findProcessedBySubject`.
-- `AiModule` exporta `AI_PROVIDER`.
+- `AiModule` exporta `GovernedAiExecutionService`.
 
 ## Glossário
 
@@ -69,7 +70,7 @@ Este BK fecha a MF2 com um assistente oficial de disciplina. Ele tem impacto dir
 - **Herança da voz docente.** a disciplina pode ter override, mas quando não tem usa a voz base da turma; se nenhuma existir, aplica defaults seguros.
 - **Backend, validação e segurança.** O backend recebe a identidade pela sessão autenticada, valida DTOs antes do service e confirma ownership ou membership nos services herdados. Esta regra vem da fundação MF0/MF1 e segue para os BKs seguintes como contrato de segurança. Serve para impedir leitura ou escrita entre alunos, professores, turmas e disciplinas diferentes.
 - **Frontend tipado e sessão real.** O frontend usa cliente API tipado em `apps/web/src/lib/api/...`, envia cookies com `credentials: "include"`, mostra estados de carregamento, erro, vazio e sucesso, e não guarda tokens em `localStorage`. Isto evita chamadas anónimas, dados de actor no body e payloads sem tipo claro.
-- **IA, fontes e guardrails.** Este BK só envolve provider de IA quando o próprio requisito o pede. Quando não há chamada de IA, o guia limita-se a preparar fontes, autorização ou contexto sem prometer geração automática; quando há chamada de IA, o provider vem de `AiModule`/`AI_PROVIDER`, as fontes são recolhidas antes da chamada e a resposta só é persistida depois de validação mínima.
+- **IA, fontes e guardrails.** Este BK só envolve IA quando o requisito o pede. Os services de domínio consomem `GovernedAiExecutionService`; a fachada aplica consentimento, policy, limites, guardrails, quota e validação/audit. As fontes são autorizadas antes da execução e a resposta só é persistida depois de validação.
 
 ## Decisões documentais
 
@@ -81,7 +82,7 @@ Este BK fecha a MF2 com um assistente oficial de disciplina. Ele tem impacto dir
 
 ## Arquitetura do BK
 
-`ClassAiService` valida inscrição na disciplina, recolhe materiais oficiais, resolve voz docente efetiva, chama `AI_PROVIDER` e grava `ClassAiAnswer`. O módulo `ClassAiModule` continua a importar `AiModule`, `SubjectsModule`, `OfficialMaterialsModule` e `TeacherAiModule`.
+`ClassAiService` valida inscrição, recolhe materiais oficiais, resolve voz docente efetiva e chama `GovernedAiExecutionService` com finalidade `CLASS_AI` antes de gravar `ClassAiAnswer`.
 
 ## Ficheiros previstos
 
@@ -191,7 +192,7 @@ import { ForbiddenException, Inject, Injectable, ServiceUnavailableException, Un
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request";
-import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service";
 import { OfficialMaterialsService } from "../official-materials/official-materials.service";
 import { SubjectsService } from "../subjects/subjects.service";
 import { TeacherAiVoiceService } from "../teacher-ai/teacher-ai-voice.service";
@@ -206,7 +207,7 @@ export class ClassAiService {
         private readonly subjectsService: SubjectsService,
         private readonly officialMaterialsService: OfficialMaterialsService,
         private readonly teacherAiVoiceService: TeacherAiVoiceService,
-        @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
+        private readonly aiExecution: GovernedAiExecutionService,
     ) {}
 
     async ask(actor: AuthenticatedUser, subjectId: string, dto: CreateClassAiAnswerDto) {
@@ -221,7 +222,13 @@ export class ClassAiService {
             subjectId: subject._id.toString(),
         });
         const rules = voice?.rules ?? [];
-        const answerText = await this.generateAnswer(dto.question, materials.map((material) => material.contentText).join("\n"), rules);
+        const answerText = await this.generateAnswer(
+            actor,
+            subject.classId.toString(),
+            dto.question,
+            materials,
+            rules,
+        );
         const answer = await this.answers.create({ subjectId: subject._id, classId: subject.classId, studentId: new Types.ObjectId(actor.id), question: dto.question.trim(), answer: answerText, officialMaterialIds: materials.map((material) => material._id.toString()), teacherVoiceRules: rules });
         return this.toView(answer);
     }
@@ -233,13 +240,40 @@ export class ClassAiService {
         return answers.map((answer) => this.toView(answer));
     }
 
-    private async generateAnswer(question: string, sourceText: string, rules: string[]) {
+    private async generateAnswer(
+        actor: AuthenticatedUser,
+        classId: string,
+        question: string,
+        materials: Array<{ _id: Types.ObjectId; title: string; contentText: string }>,
+        rules: string[],
+    ) {
         try {
-            return await this.aiProvider.generateText({
-                system: "Responde como assistente da disciplina, respeitando a voz docente e citando fontes oficiais.",
-                user: [question, "Regras docentes:", rules.join("\n"), "Fontes:", sourceText].join("\n"),
-                sources: [{ id: "official-subject", title: "Materiais oficiais" }],
+            const { result } = await this.aiExecution.execute({
+                userId: actor.id,
+                purpose: "CLASS_AI",
+                quota: { scope: "CLASS", targetId: classId },
+                sources: materials,
+                guardrailText: question,
+                buildPrompt: (limitedSources) => [
+                    question,
+                    "Regras docentes:",
+                    rules.join("\n"),
+                    "Fontes:",
+                    ...limitedSources.map((source) => source.contentText),
+                ].join("\n"),
+                invoke: ({ provider, prompt, options }) => provider.generateText({
+                    system: "Responde como assistente da disciplina, respeitando a voz docente e citando fontes oficiais.",
+                    user: prompt,
+                    sources: [{ id: classId, title: "Materiais oficiais" }],
+                    ...options,
+                }),
+                validateResult: (value) => {
+                    if (typeof value !== "string" || value.trim().length === 0) {
+                        throw new TypeError("Resposta IA da disciplina inválida.");
+                    }
+                },
             });
+            return result;
         } catch (error) {
             throw new ServiceUnavailableException("IA da disciplina indisponível neste momento.");
         }

@@ -6,6 +6,14 @@ Este documento serve como apoio aos alunos para escreverem e apresentarem o rela
 
 O StudyFlow é uma plataforma inteligente de aprendizagem que junta estudo individual, materiais escolares, IA com fontes, turmas, disciplinas, voz docente, chat aluno-professor por disciplina, salas colaborativas, grupos de estudo, mini-testes, notificações, privacidade e administração. Algumas secções descrevem funcionalidades centrais já implementadas em `real_dev`; outras resumem pontos documentados em requisitos, backlogs, guias e mapas técnicos.
 
+> **Âmbito e autoridade atuais:** esta cábula descreve o perfil
+> `PAP_LOCAL_ENDURECIDA`, single-instance e apenas em loopback. Não prova prontidão para
+> produção nem substitui o
+> [ledger de remediação](../PLANO-CORRECAO-AUDITORIA-COMPLETA-REAL_DEV-2026-07-09.md), o
+> [mapa técnico gerado](../../real_dev/docs/technical/STUDYFLOW-TECHNICAL-MAP.md) ou o
+> [runbook local](../../real_dev/docs/ops/LOCAL-PAP-RUNBOOK.md). Os estados pedagógicos dos BK
+> também não provam o estado da implementação de referência.
+
 ## Visão Técnica Geral
 
 Tecnicamente, o StudyFlow segue uma arquitetura web cliente-servidor. O frontend é a aplicação usada no browser. O backend é responsável pelas regras de negócio, validação, autenticação, autorização, acesso à base de dados, integração com IA e exposição da API.
@@ -48,7 +56,7 @@ Este domínio inclui:
 
 Depois do login, o backend associa os pedidos a um utilizador autenticado. Isto permite que cada operação pessoal seja feita sobre a conta correta. O frontend não deve enviar manualmente o `userId` para operações sensíveis; o backend obtém a identidade a partir da sessão.
 
-No StudyFlow, a sessão é baseada num cookie HttpOnly chamado `sf_sid`. O browser guarda apenas um identificador opaco. Os dados da sessão ficam no servidor e são validados pelo backend. Isto evita guardar tokens sensíveis em `localStorage`.
+No StudyFlow, a sessão é baseada num cookie HttpOnly chamado `sf_sid`. O browser guarda apenas um identificador opaco e o Redis guarda somente `{ userId, sessionVersion }`. Em cada pedido, o backend relê `role`, `accountStatus` e `sessionVersion` no MongoDB. Uma versão divergente, uma conta não ativa ou uma sessão revogada devolvem `401 SESSION_REVOKED`; mudar o papel ou eliminar a conta incrementa a versão e revoga todas as sessões. O mesmo contrato é revalidado pelo WebSocket em `join`, `send` e antes dos broadcasts. Isto evita guardar tokens sensíveis em `localStorage` e impede que papéis antigos continuem válidos.
 
 O perfil do aluno guarda dados escolares, como nome, ano, curso e turma textual. Estes dados ajudam a personalizar a experiência e podem influenciar respostas de IA, mas cada aluno só pode editar o seu próprio perfil.
 
@@ -116,6 +124,16 @@ O sistema de indexação inclui:
 - proteção em URLs externos;
 - normalização de texto em português.
 
+Os jobs não são lançados com fire-and-forget. Um runner persistente em MongoDB usa lease de
+30 segundos, heartbeat/fencing, concorrência máxima de dois, três tentativas, backoff e
+recovery de leases expiradas. PDF e DOCX são processados em `worker_threads` termináveis com
+timeout e limites de recursos. O frontend reidrata o job mais recente por material através de
+`latestByMaterial=true` e faz polling single-flight com `AbortSignal` e estados monotónicos.
+
+O storage local fica fora do checkout e usa diretório `0700`, ficheiros `0600`, chaves UUID,
+SHA-256, staging, promoção atómica, compensação, quota de 250 MiB por utilizador e
+reconciliação/outbox para eliminar órfãos.
+
 A estrutura de materiais permite extrair tópicos, secções e referências. O versionamento permite guardar alterações e restaurar versões quando necessário. Isto é importante porque materiais escolares podem ser atualizados ao longo do tempo.
 
 A importação externa permite criar materiais a partir de links Google Drive ou OneDrive. No estado atual, isto deve ser explicado como importação unidirecional controlada, não como sincronização completa com contas externas. O backend valida se o provider declarado corresponde ao URL e depois delega a criação para o módulo de materiais privados ou materiais oficiais.
@@ -135,7 +153,7 @@ O sistema pode gerar:
 - exportações de resumos e quizzes;
 - tentativas e pontuação de quizzes IA.
 
-A regra técnica principal é que a IA só deve ser usada quando existem fontes processáveis. O backend valida a área, carrega materiais prontos, constrói o prompt e valida a resposta devolvida pelo provider antes de guardar.
+A regra técnica principal é que todos os fluxos passam pelo `GovernedAiExecutionService`, a única classe autorizada a injetar o provider. A ordem é obrigatória: autorização, consentimento, policy, limites, guardrails, reserva atómica de quota, provider, validação de output e audit seguro. A finalidade `ROOM_AI` começa desativada e nunca recebe consentimento automático. Quando são exigidas fontes, o backend valida a área e os materiais processáveis antes de chegar ao provider.
 
 Os artefactos de IA são persistidos com fontes associadas. Isto permite explicar de onde veio a resposta e evita apresentar conteúdo como se fosse independente dos materiais.
 
@@ -216,6 +234,30 @@ A voz docente segue uma regra de herança:
 3. default seguro.
 
 Isto permite ter uma voz comum para a turma e ajustes específicos por disciplina. A voz docente não deve atravessar para áreas privadas do aluno ou salas livres, porque esses contextos têm regras próprias.
+
+Na interface do professor, a voz base da turma é configurada numa modal aberta a partir da página de turmas. A disciplina pode ter um override próprio, mas, se não tiver, herda a configuração da turma. A configuração não altera permissões nem fontes: apenas orienta a forma como a IA responde dentro do contexto oficial já autorizado.
+
+As opções principais são:
+
+| Campo | Opções | Efeito |
+| --- | --- | --- |
+| Tom | `Calmo`, `Direto`, `Socrático` | Define a postura da IA: mais encorajadora, mais objetiva ou mais guiada por perguntas. |
+| Detalhe | `Curto`, `Equilibrado`, `Detalhado` | Define o tamanho e profundidade da explicação. |
+| Estratégia | `Sem preferência`, `Perguntas orientadoras`, `Passo a passo`, `Resposta direta` | Indica como a IA deve conduzir a explicação antes de chegar à resposta final. |
+| Feedback ao aluno | `Sem preferência`, `Dar pistas`, `Explicar o erro`, `Validar rápido` | Indica como a IA deve reagir a respostas erradas, incompletas ou corretas. |
+| Exemplos | `Sem preferência`, `Ligados à PAP`, `Do quotidiano`, `Código/projeto` | Aproxima os exemplos do estilo do professor, da turma e do contexto de aprendizagem. |
+| Limites | `Sem preferência`, `Fontes primeiro`, `Sem extrapolar`, `Confirmar compreensão` | Reforça fronteiras pedagógicas e de segurança, sobretudo quando a resposta depende dos materiais oficiais. |
+| Orientações da IA | texto livre, uma orientação por linha | Permite ao professor acrescentar hábitos próprios, limites, exemplos preferidos ou formas de correção. |
+
+As opções guiadas e as orientações livres contam para o mesmo limite: no máximo 12 orientações por configuração, com 180 caracteres por orientação. Na API, estas orientações continuam a ser guardadas no campo técnico `rules`, mas na interface aparecem como "Orientações da IA" porque representam instruções pedagógicas para a voz docente, não regras disciplinares ou regras de avaliação.
+
+Quando a IA da disciplina responde, o backend constrói o prompt com três blocos da voz docente:
+
+- tom docente;
+- nível de detalhe;
+- orientações do professor para a IA.
+
+Mesmo com estas opções, a IA continua limitada aos materiais oficiais processados da disciplina. A voz docente muda o estilo pedagógico da resposta, mas não autoriza conhecimento externo, materiais de outras turmas ou dados privados do aluno.
 
 ## IA Da Disciplina E Contexto Docente
 
@@ -321,11 +363,11 @@ Os alertas de acompanhamento permitem criar regras, por exemplo para alunos inat
 
 ## Mini-Testes Oficiais, Rankings E Revisão De Conteúdo IA
 
-Os mini-testes oficiais são avaliações criadas por professores numa disciplina. Cada teste tem perguntas de escolha múltipla, opções e resposta correta.
+Os mini-testes oficiais são avaliações criadas por professores numa disciplina e seguem o ciclo `DRAFT → PUBLISHED → CLOSED`; só `DRAFT` é editável. Cada teste tem entre 1 e 60 perguntas, exatamente quatro opções distintas por pergunta e uma resposta correta escolhida explicitamente.
 
 O professor cria e lista testes da sua disciplina. O aluno vê apenas testes publicados de disciplinas a que tem acesso. Antes de entregar o teste ao aluno, o backend remove a resposta correta.
 
-Quando o aluno submete respostas, o backend calcula:
+Cada aluno dispõe de, no máximo, três tentativas numeradas de forma atómica. As soluções completas só ficam disponíveis depois da terceira tentativa ou quando o professor fecha o teste. Quando o aluno submete respostas, o backend calcula:
 
 - respostas certas;
 - total de perguntas;
@@ -333,7 +375,7 @@ Quando o aluno submete respostas, o backend calcula:
 - resultado por pergunta;
 - data da tentativa.
 
-O ranking dos mini-testes é uma vista docente sobre tentativas submetidas. O professor só consulta rankings de testes da sua disciplina. O ranking mostra dados minimizados, como posição, referência do aluno, respostas certas, total, percentagem e data. Não deve expor emails nem respostas completas.
+O ranking dos mini-testes usa a política `BEST_ATTEMPT`: devolve uma única linha por aluno, com `attemptCount`, `bestPercentage` e `bestAnsweredAt`. Ganha a melhor percentagem; empates usam a melhor tentativa mais antiga e depois um ID estável. O professor só consulta rankings de testes da sua disciplina e a resposta não expõe emails nem respostas completas.
 
 A revisão docente de conteúdos IA permite ao professor aprovar, rejeitar e comentar conteúdos gerados por IA. Isto reforça a ideia de curadoria humana: a IA ajuda, mas o professor mantém controlo pedagógico.
 
@@ -386,7 +428,7 @@ O utilizador deve poder:
 - gerir consentimentos de IA;
 - perceber para que finalidades a IA é usada.
 
-A exportação de dados junta informação relevante num formato legível, como JSON. A eliminação remove materiais, áreas e eventos de estudo, anonimiza a conta e revoga a sessão.
+A exportação e a eliminação são dirigidas pelo `PersonalDataRegistry`, que obriga cada model a declarar `DELETE`, `PULL_MEMBERSHIP`, `ANONYMIZE_90D` ou `RETAIN_NONPERSONAL`. A exportação inclui todas as categorias próprias como attachment JSON, sem hashes, secrets ou dados de terceiros. A eliminação corre numa transaction, revoga todas as sessões, cria outbox para ficheiros, transforma conteúdo partilhado em tombstone e usa uma referência aleatória sem `userId`; audit anonimizado expira por TTL após 90 dias.
 
 Princípios importantes:
 
@@ -415,13 +457,21 @@ Funções administrativas típicas:
 
 As operações críticas exigem role `ADMIN` e devem gerar auditoria. Por exemplo, mudar o papel de um utilizador cria histórico de alteração e evento de audit log.
 
-A operação técnica inclui health-check, runtime instance, backup diário, validação de deploy, verificação TLS e scripts de evidência. O endpoint `/api/health` devolve estado público mínimo sem dados pessoais.
+A operação técnica usa Node `24.11.1`, npm `11.6.2`, MongoDB replica set e Redis dedicado, sempre em loopback. `/api/health/live` indica apenas que o processo vive; `/api/health/ready` e o alias `/api/health` devolvem `503` quando MongoDB, Redis, storage ou runner não estão disponíveis. O backup local é offline, gzip + AES-256-GCM, com manifesto SHA-256 e restore permitido apenas para uma base local vazia após confirmação explícita. O gate `verify:local-release` inclui 21 passos e permanece fail-closed enquanto os gates manuais do ledger estiverem pendentes.
 
 O audit log é um ponto importante para relatório. Ele regista eventos relevantes com metadata redigida. Palavras sensíveis como password, token, cookie, prompt ou resposta são removidas ou mascaradas antes de persistência.
 
 ## Segurança, Testes, Performance E Acessibilidade
 
 Esta secção é transversal. Não é uma funcionalidade isolada, mas garante que a aplicação é confiável.
+
+No frontend, as rotas são lazy e protegidas por `ProtectedLayout` e `RoleGuard`, com páginas
+403/404 e error boundary. O cliente HTTP usa `ApiError`, `AbortSignal` e trata JSON, texto e
+204; apenas um `401` invalida a sessão. O estado de sessão distingue `checking`,
+`authenticated`, `anonymous` e `unavailable`. A acessibilidade exige navegação por teclado,
+focus visível, skip link, labels/descrições, live regions, contraste WCAG e testes axe, incluindo
+viewports de 320/360/375/390 px. Os budgets gzip são verificados automaticamente e o cliente
+Socket.IO só entra no chunk do chat.
 
 ### Segurança
 

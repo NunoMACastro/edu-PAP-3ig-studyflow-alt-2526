@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF18`
@@ -17,13 +18,15 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF6-09`
 - `guia_path`: `docs/planificacao/guias-bk/MF6/BK-MF6-08-processamento-de-documentos-em-sandbox-seguro.md`
-- `last_updated`: `2026-06-23`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
 Neste BK vais proteger a extração de texto de PDF, DOCX e URLs antes de esses conteúdos entrarem no pipeline de materiais, pesquisa e IA.
 
-No fim, o backend valida o tipo, tamanho e origem dos documentos, aplica timeout ao parser de PDF/DOCX e mantém as proteções já existentes para URLs externas. Esta é uma sandbox aplicacional: não cria um processo isolado separado, mas limita explicitamente o que o parser recebe, quanto tempo pode demorar e que fontes podem ser processadas.
+No fim, o backend valida tipo, tamanho e origem, e executa PDF/DOCX em `worker_threads`. O timeout chama realmente `worker.terminate()`, os workers têm limites de memória/stack e a concorrência global de parsing é 2.
+
+URLs usam `ipaddr.js`, bloqueiam IPv4, IPv6 e IPv4-mapped privados, reservados, link-local e metadata antes e depois da ligação, e repetem a validação em cada redirect. A ligação usa o endereço público validado, evitando DNS rebinding.
 
 #### Importância
 
@@ -33,7 +36,7 @@ Este guia prepara `BK-MF6-09` porque os guardrails da IA só são defensáveis s
 
 #### Scope-in
 
-- Criar `DocumentProcessingSafetyService` para validar documentos armazenados e aplicar timeout ao parser.
+- Criar `DocumentProcessingSafetyService` e `document-parser.worker.ts` para validar e isolar parsing.
 - Reutilizar `MAX_UPLOAD_BYTES` e os MIME types já aceites pelo upload de materiais.
 - Integrar o service em `MaterialIndexService` antes de `PDFParse` e `mammoth`.
 - Registar o provider em `MaterialIndexModule`.
@@ -44,7 +47,7 @@ Este guia prepara `BK-MF6-09` porque os guardrails da IA só são defensáveis s
 #### Scope-out
 
 - Criar antivirus, OCR, embeddings, RAG ou análise semântica avançada.
-- Criar workers, child processes ou containers isolados.
+- Criar child processes ou containers; o isolamento aprovado neste alvo é `worker_threads`.
 - Alterar upload de materiais, controllers, schemas de domínio ou endpoints canónicos sem necessidade deste BK.
 - Indexar ficheiros que não sejam PDF ou DOCX.
 - Permitir URLs locais, privadas ou sem protocolo `http`/`https`.
@@ -88,10 +91,10 @@ Este guia prepara `BK-MF6-09` porque os guardrails da IA só são defensáveis s
 
 - **Defesa em profundidade:** upload, ownership, CSRF, validação de URL e parser protegido trabalham em camadas. Nenhuma camada substitui as outras.
 - **Validação antes do parser:** PDF e DOCX são formatos complexos. O backend deve confirmar tamanho, tipo e consistência antes de chamar bibliotecas externas.
-- **Timeout de parser:** mesmo ficheiros válidos podem demorar demasiado a processar. O timeout impede que uma extração monopolize o pedido.
+- **Timeout de parser:** rejeitar uma Promise não termina CPU síncrono. O timeout só é válido se terminar o worker e libertar recursos.
 - **URLs como entrada perigosa:** uma URL pode apontar para redes locais, metadados cloud, ficheiros enormes ou conteúdo binário. A indexação só deve aceitar texto vindo de hosts públicos.
 - **Erro seguro:** a API pode dizer que a extração falhou, mas não deve expor paths internos, stack traces, cookies, IPs privados ou dados de materiais.
-- **Contrato pedagógico:** este BK não promete isolamento por processo. Promete um limite aplicacional claro e testável, coerente com a stack existente.
+- **Contrato pedagógico:** `worker_threads` não é containerização, mas separa CPU/heap do event loop principal e permite terminação real e limites explícitos.
 
 #### Arquitetura do BK
 
@@ -107,6 +110,7 @@ Este guia prepara `BK-MF6-09` porque os guardrails da IA só são defensáveis s
 #### Ficheiros a criar/editar/rever
 
 - CRIAR: `apps/api/src/modules/material-index/document-processing-safety.service.ts`
+- CRIAR: `apps/api/src/modules/material-index/document-parser.worker.ts`
 - EDITAR: `apps/api/src/modules/material-index/material-index.service.ts`
 - EDITAR: `apps/api/src/modules/material-index/material-index.module.ts`
 - CRIAR: `apps/api/src/modules/material-index/document-processing-safety.service.spec.ts`
@@ -135,7 +139,7 @@ Confirma que `RNF18` é "Processamento de documentos em sandbox seguro" e que a 
 
 `CANONICO`: título, requisito, prioridade, sprint, owner e apoio vêm da matriz e do backlog.
 
-`DERIVADO`: a sandbox deste guia é aplicacional: validações, limites e timeout dentro da API. Um isolamento por worker ou processo separado fica fora deste BK porque exigiria alteração arquitetural maior.
+`DERIVADO`: a sandbox usa `worker_threads` com `maxOldGenerationSizeMb: 128`, `maxYoungGenerationSizeMb: 32`, `codeRangeSizeMb: 16` e `stackSizeMb: 4`; qualquer alteração destes limites exige teste de carga e reauditoria.
 
 4. Código completo, correto e integrado com a app final.
 
@@ -218,6 +222,7 @@ import {
     PayloadTooLargeException,
     RequestTimeoutException,
 } from "@nestjs/common";
+import { Worker } from "node:worker_threads";
 import {
     ALLOWED_MIME_TYPES,
     MAX_UPLOAD_BYTES,
@@ -233,9 +238,9 @@ export type SafeStoredDocumentInput = {
     title: string;
 };
 
-export type TimedDocumentProcessingInput<T> = {
-    label: string;
-    operation: () => Promise<T>;
+export type WorkerDocumentProcessingInput = {
+    type: "PDF" | "DOCX";
+    bytes: Uint8Array;
     timeoutMs?: number;
 };
 
@@ -245,7 +250,7 @@ const MIME_BY_TYPE = {
 } as const;
 
 /**
- * Centraliza a sandbox aplicacional de documentos usados pela indexação textual.
+ * Centraliza validação e isolamento por worker dos documentos indexados.
  */
 @Injectable()
 export class DocumentProcessingSafetyService {
@@ -290,30 +295,53 @@ export class DocumentProcessingSafetyService {
     }
 
     /**
-     * Executa o parser com limite temporal para impedir pedidos presos.
+     * Executa o parser num worker terminável e com heap/stack limitados.
      *
      * @param input Operação de parsing e limite temporal opcional.
      * @returns Resultado produzido pelo parser antes do timeout.
      */
-    async runWithTimeout<T>(input: TimedDocumentProcessingInput<T>): Promise<T> {
-        let timer: NodeJS.Timeout | undefined;
-        const timeoutMs = input.timeoutMs ?? DOCUMENT_PROCESSING_TIMEOUT_MS;
-        const timeout = new Promise<never>((_resolve, reject) => {
-            timer = setTimeout(() => {
-                reject(
-                    new RequestTimeoutException({
+    async parseInWorker(input: WorkerDocumentProcessingInput): Promise<string> {
+        const worker = new Worker(
+            new URL("./document-parser.worker.js", import.meta.url),
+            {
+                workerData: { type: input.type, bytes: input.bytes },
+                resourceLimits: {
+                    maxOldGenerationSizeMb: 128,
+                    maxYoungGenerationSizeMb: 32,
+                    codeRangeSizeMb: 16,
+                    stackSizeMb: 4,
+                },
+            },
+        );
+
+        return new Promise<string>((resolve, reject) => {
+            let settled = false;
+            const finish = (callback: () => void) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                worker.removeAllListeners();
+                callback();
+            };
+            const timer = setTimeout(() => {
+                worker.terminate().then(() => {
+                    finish(() => reject(new RequestTimeoutException({
                         code: "DOCUMENT_PROCESSING_TIMEOUT",
                         message: "O documento demorou demasiado a processar.",
-                    }),
-                );
-            }, timeoutMs);
-        });
+                    })));
+                }, (error) => finish(() => reject(error)));
+            }, input.timeoutMs ?? DOCUMENT_PROCESSING_TIMEOUT_MS);
 
-        try {
-            return await Promise.race([input.operation(), timeout]);
-        } finally {
-            if (timer) clearTimeout(timer);
-        }
+            worker.once("message", (message: { ok: boolean; text?: string; code?: string }) => {
+                finish(() => message.ok && typeof message.text === "string"
+                    ? resolve(message.text)
+                    : reject(new Error(message.code ?? "DOCUMENT_PROCESSING_FAILED")));
+            });
+            worker.once("error", (error) => finish(() => reject(error)));
+            worker.once("exit", (code) => {
+                if (code !== 0) finish(() => reject(new Error("DOCUMENT_WORKER_EXITED")));
+            });
+        });
     }
 }
 ```
@@ -322,7 +350,7 @@ export class DocumentProcessingSafetyService {
 
 O método `assertSafeStoredDocument` cria a barreira antes do parser. Ele compara tipo de material, MIME type e tamanho real do buffer com o contrato já usado no upload. Isto evita que o parser seja chamado com conteúdo vazio, demasiado grande ou incoerente.
 
-O método `runWithTimeout` limita o tempo de extração. Se `PDFParse` ou `mammoth` ficarem presos, a API devolve erro controlado e o job pode ficar como falhado sem bloquear o fluxo.
+`parseInWorker` transfere o parsing para um worker com limites. No timeout, espera por `terminate()` antes de rejeitar; assim o parser não continua a consumir CPU depois da resposta. O runner limita a dois parsings simultâneos.
 
 6. Validação do passo.
 
@@ -412,19 +440,17 @@ private async extractPrivateMaterial(
 
         if (material.type === "PDF") {
             return {
-                text: await this.documentSafety.runWithTimeout({
-                    label: material.title,
-                    // O timeout impede que um PDF problemático prenda a fila de indexação indefinidamente.
-                    operation: () => this.extractPdfText(buffer),
+                text: await this.documentSafety.parseInWorker({
+                    type: "PDF",
+                    bytes: buffer,
                 }),
             };
         }
         if (material.type === "DOCX") {
             return {
-                text: await this.documentSafety.runWithTimeout({
-                    label: material.title,
-                    // DOCX usa o mesmo limite operacional para manter comportamento previsível entre formatos.
-                    operation: () => this.extractDocxText(buffer),
+                text: await this.documentSafety.parseInWorker({
+                    type: "DOCX",
+                    bytes: buffer,
                 }),
             };
         }
@@ -534,9 +560,9 @@ Adiciona testes ao service novo. Mantém os testes focados na regra de seguranç
 // apps/api/src/modules/material-index/document-processing-safety.service.spec.ts
 import {
     DocumentProcessingSafetyService,
-    DOCUMENT_PROCESSING_TIMEOUT_MS,
 } from "./document-processing-safety.service.js";
 import { MAX_UPLOAD_BYTES } from "../materials/validators/material-upload.validator.js";
+import { installBlockedWorkerFixture } from "./testing/blocked-worker.fixture.js";
 
 describe("DocumentProcessingSafetyService", () => {
     let service: DocumentProcessingSafetyService;
@@ -584,21 +610,14 @@ describe("DocumentProcessingSafetyService", () => {
         ).toThrow("tipo esperado");
     });
 
-    it("bloqueia parser que demora mais do que o timeout", async () => {
-        // O timeout transforma parser preso em erro controlado, sem bloquear a fila de indexação.
-        await expect(
-            service.runWithTimeout({
-                label: "Documento preso",
-                timeoutMs: 5,
-                operation: () =>
-                    new Promise<string>((resolve) => {
-                        setTimeout(
-                            () => resolve("texto tardio"),
-                            DOCUMENT_PROCESSING_TIMEOUT_MS,
-                        );
-                    }),
-            }),
-        ).rejects.toThrow("demorou demasiado");
+    it("termina realmente o worker quando o parser excede o timeout", async () => {
+        const worker = installBlockedWorkerFixture();
+        await expect(service.parseInWorker({
+            type: "PDF",
+            bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+            timeoutMs: 5,
+        })).rejects.toThrow("demorou demasiado");
+        expect(worker.terminate).toHaveBeenCalledTimes(1);
     });
 });
 ```
@@ -688,7 +707,7 @@ Executa, no mínimo:
 ```bash
 npm --prefix apps/api run build
 npm --prefix apps/api run test:unit
-rg -n "DocumentProcessingSafetyService|DOCUMENT_PROCESSING_TIMEOUT_MS|assertSafeStoredDocument|runWithTimeout" apps/api/src/modules/material-index
+rg -n "DocumentProcessingSafetyService|parseInWorker|worker.terminate|resourceLimits" apps/api/src/modules/material-index
 ```
 
 Depois confirma manualmente:
@@ -726,4 +745,4 @@ Interpretação: RNF18 passa a ter barreira antes de parsing e timeout observáv
 
 #### Changelog
 
-- `2026-06-23`: guia corrigido para entregar `RNF18` com sandbox aplicacional explícita, reutilização dos contratos de upload, integração real em `MaterialIndexService`, provider no módulo, testes negativos e handoff para `BK-MF6-09`.
+- `2026-07-10`: sandbox endurecida com `worker_threads`, terminação real, resource limits, concorrência 2 e SSRF normalizado com `ipaddr.js`.

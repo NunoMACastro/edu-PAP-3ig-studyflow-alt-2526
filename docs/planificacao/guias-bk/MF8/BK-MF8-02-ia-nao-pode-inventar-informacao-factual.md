@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF35`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF8-03`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-02-ia-nao-pode-inventar-informacao-factual.md`
-- `last_updated`: `2026-07-01`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -539,13 +540,11 @@ export class SourceGroundedAiModule {}
 
 Explicação do código.
 
-O module junta autenticação, materiais, consentimentos, políticas, quotas, provider IA e schema Mongoose. Sem esta composição, o service teria de criar dependências manualmente ou importar ficheiros de forma frágil. O export permite reutilizar o service noutros módulos sem duplicar lógica.
+O módulo junta autenticação, materiais, a fachada governada e o schema. O fluxo de domínio nunca injeta nem exporta a integração externa.
 
 ```ts
 // apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts
 import {
-    GatewayTimeoutException,
-    Inject,
     Injectable,
     ServiceUnavailableException,
     UnprocessableEntityException,
@@ -553,11 +552,8 @@ import {
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
-import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider.js";
-import {
-    resolveAiBudgetMs,
-    withAiResponseBudget,
-} from "../ai/utils/with-ai-response-budget.js";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service.js";
+import { resolveAiBudgetMs } from "../ai/utils/with-ai-response-budget.js";
 import { AiConsentsService } from "../ai-consents/ai-consents.service.js";
 import {
     AiModelPoliciesService,
@@ -605,7 +601,7 @@ export class SourceGroundedAiService {
      * @param aiConsentsService Service de consentimento IA.
      * @param aiModelPoliciesService Service de políticas de modelo IA.
      * @param aiQuotasService Service de quotas IA.
-     * @param aiProvider Provider isolado de IA.
+     * @param governedAiExecutionService Fachada única de execução IA.
      */
     constructor(
         @InjectModel(SourceGroundedAiAnswer.name)
@@ -614,8 +610,7 @@ export class SourceGroundedAiService {
         private readonly aiConsentsService: AiConsentsService,
         private readonly aiModelPoliciesService: AiModelPoliciesService,
         private readonly aiQuotasService: AiQuotasService,
-        @Inject(AI_PROVIDER)
-        private readonly aiProvider: AiProvider,
+        private readonly governedAiExecutionService: GovernedAiExecutionService,
     ) {}
 
     /**
@@ -667,7 +662,7 @@ export class SourceGroundedAiService {
             units: this.estimateUsageUnits(prompt),
         });
 
-        const answer = await this.generateAnswer(prompt, policy);
+        const answer = await this.generateAnswer(actor, prompt, policy);
 
         // Persistir citações junto da resposta permite auditoria posterior sem guardar materiais completos.
         const document = await this.answerModel.create({
@@ -780,56 +775,33 @@ export class SourceGroundedAiService {
     }
 
     /**
-     * Chama o provider IA com um prompt limitado aos excertos citados.
+     * Delega o prompt e contexto autorizados na fachada governada.
      *
      * @param prompt Prompt final já validado por consentimento, política e quota.
      * @param policy Política efetiva resolvida para a finalidade SOURCE_GROUNDED_AI.
      * @returns Resposta validada.
      */
     private async generateAnswer(
+        actor: AuthenticatedUser,
         prompt: string,
         policy: ResolvedAiModelPolicy,
     ): Promise<string> {
-        let providerResult: Record<string, unknown>;
-        try {
-            const budgetMs = resolveAiBudgetMs(policy.timeoutMs);
-            // Mesmo usando IA, o backend mantém a regra de só responder com excertos citados.
-            providerResult = await withAiResponseBudget(
-                this.aiProvider.generateStudyTool({
-                    prompt,
-                    type: "EXPLANATION",
-                    options: { model: policy.model, timeoutMs: budgetMs },
-                }),
-                budgetMs,
-            );
-        } catch (error) {
-            if (error instanceof GatewayTimeoutException) {
-                throw error;
-            }
-            throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_UNAVAILABLE",
-                message: "A IA está temporariamente indisponível.",
-            });
-        }
-
-        const answer = providerResult.answer;
-        if (typeof answer !== "string" || answer.trim().length === 0) {
-            throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_INVALID_RESPONSE",
-                message: "A IA devolveu uma resposta inválida.",
-            });
-        }
-
-        return answer.trim();
+        const result = await this.governedAiExecutionService.execute({
+            actor,
+            purpose: SOURCE_GROUNDED_AI_PURPOSE,
+            prompt,
+            requestedTimeoutMs: resolveAiBudgetMs(policy.timeoutMs),
+        });
+        return result.answer;
     }
 }
 ```
 
 Explicação do código.
 
-O controller garante autenticação e delega. O module injeta todas as dependências. O service fecha o fluxo principal: recebe utilizador autenticado, valida cada fonte com `findReadableDoneJob(...)`, seleciona chunks, normaliza citações, bloqueia ausência de fontes com `NO_INDEXED_SOURCES`, valida consentimento, política e quota, chama o provider com orçamento de tempo e persiste resposta com citações.
+O service valida fontes e citações antes de delegar. A fachada reaplica autorização/consentimento/policy, limites, guardrails, reserva atómica de quota, integração externa, validação de output e audit seguro.
 
-A ordem é intencional. O provider só é chamado depois de ownership/membership, fontes, consentimento, política, limite de prompt e quota. Isto evita exposição de materiais privados, chamadas indevidas ao provider e respostas factuais sem origem. O aluno pode adaptar a estratégia de seleção lexical, mas não deve chamar provider antes de validar fontes nem aceitar `userId` vindo da UI.
+A ordem é intencional: ownership/membership e fontes antecedem a fachada. O service nunca aceita `userId` da UI.
 
 5. Explicação do código.
 
@@ -1173,7 +1145,7 @@ describe("SourceGroundedAiService", () => {
         const {
             aiConsentsService,
             aiModelPoliciesService,
-            aiProvider,
+            governedAiExecutionService,
             aiQuotasService,
             answerModel,
             materialIndexService,
@@ -1222,17 +1194,16 @@ describe("SourceGroundedAiService", () => {
                 citations: expect.any(Array),
             }),
         );
-        expect(aiProvider.generateStudyTool).toHaveBeenCalledWith(
+        expect(governedAiExecutionService.execute).toHaveBeenCalledWith(
             expect.objectContaining({
-                type: "EXPLANATION",
+                purpose: "SOURCE_GROUNDED_AI",
                 prompt: expect.stringContaining("Fontes autorizadas"),
-                options: { model: "gpt-test-source", timeoutMs: 3500 },
             }),
         );
     });
 
     it("bloqueia quando o job não tem chunks citáveis", async () => {
-        const { aiProvider, answerModel, materialIndexService, service } =
+        const { governedAiExecutionService, answerModel, materialIndexService, service } =
             makeService();
         materialIndexService.findReadableDoneJob.mockResolvedValueOnce({
             _id: jobId,
@@ -1248,12 +1219,12 @@ describe("SourceGroundedAiService", () => {
         ).rejects.toBeInstanceOf(UnprocessableEntityException);
 
         // Sem fontes, a IA não pode inventar resposta nem persistir histórico enganador.
-        expect(aiProvider.generateStudyTool).not.toHaveBeenCalled();
+        expect(governedAiExecutionService.execute).not.toHaveBeenCalled();
         expect(answerModel.create).not.toHaveBeenCalled();
     });
 
-    it("bloqueia fonte proibida antes de chamar o provider", async () => {
-        const { aiProvider, answerModel, materialIndexService, service } =
+    it("bloqueia fonte proibida antes da fachada", async () => {
+        const { governedAiExecutionService, answerModel, materialIndexService, service } =
             makeService();
         materialIndexService.findReadableDoneJob.mockRejectedValueOnce(
             new Error("MATERIAL_INDEX_ACCESS_DENIED"),
@@ -1266,8 +1237,8 @@ describe("SourceGroundedAiService", () => {
             }),
         ).rejects.toThrow("MATERIAL_INDEX_ACCESS_DENIED");
 
-        // A autorização de leitura acontece antes do prompt; se falha, o provider não recebe dados.
-        expect(aiProvider.generateStudyTool).not.toHaveBeenCalled();
+        // A autorização de leitura acontece antes da fachada.
+        expect(governedAiExecutionService.execute).not.toHaveBeenCalled();
         expect(answerModel.create).not.toHaveBeenCalled();
     });
 
@@ -1275,7 +1246,7 @@ describe("SourceGroundedAiService", () => {
         const {
             aiConsentsService,
             aiModelPoliciesService,
-            aiProvider,
+            governedAiExecutionService,
             aiQuotasService,
             answerModel,
             service,
@@ -1296,13 +1267,15 @@ describe("SourceGroundedAiService", () => {
 
         expect(aiModelPoliciesService.resolveForUse).not.toHaveBeenCalled();
         expect(aiQuotasService.reserveUsage).not.toHaveBeenCalled();
-        expect(aiProvider.generateStudyTool).not.toHaveBeenCalled();
+        expect(governedAiExecutionService.execute).not.toHaveBeenCalled();
         expect(answerModel.create).not.toHaveBeenCalled();
     });
 
-    it("não persiste quando o provider devolve resposta inválida", async () => {
-        const { aiProvider, answerModel, service } = makeService();
-        aiProvider.generateStudyTool.mockResolvedValueOnce({ answer: "" });
+    it("não persiste quando a fachada rejeita output inválido", async () => {
+        const { governedAiExecutionService, answerModel, service } = makeService();
+        governedAiExecutionService.execute.mockRejectedValueOnce(
+            new ServiceUnavailableException({ code: "AI_INVALID_OUTPUT" }),
+        );
 
         await expect(
             service.ask(student, {
@@ -1315,8 +1288,8 @@ describe("SourceGroundedAiService", () => {
         expect(answerModel.create).not.toHaveBeenCalled();
     });
 
-    it("bloqueia quota excedida antes de chamar o provider", async () => {
-        const { aiProvider, aiQuotasService, answerModel, service } =
+    it("bloqueia quota excedida antes da fachada", async () => {
+        const { governedAiExecutionService, aiQuotasService, answerModel, service } =
             makeService();
         aiQuotasService.reserveUsage.mockRejectedValueOnce(
             new HttpException(
@@ -1335,7 +1308,7 @@ describe("SourceGroundedAiService", () => {
             }),
         ).rejects.toBeInstanceOf(HttpException);
 
-        expect(aiProvider.generateStudyTool).not.toHaveBeenCalled();
+        expect(governedAiExecutionService.execute).not.toHaveBeenCalled();
         expect(answerModel.create).not.toHaveBeenCalled();
     });
 });
@@ -1406,8 +1379,8 @@ function makeService(options: {
             usedUnits: 1,
         }),
     };
-    const aiProvider = {
-        generateStudyTool: jest
+    const governedAiExecutionService = {
+        execute: jest
             .fn()
             .mockResolvedValue({ answer: "Resposta gerada pelo provider." }),
     };
@@ -1419,13 +1392,13 @@ function makeService(options: {
         aiConsentsService as never,
         aiModelPoliciesService as never,
         aiQuotasService as never,
-        aiProvider as never,
+        governedAiExecutionService as never,
     );
 
     return {
         aiConsentsService,
         aiModelPoliciesService,
-        aiProvider,
+        governedAiExecutionService,
         aiQuotasService,
         answerModel,
         materialIndexService,
@@ -1436,7 +1409,7 @@ function makeService(options: {
 
 Explicação do código.
 
-As suites provam o comportamento que importa para `RNF35`: citações normalizadas, bloqueio sem fontes, bloqueio de acesso cruzado, consentimento antes de política/provider, quota antes de provider e ausência de persistência quando o provider devolve resposta inválida.
+As suites provam citações normalizadas, bloqueio sem fontes/acesso, consentimento e quota antes da fachada e ausência de persistência perante output inválido.
 
 Os testes usam dependências controladas porque o objetivo é provar a ordem de segurança sem rede externa nem base de dados real. Isto é aceitável em testes unitários, mas não substitui a implementação final: o service real continua a receber dependências pelo NestJS.
 
@@ -1456,7 +1429,7 @@ Resultado esperado: suites de `citation-policy` e `source-grounded-ai.service` p
 
 7. Cenário negativo/erro esperado.
 
-Se o teste de fonte proibida chamar `generateStudyTool`, a ordem de segurança está errada e o BK não pode ser fechado.
+Se o teste de fonte proibida chamar `execute`, a ordem de segurança está errada e o BK não pode ser fechado.
 
 
 ### Passo 7 - Recolher evidence e preparar handoff

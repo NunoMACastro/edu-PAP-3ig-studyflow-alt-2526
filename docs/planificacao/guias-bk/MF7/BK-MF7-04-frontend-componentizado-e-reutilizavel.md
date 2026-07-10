@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF26`
@@ -17,11 +18,11 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF7-05`
 - `guia_path`: `docs/planificacao/guias-bk/MF7/BK-MF7-04-frontend-componentizado-e-reutilizavel.md`
-- `last_updated`: `2026-06-28`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais extrair um componente reutilizável para estados de página. O resultado observável é uma peça React tipada que apresenta loading, erro, vazio e sucesso de forma consistente em páginas de aluno e professor.
+Neste BK vais extrair componentes e hooks reutilizáveis para estados de página, mutações e polling. `useAsyncAction` cobre as mutações críticas; o polling é single-flight, cancelável com `AbortSignal` e monotónico. O cliente comum usa `ApiError` e distingue JSON, texto e `204`.
 
 No fim, a equipa consegue demonstrar `RNF26` com código, validação e evidence, sem depender de decisões escondidas nem de memória oral.
 
@@ -367,14 +368,33 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
             return undefined;
         }
 
-        const timer = window.setInterval(async () => {
+        const abortController = new AbortController();
+        let timer: number | undefined;
+        let disposed = false;
+        const order = { QUEUED: 0, PROCESSING: 1, DONE: 2, FAILED: 2 } as const;
+
+        const pollOnce = async () => {
             try {
-                const nextJob = await getQuizGenerationJob(studyAreaId, quizJob._id);
-                setQuizJob(nextJob);
+                const nextJob = await getQuizGenerationJob(
+                    studyAreaId,
+                    quizJob._id,
+                    abortController.signal,
+                );
+                if (disposed) return;
+                setQuizJob((current) =>
+                    !current || order[nextJob.status] >= order[current.status]
+                        ? nextJob
+                        : current,
+                );
                 if (nextJob.status === "DONE" && nextJob.artifactId) {
                     await refreshArtifacts(nextJob.artifactId);
+                } else if (["QUEUED", "PROCESSING"].includes(nextJob.status)) {
+                    timer = window.setTimeout(() => {
+                        pollOnce().catch(() => undefined);
+                    }, 1500);
                 }
             } catch (caught) {
+                if (abortController.signal.aborted) return;
                 // A UI não mostra detalhes técnicos que possam revelar fontes privadas ou prompts.
                 setActionError(
                     caught instanceof Error
@@ -382,10 +402,16 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
                         : "Não foi possível atualizar o estado do quiz.",
                 );
             }
-        }, 1500);
+        };
 
-        return () => window.clearInterval(timer);
-    }, [quizJob, studyAreaId]);
+        pollOnce().catch(() => undefined);
+
+        return () => {
+            disposed = true;
+            abortController.abort();
+            if (timer !== undefined) window.clearTimeout(timer);
+        };
+    }, [quizJob?._id, studyAreaId]);
 
     /**
      * Gera um resumo para a área.

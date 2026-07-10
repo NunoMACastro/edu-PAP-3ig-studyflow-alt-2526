@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF1-12`
 - `rf_rnf`: `RF49`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF4-02`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-01-notificar-grupos-turmas-sobre-novos-materiais-feedback-e-tarefas.md`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -212,7 +213,7 @@ ContextNotificationSchema.index({ targetType: 1, targetId: 1, createdAt: -1 });
 ```
 
 5. Explicação do código.
-   O DTO impede payloads vagos e o schema guarda a decisão final do backend. `recipientIds` e `suppressedRecipientIds` permitem provar, em PR e defesa, que preferências foram respeitadas sem guardar dados sensíveis.
+   O DTO impede payloads vagos e o schema guarda a decisão final do backend. Os IDs são estritamente internos para entrega/ownership; nunca entram no DTO público. A vista administrativa expõe apenas contagens agregadas.
 6. Validação do passo.
    Executa `npm run test:unit -- context-notifications` depois dos restantes ficheiros existirem.
 7. Cenário negativo/erro esperado.
@@ -244,15 +245,30 @@ import {
 } from "./dto/create-context-notification.dto.js";
 import { ContextNotification, ContextNotificationDocument } from "./schemas/context-notification.schema.js";
 
-export type ContextNotificationView = {
+export type ContextNotificationRecipientView = {
     id: string;
     targetType: ContextNotificationTargetType;
     targetId: string;
     eventType: string;
     title: string;
     body: string;
-    recipientIds: string[];
-    suppressedRecipientIds: string[];
+    createdAt?: Date;
+};
+
+export type ContextNotificationAdminView = ContextNotificationRecipientView & {
+    recipientCount: number;
+    suppressedCount: number;
+};
+
+type ContextNotificationRow = {
+    _id: unknown;
+    targetType: ContextNotificationTargetType;
+    targetId: unknown;
+    eventType: string;
+    title: string;
+    body: string;
+    recipientIds: unknown[];
+    suppressedRecipientIds: unknown[];
     createdAt?: Date;
 };
 
@@ -272,7 +288,7 @@ export class ContextNotificationsService {
     /**
      * Cria uma notificação e persiste destinatários aceites e suprimidos.
      */
-    async create(actor: AuthenticatedUser, input: CreateContextNotificationDto): Promise<ContextNotificationView> {
+    async create(actor: AuthenticatedUser, input: CreateContextNotificationDto): Promise<ContextNotificationAdminView> {
         const candidateIds = await this.resolveCandidateIds(actor, input);
         const preferenceContext = this.toPreferenceContext(input.targetType);
         const acceptedIds: string[] = [];
@@ -297,19 +313,19 @@ export class ContextNotificationsService {
             suppressedRecipientIds: suppressedIds.map((userId) => new Types.ObjectId(userId)),
         });
 
-        return this.toView(notification.toObject());
+        return this.toAdminView(notification.toObject());
     }
 
     /**
      * Lista apenas notificações onde o utilizador foi destinatário aceite.
      */
-    async listMine(actor: AuthenticatedUser): Promise<ContextNotificationView[]> {
+    async listMine(actor: AuthenticatedUser): Promise<ContextNotificationRecipientView[]> {
         const rows = await this.notificationModel
             .find({ recipientIds: new Types.ObjectId(actor.id) })
             .sort({ createdAt: -1 })
             .limit(50)
             .lean();
-        return rows.map((row) => this.toView(row));
+        return rows.map((row) => this.toRecipientView(row));
     }
 
     private async resolveCandidateIds(actor: AuthenticatedUser, input: CreateContextNotificationDto): Promise<string[]> {
@@ -329,17 +345,7 @@ export class ContextNotificationsService {
             : NotificationContext.STUDY_GOAL;
     }
 
-    private toView(row: {
-        _id: unknown;
-        targetType: ContextNotificationTargetType;
-        targetId: unknown;
-        eventType: string;
-        title: string;
-        body: string;
-        recipientIds: unknown[];
-        suppressedRecipientIds: unknown[];
-        createdAt?: Date;
-    }): ContextNotificationView {
+    private toRecipientView(row: ContextNotificationRow): ContextNotificationRecipientView {
         return {
             id: String(row._id),
             targetType: row.targetType,
@@ -347,9 +353,17 @@ export class ContextNotificationsService {
             eventType: row.eventType,
             title: row.title,
             body: row.body,
-            recipientIds: row.recipientIds.map(String),
-            suppressedRecipientIds: row.suppressedRecipientIds.map(String),
             createdAt: row.createdAt,
+        };
+    }
+
+    private toAdminView(row: ContextNotificationRow): ContextNotificationAdminView {
+        const recipientCount = row.recipientIds.length;
+        const suppressedCount = row.suppressedRecipientIds.length;
+        return {
+            ...this.toRecipientView(row),
+            recipientCount,
+            suppressedCount,
         };
     }
 }
@@ -460,8 +474,6 @@ export type ContextNotification = {
     eventType: string;
     title: string;
     body: string;
-    recipientIds: string[];
-    suppressedRecipientIds: string[];
 };
 
 export type CreateContextNotificationInput = {
@@ -533,7 +545,6 @@ export function ContextNotificationsPanel() {
                     <li key={item.id}>
                         <strong>{item.title}</strong>
                         <p>{item.body}</p>
-                        <small>{item.recipientIds.length} destinatários activos</small>
                     </li>
                 ))}
             </ul>
@@ -603,8 +614,10 @@ describe("ContextNotificationsService", () => {
         );
 
         expect(classesService.findOwnedClass).toHaveBeenCalled();
-        expect(result.recipientIds).toHaveLength(1);
-        expect(result.suppressedRecipientIds).toHaveLength(1);
+        expect(result.recipientCount).toBe(1);
+        expect(result.suppressedCount).toBe(1);
+        expect(result).not.toHaveProperty("recipientIds");
+        expect(result).not.toHaveProperty("suppressedRecipientIds");
         expect(createdRows).toHaveLength(1);
     });
 });
@@ -648,13 +661,13 @@ Sem código neste passo.
 
 - `npm run test:unit -- context-notifications`
 - `npm run test:integration`
-- Teste manual: criar notificação de turma e confirmar que alunos fora da turma não aparecem em `recipientIds`.
+- Teste manual: criar notificação de turma e confirmar por query interna de teste que alunos fora da turma não são destinatários; a resposta HTTP deve conter apenas contagens.
 
 #### Evidence para PR/defesa
 
 - Screenshot do painel com uma notificação recebida.
 - Output dos testes unitários.
-- Payload de resposta com `recipientIds` e `suppressedRecipientIds`.
+- Payload administrativo com `recipientCount`/`suppressedCount` e prova de ausência de IDs; payload do destinatário sem IDs nem contagens administrativas.
 - Nota a explicar que email/push não entram neste BK.
 
 #### Handoff

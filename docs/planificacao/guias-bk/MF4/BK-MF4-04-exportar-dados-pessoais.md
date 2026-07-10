@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RF52`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF4-05`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-04-exportar-dados-pessoais.md`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -30,7 +31,7 @@ RF52 é requisito de privacidade. O utilizador deve conseguir obter os seus dado
 #### Scope-in
 
 - Criar pedido de exportação com expiração.
-- Montar bundle JSON com utilizador público, áreas, contagem de materiais e preferências.
+- Montar bundle JSON completo a partir do `PersonalDataRegistry`, incluindo todas as categorias pessoais registadas.
 - Expor `POST`, `GET` e `GET /:id/download`.
 - Criar cliente e painel React.
 - Testar ownership e exclusão de `passwordHash`.
@@ -61,17 +62,14 @@ Fica um módulo `privacy-data-exports` que cria pedidos e gera um JSON minimizad
 
 #### Pre-requisitos
 
-- `UsersService.findById`.
-- `StudyAreasService.listMyStudyAreas`.
-- `MaterialsService.countMine`.
-- `NotificationPreferencesService.listEffective`.
+- `PersonalDataRegistry` com todos os models Mongoose classificados.
 - `SessionGuard`.
 - `requestMf3Json`.
 
 #### Glossário
 
 - Export request: registo que prova que o utilizador pediu uma exportação.
-- Bundle: objecto JSON com dados pessoais exportados.
+- Bundle: objecto JSON com todas as categorias pessoais classificadas no registry.
 - Ownership: filtro que garante que `userId` do pedido é igual ao actor autenticado.
 - Minimização: incluir apenas dados necessários e excluir segredos.
 
@@ -95,6 +93,8 @@ Exportar dados pessoais não significa abrir uma query administrativa. O backend
 - CRIAR: `apps/api/src/modules/privacy-data-exports/dto/request-data-export.dto.ts`
 - CRIAR: `apps/api/src/modules/privacy-data-exports/schemas/data-export-request.schema.ts`
 - CRIAR: `apps/api/src/modules/privacy-data-exports/privacy-data-exports.service.ts`
+- CRIAR: `apps/api/src/modules/privacy/personal-data-registry.ts`
+- CRIAR: `apps/api/src/modules/privacy/personal-data-registry.spec.ts`
 - CRIAR: `apps/api/src/modules/privacy-data-exports/privacy-data-exports.controller.ts`
 - CRIAR: `apps/api/src/modules/privacy-data-exports/privacy-data-exports.module.ts`
 - CRIAR: `apps/api/src/modules/privacy-data-exports/privacy-data-exports.service.spec.ts`
@@ -103,6 +103,47 @@ Exportar dados pessoais não significa abrir uma query administrativa. O backend
 - EDITAR: `apps/api/src/app.module.ts`
 
 #### Tutorial técnico linear
+
+### Contrato transversal - registar todos os models pessoais
+
+Cada model Mongoose tem obrigatoriamente uma política no `PersonalDataRegistry`: `DELETE`, `PULL_MEMBERSHIP`, `ANONYMIZE_90D` ou `RETAIN_NONPERSONAL`. Cada handler expõe apenas os dados do titular e remove hashes, secrets, cookies, conteúdo de terceiros e campos internos. Um teste arquitetural compara `mongoose.modelNames()` com o registry e falha perante qualquer model não classificado; por isso, adicionar um schema novo obriga a decidir explicitamente a sua política de exportação e eliminação.
+
+```ts
+// apps/api/src/modules/privacy/personal-data-registry.ts
+import { Inject, Injectable } from "@nestjs/common";
+
+export const PERSONAL_DATA_HANDLERS = Symbol("PERSONAL_DATA_HANDLERS");
+
+export type PersonalDataPolicy =
+    | "DELETE"
+    | "PULL_MEMBERSHIP"
+    | "ANONYMIZE_90D"
+    | "RETAIN_NONPERSONAL";
+
+export type PersonalDataHandler = {
+    modelName: string;
+    policy: PersonalDataPolicy;
+    exportForUser(userId: string): Promise<unknown>;
+};
+
+@Injectable()
+export class PersonalDataRegistry {
+    constructor(@Inject(PERSONAL_DATA_HANDLERS) private readonly handlers: PersonalDataHandler[]) {}
+
+    assertEveryModelClassified(modelNames: readonly string[]): void {
+        const classified = new Set(this.handlers.map((handler) => handler.modelName));
+        const missing = modelNames.filter((name) => !classified.has(name));
+        if (missing.length > 0) throw new Error(`UNCLASSIFIED_PERSONAL_DATA_MODELS:${missing.join(",")}`);
+    }
+
+    async exportForUser(userId: string): Promise<Record<string, unknown>> {
+        const entries = await Promise.all(
+            this.handlers.map(async (handler) => [handler.modelName, await handler.exportForUser(userId)] as const),
+        );
+        return Object.fromEntries(entries);
+    }
+}
+```
 
 ### Passo 1 - Criar DTO e schema de pedido
 
@@ -161,6 +202,7 @@ export class DataExportRequest {
 
 export const DataExportRequestSchema = SchemaFactory.createForClass(DataExportRequest);
 DataExportRequestSchema.index({ userId: 1, requestedAt: -1 });
+DataExportRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 ```
 
 5. Explicação do código.
@@ -186,20 +228,14 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
-import { NotificationPreferencesService } from "../notification-preferences/notification-preferences.service.js";
-import { MaterialsService } from "../materials/materials.service.js";
-import { StudyAreasService } from "../study-areas/study-areas.service.js";
-import { UsersService } from "../users/users.service.js";
+import { PersonalDataRegistry } from "../privacy/personal-data-registry.js";
 import { RequestDataExportDto } from "./dto/request-data-export.dto.js";
 import { DataExportRequest, DataExportRequestDocument } from "./schemas/data-export-request.schema.js";
 
 export type DataExportRequestView = { id: string; status: string; requestedAt: Date; expiresAt: Date };
 export type PersonalDataBundle = {
     exportedAt: string;
-    user: { id: string; email: string; role: string };
-    studyAreas: unknown[];
-    materialCount: number;
-    notificationPreferences: unknown[];
+    categories: Record<string, unknown>;
 };
 
 /**
@@ -210,10 +246,7 @@ export class PrivacyDataExportsService {
     constructor(
         @InjectModel(DataExportRequest.name)
         private readonly exportModel: Model<DataExportRequestDocument>,
-        private readonly usersService: UsersService,
-        private readonly studyAreasService: StudyAreasService,
-        private readonly materialsService: MaterialsService,
-        private readonly preferencesService: NotificationPreferencesService,
+        private readonly personalDataRegistry: PersonalDataRegistry,
     ) {}
 
     async requestExport(actor: AuthenticatedUser, input: RequestDataExportDto): Promise<DataExportRequestView> {
@@ -242,22 +275,10 @@ export class PrivacyDataExportsService {
             throw new ForbiddenException({ code: "DATA_EXPORT_EXPIRED", message: "A exportação expirou." });
         }
 
-        const user = await this.usersService.findById(actor.id);
-        if (!user) throw new NotFoundException({ code: "USER_NOT_FOUND", message: "Utilizador não encontrado." });
-
-        const [studyAreas, materialCount, notificationPreferences] = await Promise.all([
-            this.studyAreasService.listMyStudyAreas(actor.id),
-            this.materialsService.countMine(actor.id),
-            this.preferencesService.listEffective(actor.id),
-        ]);
-
-        // Só são devolvidos campos públicos; passwordHash e dados de sessão ficam sempre fora.
         return {
             exportedAt: new Date().toISOString(),
-            user: this.usersService.toPublicUser(user),
-            studyAreas,
-            materialCount,
-            notificationPreferences,
+            // Cada handler aplica ownership e exclusão de passwordHash, secrets e dados de terceiros.
+            categories: await this.personalDataRegistry.exportForUser(actor.id),
         };
     }
 
@@ -281,9 +302,9 @@ export class PrivacyDataExportsService {
 ```
 
 5. Explicação do código.
-   O service filtra sempre por `actor.id`. O bundle usa APIs públicas existentes e exclui `passwordHash`, sessões, cookies e tokens. A expiração limita o risco de links antigos.
+   O service filtra sempre por `actor.id`. O registry cobre todas as categorias e os handlers excluem `passwordHash`, sessões, cookies, tokens e dados de terceiros. A expiração limita o risco de links antigos.
 6. Validação do passo.
-   Criar pedido e chamar download com o mesmo actor deve devolver JSON com `user`, `studyAreas`, `materialCount` e `notificationPreferences`.
+   Criar pedido e chamar download com o mesmo actor deve devolver uma chave por model classificado no registry.
 7. Cenário negativo/erro esperado.
    Outro utilizador a chamar o mesmo `exportId` recebe `DATA_EXPORT_NOT_FOUND`.
 
@@ -301,7 +322,7 @@ export class PrivacyDataExportsService {
 
 ```ts
 // apps/api/src/modules/privacy-data-exports/privacy-data-exports.controller.ts
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Header, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
 import { RequestDataExportDto } from "./dto/request-data-export.dto.js";
@@ -326,6 +347,8 @@ export class PrivacyDataExportsController {
     }
 
     @Get(":id/download")
+    @Header("Content-Type", "application/json; charset=utf-8")
+    @Header("Content-Disposition", 'attachment; filename="studyflow-dados-pessoais.json"')
     download(@Req() request: AuthenticatedRequest, @Param("id") id: string) {
         return this.exportsService.download(request.user!, id);
     }
@@ -339,6 +362,7 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "../auth/auth.module.js";
 import { MaterialsModule } from "../materials/materials.module.js";
 import { NotificationPreferencesModule } from "../notification-preferences/notification-preferences.module.js";
+import { PrivacyModule } from "../privacy/privacy.module.js";
 import { StudyAreasModule } from "../study-areas/study-areas.module.js";
 import { DataExportRequest, DataExportRequestSchema } from "./schemas/data-export-request.schema.js";
 import { PrivacyDataExportsController } from "./privacy-data-exports.controller.js";
@@ -350,6 +374,7 @@ import { PrivacyDataExportsService } from "./privacy-data-exports.service.js";
 @Module({
     imports: [
         AuthModule,
+        PrivacyModule,
         StudyAreasModule,
         MaterialsModule,
         NotificationPreferencesModule,
@@ -472,7 +497,7 @@ import { PrivacyDataExportsService } from "./privacy-data-exports.service.js";
 describe("PrivacyDataExportsService", () => {
     it("bloqueia download de exportação de outro utilizador", async () => {
         const exportModel = { findOne: jest.fn(() => ({ lean: async () => null })) };
-        const service = new PrivacyDataExportsService(exportModel as never, {} as never, {} as never, {} as never, {} as never);
+        const service = new PrivacyDataExportsService(exportModel as never, {} as never);
 
         await expect(
             service.download({ id: "507f1f77bcf86cd799439010", email: "a@studyflow.test", role: "STUDENT" }, "507f1f77bcf86cd799439011"),

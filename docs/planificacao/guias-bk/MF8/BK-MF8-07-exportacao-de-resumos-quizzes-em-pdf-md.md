@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF40`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF8-08`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-07-exportacao-de-resumos-quizzes-em-pdf-md.md`
-- `last_updated`: `2026-07-02`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -907,6 +908,8 @@ providers: [
     ArtifactExportService,
     QuizGenerationJobsService,
     AdaptiveLearningService,
+    GovernedAiExecutionService,
+    // Token interno: só GovernedAiExecutionService o injeta; nunca é exportado.
     { provide: AI_PROVIDER, useFactory: createAiProvider },
 ],
 ```

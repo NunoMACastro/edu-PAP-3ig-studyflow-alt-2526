@@ -5,12 +5,23 @@ import argparse
 import json
 import math
 import re
+import sys
 import unicodedata
 from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
-TODAY = "2026-04-19"
+TODAY = date.today().isoformat()
+REAL_DEV_STATUSES = {
+    "VALIDADO",
+    "IMPLEMENTADO_NAO_VALIDADO",
+    "PARCIAL",
+    "MITIGADO_POR_ESCOPO",
+    "BLOQUEADO_OPERADOR",
+    "NAO_IMPLEMENTADO",
+    "NAO_APLICAVEL",
+}
 SPRINTS = [f"S{i:02d}" for i in range(1, 13)]
 SPRINT_INDEX = {s: i for i, s in enumerate(SPRINTS, start=1)}
 
@@ -25,6 +36,7 @@ class Task:
     apoio: str
     prioridade: str
     estado: str
+    real_dev_status: str
     esforco: str
     dependencias: list[str]
     rf_rnf: str
@@ -205,6 +217,36 @@ def parse_backlog_rows(backlog_path: Path) -> list[dict[str, str]]:
     return rows
 
 
+def parse_reference_statuses(reference_path: Path) -> dict[str, str]:
+    if not reference_path.exists():
+        return {}
+    lines = reference_path.read_text(encoding="utf-8").splitlines()
+    statuses: dict[str, str] = {}
+    for index, line in enumerate(lines):
+        if not line.strip().startswith("|") or "bk_id" not in line or "real_dev_status" not in line:
+            continue
+        headers = split_md_row(line)
+        bk_index = headers.index("bk_id")
+        status_index = headers.index("real_dev_status")
+        for row_line in lines[index + 2 :]:
+            if not row_line.strip().startswith("|"):
+                break
+            columns = split_md_row(row_line)
+            if len(columns) != len(headers):
+                continue
+            bk_id = columns[bk_index].replace("`", "").strip()
+            status = columns[status_index].replace("`", "").strip()
+            if not re.fullmatch(r"BK-MF\d+-\d+", bk_id):
+                continue
+            if status not in REAL_DEV_STATUSES:
+                raise RuntimeError(f"real_dev_status inválido em {reference_path}: {bk_id}={status!r}")
+            if bk_id in statuses and statuses[bk_id] != status:
+                raise RuntimeError(f"real_dev_status divergente em {reference_path}: {bk_id}")
+            statuses[bk_id] = status
+        break
+    return statuses
+
+
 def parse_core_dual_annex(core_dual_path: Path) -> dict[str, str]:
     if not core_dual_path.exists():
         return {}
@@ -243,8 +285,13 @@ def preferred_sprint_from_window(window: str) -> int:
     return idxs[0]
 
 
-def load_tasks(rows: list[dict[str, str]], class_map: dict[str, str]) -> dict[str, Task]:
+def load_tasks(
+    rows: list[dict[str, str]],
+    class_map: dict[str, str],
+    reference_statuses: dict[str, str] | None = None,
+) -> dict[str, Task]:
     tasks: dict[str, Task] = {}
+    reference_statuses = reference_statuses or {}
     for row in rows:
         bk_id = row["bk_id"].strip()
         owner = row.get("owner", "-").strip()
@@ -252,6 +299,17 @@ def load_tasks(rows: list[dict[str, str]], class_map: dict[str, str]) -> dict[st
         inferred_class = class_for_domain(domain)
         cls = class_map.get(bk_id, inferred_class)
         sprint_raw = row.get("sprint", "S12").strip() or "S12"
+        explicit_status = row.get("real_dev_status", "").strip().replace("`", "")
+        reference_status = reference_statuses.get(bk_id, "")
+        if explicit_status and reference_status and explicit_status != reference_status:
+            raise RuntimeError(
+                f"real_dev_status divergente para {bk_id}: backlog={explicit_status}, referência={reference_status}"
+            )
+        real_dev_status = reference_status or explicit_status
+        if real_dev_status not in REAL_DEV_STATUSES:
+            raise RuntimeError(
+                f"{bk_id} sem real_dev_status explícito/válido; o solver não o infere de estado"
+            )
         tasks[bk_id] = Task(
             bk_id=bk_id,
             macro=row.get("macro", "-").strip(),
@@ -261,6 +319,7 @@ def load_tasks(rows: list[dict[str, str]], class_map: dict[str, str]) -> dict[st
             apoio=row.get("apoio", "-").strip(),
             prioridade=row.get("prioridade", "P1").strip(),
             estado=row.get("estado", "TODO").strip(),
+            real_dev_status=real_dev_status,
             esforco=row.get("esforco", "S").strip(),
             dependencias=parse_items(row.get("dependencias", "-")),
             rf_rnf=row.get("rf_rnf", "-").strip(),
@@ -445,8 +504,166 @@ def apply_min_viability_reclass(tasks: dict[str, Task], constraints: dict) -> di
     return reasons
 
 
-def plan_assignments(tasks: dict[str, Task], constraints: dict) -> tuple[dict[str, int], dict[str, str]]:
-    deps, _ = build_graph(tasks)
+def try_local_relocation(
+    blocked_bk: str,
+    tasks: dict[str, Task],
+    constraints: dict,
+    deps: dict[str, list[str]],
+    children: dict[str, list[str]],
+    assigned_sprint: dict[str, int],
+    assigned_owner: dict[str, str],
+) -> dict[str, object] | None:
+    """Liberta um slot com uma relocacao local, deterministica e validada.
+
+    A pesquisa move apenas assignments que ocupam o sprint candidato. O destino
+    tem de ficar dentro da janela definida por dependencias e filhos ja
+    atribuídos. Este passo e repetido pelo greedy em dead-ends posteriores,
+    funcionando como backtracking local limitado sem reconstruir todo o plano.
+    """
+
+    owners = list(owner_caps(constraints).keys())
+    o_caps = owner_caps(constraints)
+    s_caps = sprint_caps(constraints)
+    task = tasks[blocked_bk]
+    earliest = max((assigned_sprint[dep] for dep in deps[blocked_bk]), default=1)
+    latest = min(
+        12,
+        SPRINT_INDEX.get(constraints["hard_rules"].get("p0_latest_sprint", "S12"), 12)
+        if task.prioridade == "P0"
+        else 12,
+    )
+
+    def loads(
+        sprints: dict[str, int], owners_by_bk: dict[str, str]
+    ) -> tuple[dict[int, float], dict[str, dict[int, float]]]:
+        sprint_load: dict[int, float] = defaultdict(float)
+        owner_sprint: dict[str, dict[int, float]] = defaultdict(lambda: defaultdict(float))
+        for bk_id, sprint in sprints.items():
+            effort = tasks[bk_id].effort
+            sprint_load[sprint] += effort
+            owner_sprint[owners_by_bk[bk_id]][sprint] += effort
+        return sprint_load, owner_sprint
+
+    candidates: list[tuple[tuple[object, ...], dict[str, object]]] = []
+    target_sprints = sorted(range(earliest, latest + 1), key=lambda sprint: (abs(sprint - task.preferred_sprint), sprint))
+    for target_sprint in target_sprints:
+        for target_owner in owner_sequence(task, owners):
+            victims = [bk_id for bk_id, sprint in assigned_sprint.items() if sprint == target_sprint]
+            victims.sort(
+                key=lambda bk_id: (
+                    tasks[bk_id].effort != task.effort,
+                    tasks[bk_id].prioridade == "P0",
+                    abs(target_sprint - tasks[bk_id].preferred_sprint),
+                    bk_id,
+                )
+            )
+            for victim_bk in victims:
+                victim = tasks[victim_bk]
+                old_sprint = assigned_sprint[victim_bk]
+                old_owner = assigned_owner[victim_bk]
+                dep_sprints = [assigned_sprint[dep] for dep in deps[victim_bk] if dep in assigned_sprint]
+                child_sprints = [assigned_sprint[child] for child in children[victim_bk] if child in assigned_sprint]
+                victim_earliest = max(dep_sprints) if dep_sprints else 1
+                victim_latest = min(child_sprints) if child_sprints else 12
+                if victim.prioridade == "P0":
+                    victim_latest = min(
+                        victim_latest,
+                        SPRINT_INDEX.get(constraints["hard_rules"].get("p0_latest_sprint", "S12"), 12),
+                    )
+
+                base_sprints = dict(assigned_sprint)
+                base_owners = dict(assigned_owner)
+                del base_sprints[victim_bk]
+                del base_owners[victim_bk]
+                base_load, base_owner_load = loads(base_sprints, base_owners)
+
+                destinations: list[tuple[tuple[object, ...], int, str]] = []
+                for destination_sprint in range(victim_earliest, victim_latest + 1):
+                    for destination_owner in owner_sequence(victim, owners):
+                        if destination_sprint == old_sprint and destination_owner == old_owner:
+                            continue
+                        if base_load[destination_sprint] + victim.effort > s_caps[destination_sprint] + 1e-9:
+                            continue
+                        if base_owner_load[destination_owner][destination_sprint] + victim.effort > o_caps[destination_owner] + 1e-9:
+                            continue
+                        destinations.append(
+                            (
+                                (
+                                    destination_owner != old_owner,
+                                    abs(destination_sprint - victim.preferred_sprint),
+                                    destination_sprint,
+                                    destination_owner,
+                                ),
+                                destination_sprint,
+                                destination_owner,
+                            )
+                        )
+
+                for _, destination_sprint, destination_owner in sorted(destinations):
+                    trial_sprints = dict(base_sprints)
+                    trial_owners = dict(base_owners)
+                    trial_sprints[victim_bk] = destination_sprint
+                    trial_owners[victim_bk] = destination_owner
+                    trial_load, trial_owner_load = loads(trial_sprints, trial_owners)
+                    if trial_load[target_sprint] + task.effort > s_caps[target_sprint] + 1e-9:
+                        continue
+                    if trial_owner_load[target_owner][target_sprint] + task.effort > o_caps[target_owner] + 1e-9:
+                        continue
+
+                    with_blocked_sprints = {**trial_sprints, blocked_bk: target_sprint}
+                    with_blocked_owners = {**trial_owners, blocked_bk: target_owner}
+                    owner_changes = sum(
+                        with_blocked_owners[bk_id] != tasks[bk_id].owner_original
+                        for bk_id in with_blocked_sprints
+                    )
+                    sprint_changes = sum(
+                        SPRINTS[with_blocked_sprints[bk_id] - 1] != tasks[bk_id].sprint_original
+                        for bk_id in with_blocked_sprints
+                    )
+                    score = (
+                        owner_changes,
+                        sprint_changes,
+                        target_owner != task.owner_original,
+                        abs(target_sprint - task.preferred_sprint),
+                        destination_owner != victim.owner_original,
+                        abs(destination_sprint - victim.preferred_sprint),
+                        target_sprint,
+                        target_owner,
+                        victim_bk,
+                        destination_sprint,
+                        destination_owner,
+                    )
+                    candidates.append(
+                        (
+                            score,
+                            {
+                                "blocked_bk": blocked_bk,
+                                "target_sprint": target_sprint,
+                                "target_owner": target_owner,
+                                "victim_bk": victim_bk,
+                                "from_sprint": old_sprint,
+                                "from_owner": old_owner,
+                                "to_sprint": destination_sprint,
+                                "to_owner": destination_owner,
+                            },
+                        )
+                    )
+
+    if not candidates:
+        return None
+    return min(candidates, key=lambda candidate: candidate[0])[1]
+
+
+def plan_objective_assignments(
+    tasks: dict[str, Task],
+    constraints: dict,
+) -> tuple[dict[str, int], dict[str, str], list[dict[str, object]]]:
+    """Tenta preservar owners/sprints com a heuristica de custo historica.
+
+    Esta fase otimiza preferencias, mas nao e aceite como prova de viabilidade:
+    um dead-end ativa sempre o scheduler feasibility-first abaixo.
+    """
+    deps, children = build_graph(tasks)
     order = topo_sort(tasks, deps)
     depths = compute_depths(order, deps)
 
@@ -481,6 +698,7 @@ def plan_assignments(tasks: dict[str, Task], constraints: dict) -> tuple[dict[st
 
     assigned_sprint: dict[str, int] = {}
     assigned_owner: dict[str, str] = {}
+    repair_moves: list[dict[str, object]] = []
 
     for bk in order:
         task = tasks[bk]
@@ -533,7 +751,44 @@ def plan_assignments(tasks: dict[str, Task], constraints: dict) -> tuple[dict[st
                         best_choice = choice
 
         if best_choice is None:
-            raise RuntimeError(f"Nao foi possivel agendar BK {bk} sem violar capacidade/dependencias.")
+            repair = try_local_relocation(
+                bk,
+                tasks,
+                constraints,
+                deps,
+                children,
+                assigned_sprint,
+                assigned_owner,
+            )
+            if repair is None:
+                raise RuntimeError(f"Nao foi possivel agendar BK {bk} sem violar capacidade/dependencias.")
+
+            victim_bk = str(repair["victim_bk"])
+            assigned_sprint[victim_bk] = int(repair["to_sprint"])
+            assigned_owner[victim_bk] = str(repair["to_owner"])
+            tasks[victim_bk].owner_current = str(repair["to_owner"])
+            assigned_sprint[bk] = int(repair["target_sprint"])
+            assigned_owner[bk] = str(repair["target_owner"])
+            task.owner_current = str(repair["target_owner"])
+            repair_moves.append(repair)
+
+            sprint_load = defaultdict(float)
+            sprint_core = defaultdict(float)
+            sprint_support = defaultdict(float)
+            owner_sprint = defaultdict(lambda: defaultdict(float))
+            owner_total = defaultdict(float)
+            for assigned_bk, assigned_s in assigned_sprint.items():
+                assigned_task = tasks[assigned_bk]
+                assigned_o = assigned_owner[assigned_bk]
+                effort = assigned_task.effort
+                sprint_load[assigned_s] += effort
+                owner_sprint[assigned_o][assigned_s] += effort
+                owner_total[assigned_o] += effort
+                if assigned_task.class_current == "SUPORTE":
+                    sprint_support[assigned_s] += effort
+                else:
+                    sprint_core[assigned_s] += effort
+            continue
 
         _, _, chosen_s, chosen_owner = best_choice
         assigned_sprint[bk] = chosen_s
@@ -549,7 +804,111 @@ def plan_assignments(tasks: dict[str, Task], constraints: dict) -> tuple[dict[st
         else:
             sprint_core[chosen_s] += e
 
+    return assigned_sprint, assigned_owner, repair_moves
+
+
+def plan_feasibility_assignments(
+    tasks: dict[str, Task],
+    constraints: dict,
+) -> tuple[dict[str, int], dict[str, str]]:
+    """Constroi deterministicamente uma solucao hard-feasible.
+
+    A ordenacao topologica e mantida sem o re-sort por preferencias que causava
+    fragmentacao tardia das capacidades dos owners. Em cada passo escolhe-se o
+    primeiro sprint viavel e, dentro dele, o owner com menor carga local/global.
+    Se nao houver qualquer slot, a funcao falha explicitamente.
+    """
+
+    deps, _ = build_graph(tasks)
+    order = topo_sort(tasks, deps)
+    owners = list(owner_caps(constraints).keys())
+    o_caps = owner_caps(constraints)
+    s_caps = sprint_caps(constraints)
+
+    sprint_load = defaultdict(float)
+    owner_sprint = defaultdict(lambda: defaultdict(float))
+    owner_total = defaultdict(float)
+    assigned_sprint: dict[str, int] = {}
+    assigned_owner: dict[str, str] = {}
+
+    for bk in order:
+        task = tasks[bk]
+        earliest = max((assigned_sprint[dep] for dep in deps[bk]), default=1)
+        latest = 12
+        if task.prioridade == "P0":
+            latest = min(
+                latest,
+                SPRINT_INDEX.get(constraints["hard_rules"].get("p0_latest_sprint", "S12"), 12),
+            )
+
+        candidates: list[tuple[int, float, float, float, str]] = []
+        for sprint in range(earliest, latest + 1):
+            effort = task.effort
+            if sprint_load[sprint] + effort > s_caps[sprint] + 1e-9:
+                continue
+            for owner in owners:
+                if owner_sprint[owner][sprint] + effort > o_caps[owner] + 1e-9:
+                    continue
+                candidates.append(
+                    (
+                        sprint,
+                        sprint_load[sprint],
+                        owner_sprint[owner][sprint],
+                        owner_total[owner],
+                        owner,
+                    )
+                )
+
+        if not candidates:
+            raise RuntimeError(
+                f"Scheduler feasibility-first sem slot para {bk} "
+                f"no intervalo {SPRINTS[earliest - 1]}-{SPRINTS[latest - 1]}."
+            )
+
+        chosen = min(candidates)
+        chosen_sprint = chosen[0]
+        chosen_owner = chosen[4]
+        effort = task.effort
+        assigned_sprint[bk] = chosen_sprint
+        assigned_owner[bk] = chosen_owner
+        task.owner_current = chosen_owner
+        sprint_load[chosen_sprint] += effort
+        owner_sprint[chosen_owner][chosen_sprint] += effort
+        owner_total[chosen_owner] += effort
+
     return assigned_sprint, assigned_owner
+
+
+def plan_assignments(
+    tasks: dict[str, Task],
+    constraints: dict,
+) -> tuple[dict[str, int], dict[str, str], dict[str, object]]:
+    """Executa optimizacao best-effort com fallback deterministico e auditavel."""
+
+    try:
+        assigned_sprint, assigned_owner, repair_moves = plan_objective_assignments(tasks, constraints)
+        return assigned_sprint, assigned_owner, {
+            "strategy": "objective_greedy_with_local_repair" if repair_moves else "objective_greedy",
+            "fallback_trigger": "",
+            "repair_count": len(repair_moves),
+            "repair_moves": repair_moves,
+        }
+    except RuntimeError as objective_error:
+        for task in tasks.values():
+            task.owner_current = task.owner_original
+        try:
+            assigned_sprint, assigned_owner = plan_feasibility_assignments(tasks, constraints)
+        except RuntimeError as feasibility_error:
+            raise RuntimeError(
+                "Falharam a optimizacao e o scheduler feasibility-first: "
+                f"objective={objective_error}; feasibility={feasibility_error}"
+            ) from None
+        return assigned_sprint, assigned_owner, {
+            "strategy": "feasibility_first_fallback",
+            "fallback_trigger": str(objective_error),
+            "repair_count": 0,
+            "repair_moves": [],
+        }
 
 
 def compute_metrics(tasks: dict[str, Task], assigned_sprint: dict[str, int], assigned_owner: dict[str, str]) -> dict:
@@ -832,14 +1191,141 @@ def validate_solution(tasks: dict[str, Task], assigned_sprint: dict[str, int], a
     return errors
 
 
-def run_solver(plan_root: Path, constraints_path: Path, backlog_path: Path, core_dual_path: Path, out_path: Path) -> dict:
+def run_late_chain_capacity_fixture() -> dict[str, object]:
+    """Reproduz o dead-end tardio que o greedy antigo nao conseguia reparar.
+
+    Duas tarefas ocupam integralmente S12; a terceira depende de uma delas e,
+    por isso, so pode entrar nessa sprint no plano orientado a preferencias. O
+    repair local deve libertar capacidade sem reconstruir o plano nem violar a
+    cadeia de dependencias. Uma segunda fixture prova fail-closed quando nem o
+    repair nem o fallback feasibility-first conseguem criar capacidade.
+    """
+
+    constraints = {
+        "owner_capacity_weekly": {
+            "Natalia": 2.0,
+            "Guilherme": 2.0,
+            "Kaua": 0.0,
+            "Daniel": 0.0,
+        },
+        "sprint_capacity": {"default": 4.0, "gate": 4.0, "gates": []},
+        "hard_rules": {
+            "core_dual_percent_min_per_sprint": 70.0,
+            "p0_latest_sprint": "S12",
+        },
+        "objective_weights": {
+            "p0_move": 300,
+            "p1_p2_move": 80,
+            "owner_change": 120,
+            "late_shift": 10,
+        },
+    }
+
+    def fixture_task(bk_id: str, owner: str, dependencies: list[str]) -> Task:
+        return Task(
+            bk_id=bk_id,
+            macro="MF-FIXTURE",
+            titulo=bk_id,
+            owner_original=owner,
+            owner_current=owner,
+            apoio="-",
+            prioridade="P1",
+            estado="TODO",
+            real_dev_status="NAO_APLICAVEL",
+            esforco="M",
+            dependencias=dependencies,
+            rf_rnf="RF00",
+            sprint_original="S12",
+            preferred_sprint=12,
+            domain="learning_foundation",
+            class_original="CORE-HIBRIDO",
+            class_current="CORE-HIBRIDO",
+        )
+
+    def fixture_tasks() -> dict[str, Task]:
+        return {
+            "BK-FIX-01": fixture_task("BK-FIX-01", "Guilherme", []),
+            "BK-FIX-02": fixture_task("BK-FIX-02", "Natalia", []),
+            "BK-FIX-03": fixture_task("BK-FIX-03", "Natalia", ["BK-FIX-01"]),
+        }
+
+    tasks = fixture_tasks()
+    assigned_sprint, assigned_owner, repair_moves = plan_objective_assignments(tasks, constraints)
+    if not repair_moves:
+        raise RuntimeError("Fixture invalida: o dead-end tardio nao ativou o repair local.")
+    violations = validate_solution(tasks, assigned_sprint, assigned_owner, constraints)
+    hard_violations = [
+        violation
+        for violation in violations
+        if violation not in {"owner_total_order_violation", "p0_distribution_violation"}
+    ]
+    if hard_violations:
+        raise RuntimeError("Fixture produziu violacoes hard: " + ", ".join(hard_violations))
+    if assigned_sprint["BK-FIX-01"] > assigned_sprint["BK-FIX-03"]:
+        raise RuntimeError("Fixture quebrou a cadeia BK-FIX-01 -> BK-FIX-03.")
+
+    deterministic_tasks = fixture_tasks()
+    deterministic_sprints, deterministic_owners, deterministic_moves = plan_objective_assignments(
+        deterministic_tasks,
+        constraints,
+    )
+    if (assigned_sprint, assigned_owner, repair_moves) != (
+        deterministic_sprints,
+        deterministic_owners,
+        deterministic_moves,
+    ):
+        raise RuntimeError("Fixture de repair local nao e deterministica.")
+
+    impossible_constraints = json.loads(json.dumps(constraints))
+    impossible_constraints["owner_capacity_weekly"] = {
+        "Natalia": 1.0,
+        "Guilherme": 1.0,
+        "Kaua": 0.0,
+        "Daniel": 0.0,
+    }
+    infeasible_failed_closed = False
+    try:
+        plan_assignments(fixture_tasks(), impossible_constraints)
+    except RuntimeError:
+        infeasible_failed_closed = True
+    if not infeasible_failed_closed:
+        raise RuntimeError("Fixture inviavel foi aceite; o solver deixou de falhar fechado.")
+
+    return {
+        "status": "pass",
+        "fixture": "late_chain_capacity_dead_end",
+        "strategy": "objective_greedy_with_local_repair",
+        "repair_count": len(repair_moves),
+        "repair_moves": repair_moves,
+        "deterministic": True,
+        "infeasible_failed_closed": infeasible_failed_closed,
+        "hard_violations": hard_violations,
+        "assignments": {
+            bk_id: {
+                "sprint": SPRINTS[assigned_sprint[bk_id] - 1],
+                "owner": assigned_owner[bk_id],
+            }
+            for bk_id in sorted(tasks)
+        },
+    }
+
+
+def run_solver(
+    plan_root: Path,
+    constraints_path: Path,
+    backlog_path: Path,
+    core_dual_path: Path,
+    reference_path: Path,
+    out_path: Path | None,
+) -> dict:
     constraints = json.loads(constraints_path.read_text(encoding="utf-8"))
     rows = parse_backlog_rows(backlog_path)
     class_map = parse_core_dual_annex(core_dual_path)
-    tasks = load_tasks(rows, class_map)
+    reference_statuses = parse_reference_statuses(reference_path)
+    tasks = load_tasks(rows, class_map, reference_statuses)
 
     reclass_reasons = apply_min_viability_reclass(tasks, constraints)
-    assigned_sprint, assigned_owner = plan_assignments(tasks, constraints)
+    assigned_sprint, assigned_owner, solver_metadata = plan_assignments(tasks, constraints)
     repair_core_ratio_with_reclass(tasks, assigned_sprint, assigned_owner, constraints, reclass_reasons)
 
     errors = validate_solution(tasks, assigned_sprint, assigned_owner, constraints)
@@ -859,6 +1345,7 @@ def run_solver(plan_root: Path, constraints_path: Path, backlog_path: Path, core
                 "owner": owner_new,
                 "sprint": sprint_new,
                 "classe_core_dual": t.class_current,
+                "real_dev_status": t.real_dev_status,
                 "owner_changed": owner_new != t.owner_original,
                 "sprint_changed": sprint_new != t.sprint_original,
                 "class_changed": t.class_current != t.class_original,
@@ -901,6 +1388,10 @@ def run_solver(plan_root: Path, constraints_path: Path, backlog_path: Path, core
         "project": "studyflow",
         "constraints_file": str(constraints_path.relative_to(plan_root)),
         "status": "feasible",
+        "solver": {
+            **solver_metadata,
+            "validation_violations": errors,
+        },
         "summary": {
             "total_bk": len(tasks),
             "total_effort_u": total,
@@ -916,7 +1407,8 @@ def run_solver(plan_root: Path, constraints_path: Path, backlog_path: Path, core
         "per_owner": per_owner,
     }
 
-    out_path.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if out_path is not None:
+        out_path.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return output
 
 
@@ -938,11 +1430,30 @@ def main() -> int:
         help="Path para anexo core dual (default: ../backlogs/ANEXO-CORE-DUAL-BK.md)",
     )
     parser.add_argument(
+        "--reference-status",
+        default="../ESTADO-REFERENCIA-REAL_DEV.md",
+        help="Autoridade manual de real_dev_status (default: ../ESTADO-REFERENCIA-REAL_DEV.md)",
+    )
+    parser.add_argument(
         "--out",
         default="solver_reassignments.json",
         help="Path de output do solver (default: solver_reassignments.json)",
     )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Resolve e valida constraints sem escrever solver_reassignments.json.",
+    )
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help="Executa a fixture deterministica de dead-end tardio/capacidade.",
+    )
     args = parser.parse_args()
+
+    if args.self_test:
+        print(json.dumps(run_late_chain_capacity_fixture(), ensure_ascii=False, indent=2))
+        return 0
 
     script_dir = Path(__file__).resolve().parent
     plan_root = script_dir.parent
@@ -950,12 +1461,24 @@ def main() -> int:
     constraints_path = (script_dir / args.constraints).resolve()
     backlog_path = (script_dir / args.backlog).resolve()
     core_dual_path = (script_dir / args.core_dual).resolve()
+    reference_path = (script_dir / args.reference_status).resolve()
     out_path = (script_dir / args.out).resolve()
 
-    data = run_solver(plan_root, constraints_path, backlog_path, core_dual_path, out_path)
+    data = run_solver(
+        plan_root,
+        constraints_path,
+        backlog_path,
+        core_dual_path,
+        reference_path,
+        None if args.check else out_path,
+    )
     print(json.dumps(data, ensure_ascii=False, indent=2))
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except RuntimeError as error:
+        print(f"CHECK_FAILED: {error}", file=sys.stderr)
+        raise SystemExit(1) from None

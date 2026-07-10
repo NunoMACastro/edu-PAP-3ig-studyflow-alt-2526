@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF19`
@@ -17,13 +18,15 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF6-10`
 - `guia_path`: `docs/planificacao/guias-bk/MF6/BK-MF6-09-guardrails-obrigatorios-na-ia.md`
-- `last_updated`: `2026-06-23`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
 Neste BK vais consolidar os guardrails obrigatórios da IA sem criar um sistema paralelo ao que a aplicação já tem.
 
-No fim, a StudyFlow mantém um endpoint único para validar contexto de IA, confirma ownership ou membership no backend, não grava prompts privados na decisão de guardrail e obriga os fluxos reais de IA a validar fontes, consentimento, política e quota antes de chamar o provider.
+No fim, `GovernedAiExecutionService` é a única fachada de execução. A ordem obrigatória é: autorização, consentimento, policy/finalidade, limites, guardrails, reserva atómica de quota, provider, validação de output e audit seguro. Nenhum fluxo de produção injeta ou exporta o token do provider.
+
+`ROOM_AI` é uma finalidade explícita, começa desativada e não recebe consentimentos automáticos. Erros de consentimento, finalidade desativada, quota e timeout têm códigos estáveis; nos negativos o teste prova que a chamada externa não aconteceu.
 
 #### Importância
 
@@ -40,6 +43,7 @@ Este BK prepara `BK-MF6-10`: primeiro confirmas que existe uma fronteira de IA c
 - Guardar decisões de guardrail sem guardar o prompt do aluno.
 - Reforçar os testes de `SOLO`, `STUDY_ROOM`, `CLASS_SUBJECT`, role inválida e ausência de prompt persistido.
 - Rever os fluxos reais de IA antes do provider: IA privada, IA da sala, IA da turma/disciplina e IA com fontes.
+- Criar teste arquitetural que falha perante qualquer injeção direta do provider fora da fachada.
 - Preservar os caminhos públicos dos alunos em `apps/api` e `apps/web`.
 
 #### Scope-out

@@ -213,8 +213,49 @@ Nota RF22/RF36: a voz docente é resolvida por herança: override da disciplina 
 
 -   Sistemas devem extrair texto, estrutura e tópicos do documento.
 -   Versionamento deve permitir reversão.
+-   Uploads ficam limitados a 10 MiB por ficheiro e 250 MiB por utilizador; título com 1–160 caracteres é validado antes de qualquer escrita.
+-   O storage local usa staging, SHA-256, promoção atómica, outbox de eliminação e reconciliação de órfãos.
+-   URLs são validados por hop contra SSRF, incluindo IPv4-mapped IPv6, DNS rebinding, redes reservadas/link-local e endpoints de metadata.
+
+### G) Autenticação, sessões e papéis (RF02, RF53, RF55)
+
+-   Redis guarda apenas `{ userId, sessionVersion }`; cada pedido relê `role`, `accountStatus` e `sessionVersion` em MongoDB.
+-   Mudança de papel e eliminação incrementam `sessionVersion`; uma divergência devolve `401 SESSION_REVOKED` e revoga igualmente WebSockets.
+-   Mudança de papel e eliminação são transacionais. Um sentinel atómico impede que duas operações concorrentes removam o último administrador.
+
+### H) IA governada (RF11–RF13, RF16, RF27, RF35–RF40, RF44, RF54, RF57–RF58)
+
+-   `GovernedAiExecutionService` é a única fronteira autorizada a contactar o provider. A ordem é autorização, consentimento, policy, limites, guardrails, reserva atómica de quota, provider, validação de output e audit seguro.
+-   `ROOM_AI` é uma finalidade separada, começa desativada e não recebe consentimento automático.
+-   Consentimento, finalidade desativada, quota e timeout têm erros estáveis; quando um gate falha, o provider não é chamado.
+
+### I) Testes oficiais e ranking (RF28)
+
+-   O ciclo é `DRAFT → PUBLISHED → CLOSED`; apenas `DRAFT` é editável.
+-   Cada teste contém 1–60 perguntas, exatamente quatro opções distintas e índice da correta explicitamente escolhido.
+-   Cada aluno dispõe de no máximo três tentativas numeradas atomicamente. As soluções completas aparecem apenas após a terceira tentativa ou o fecho.
+-   O ranking usa `BEST_ATTEMPT`: uma linha por aluno, maior percentagem; empate pela melhor tentativa mais antiga e depois ID estável. A resposta inclui `attemptCount`, `bestPercentage` e `bestAnsweredAt`.
+
+### J) Notificações (RF47–RF51)
+
+-   DTOs destinados ao utilizador nunca incluem `recipientIds` nem `suppressedRecipientIds`; vistas administrativas devolvem apenas contagens agregadas.
+
+### K) Privacidade e eliminação (RF52–RF56)
+
+-   Um `PersonalDataRegistry` classifica todos os models como `DELETE`, `PULL_MEMBERSHIP`, `ANONYMIZE_90D` ou `RETAIN_NONPERSONAL`; models sem política bloqueiam o release.
+-   A exportação cobre todas as categorias do titular, exclui hashes/secrets/dados de terceiros e é descarregada como attachment JSON.
+-   A eliminação revoga sessões, aplica políticas numa transaction e cria outbox para ficheiros. A referência retida é aleatória, não contém `userId` e expira em 90 dias; auditoria relacionada é anonimizada e sujeita ao mesmo TTL.
+
+### L) Navegação e comunicação em tempo real (RF03–RF06, RF14–RF16, RF41–RF45)
+
+-   Rotas protegidas e por papel bloqueiam antes de montar componentes ou lançar pedidos; existem estados 403, 404 e error boundary.
+-   Chat usa ack tipado em `join`/`send`, revalidação de sessão, deduplicação e só limpa o draft após confirmação positiva.
 
 ## Sugestão de MVP organizado por fases e RF
+
+A fronteira entre requisitos futuros e o perfil implementado de PAP local está registada na
+[matriz normativa da planificação](planificacao/README.md#matriz-de-requisitos-futuros-e-fronteira-pap-local).
+Ela é uma regra derivada e não altera os 57 IDs RF.
 
 -   **Fase 1 - Estudo Individual:** RF01–RF13, focando áreas privadas, ingestão de materiais e assistente IA pessoal.
 -   **Fase 2 - Professores e Turmas:** RF14–RF16 e RF19–RF39, adicionando gestão docente, projetos/testes e painéis de progresso.
@@ -239,3 +280,4 @@ Projeto académico destinado exclusivamente a fins educativos.
 
 -   **2024-04-27** - Reorganização do RF.md para o formato padrão com secções de MVP, créditos, licença e changelog.
 -   **2026-04-17** - Ajuste de escopo MVP StudyFlow com remoção de funcionalidades cortadas e simplificação da integração Drive.
+-   **2026-07-10** - Contratos de aceitação alinhados com a remediação integral para PAP local endurecida (sessões, IA, storage, testes, notificações, RGPD e frontend).

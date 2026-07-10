@@ -9,6 +9,7 @@
 - `apoio`: `Kaua`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `BLOQUEADO_OPERADOR`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF21`
@@ -17,13 +18,13 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF6-12`
 - `guia_path`: `docs/planificacao/guias-bk/MF6/BK-MF6-11-backups-diarios-automaticos.md`
-- `last_updated`: `2026-06-23`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais criar um backup diário automático da base MongoDB da StudyFlow, com comando backend, contrato de agendamento, retenção limitada e evidence sem segredos.
+Neste BK vais criar backup e restore locais: export JSONL, gzip, cifra AES-256-GCM com chave manual de 32 bytes, manifesto SHA-256 e permissões `0700/0600`.
 
-No fim, a equipa consegue executar `backup:daily`, validar uma execução sem dados sensíveis e deixar um agendamento diário preparado para o ambiente de deploy.
+No fim, a equipa executa `backup:daily` offline e ensaia `restore:local` numa base local vazia, com confirmação explícita. Objetivos: RPO local 24 h e RTO 60 min. Não existe claim off-site nem produção.
 
 #### Importância
 
@@ -46,7 +47,7 @@ Este BK prepara `BK-MF6-12` porque o próximo passo trata recuperação após fa
 - Criar endpoints públicos para descarregar backups.
 - Guardar backups dentro do repositório ou expor ficheiros de backup no frontend.
 - Adicionar dependências npm sem aprovação e justificação técnica.
-- Fazer restore completo de produção; este BK entrega criação e verificação do backup.
+- Fazer restore de produção ou para base não vazia/remota; o restore autorizado é local, vazio e explicitamente confirmado.
 - Resolver logs estruturados de MF7; este BK apenas deixa eventos e evidence consumíveis pelo próximo módulo.
 
 #### Estado antes e depois
@@ -102,6 +103,7 @@ Este BK prepara `BK-MF6-12` porque o próximo passo trata recuperação após fa
 #### Ficheiros a criar/editar/rever
 
 - CRIAR: `apps/api/src/scripts/backup-database.ts`
+- CRIAR: `apps/api/src/scripts/restore-database.ts`
 - CRIAR: `apps/api/src/scripts/backup-database.spec.ts`
 - CRIAR: `apps/api/ops/backup-daily.cron`
 - EDITAR: `apps/api/package.json`
@@ -157,7 +159,7 @@ Escolher uma solução que faça backup real sem expor URI ou credenciais no pro
 
 3. Instruções do que fazer.
 
-Usa Mongoose, que já existe nas dependências da API, para abrir ligação com `MONGODB_URI` lida do ambiente. Exporta cada coleção para um ficheiro `.jsonl.gz` dentro de uma pasta privada. Não uses argumentos de linha de comandos para passar a URI.
+Usa Mongoose para abrir a URI local lida do ambiente. Exporta cada coleção para `.jsonl.gz.enc`, com gzip seguido de AES-256-GCM. A chave manual tem exatamente 32 bytes, nunca entra no repositório, CLI, logs ou manifesto. O manifesto guarda IV, auth tag e SHA-256 de cada ciphertext, não a chave.
 
 4. Código completo, correto e integrado com a app final.
 
@@ -169,7 +171,7 @@ A estratégia evita depender de uma ferramenta externa instalada no servidor e p
 
 6. Validação do passo.
 
-Confirma que não vais criar endpoint HTTP para backups e que `STUDYFLOW_BACKUP_DIR` aponta para uma pasta privada fora de `apps/web`.
+Confirma que não vais criar endpoint HTTP e que `STUDYFLOW_BACKUP_DIR` aponta para uma pasta privada fora do checkout. O restore recusa host remoto, base não vazia e ausência da frase de confirmação.
 
 7. Cenário negativo/erro esperado.
 
@@ -193,7 +195,8 @@ Cria o ficheiro abaixo. Mantém as funções exportadas porque o teste do passo 
 
 ```ts
 // apps/api/src/scripts/backup-database.ts
-import { createWriteStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -203,7 +206,6 @@ import { pathToFileURL } from "node:url";
 import { createGzip } from "node:zlib";
 import mongoose from "mongoose";
 
-const DEFAULT_BACKUP_ROOT = "./backups";
 const DEFAULT_RETENTION_DAYS = 7;
 const MAX_RETENTION_DAYS = 90;
 
@@ -230,6 +232,7 @@ export type BackupSummary = {
     collections: number;
     documents: number;
     retentionDays: number;
+    files: Array<{ file: string; iv: string; authTag: string; sha256: string }>;
 };
 
 type DailyBackupOptions = {
@@ -238,6 +241,7 @@ type DailyBackupOptions = {
     retentionDays?: string | number;
     now?: Date;
     dryRun?: boolean;
+    backupKeyHex?: string;
     createConnection?: (mongoUri: string) => Promise<BackupConnection>;
 };
 
@@ -248,6 +252,7 @@ type NormalisedBackupOptions = {
     now: Date;
     dryRun: boolean;
     createConnection: (mongoUri: string) => Promise<BackupConnection>;
+    backupKey: Buffer;
 };
 
 /**
@@ -273,9 +278,17 @@ export function normaliseBackupOptions(
         throw new Error(`STUDYFLOW_BACKUP_RETENTION_DAYS deve ficar entre 1 e ${MAX_RETENTION_DAYS}.`);
     }
 
-    const backupRoot = resolve(options.backupRoot ?? DEFAULT_BACKUP_ROOT);
+    if (!options.backupRoot) {
+        throw new Error("STUDYFLOW_BACKUP_DIR é obrigatória e deve ficar fora do checkout.");
+    }
+    const backupRoot = resolve(options.backupRoot);
     if (backupRoot === "/" || backupRoot === resolve(tmpdir())) {
         throw new Error("STUDYFLOW_BACKUP_DIR deve apontar para uma pasta dedicada.");
+    }
+
+    const backupKey = dryRun ? Buffer.alloc(32) : Buffer.from(options.backupKeyHex ?? "", "hex");
+    if (!dryRun && backupKey.byteLength !== 32) {
+        throw new Error("STUDYFLOW_BACKUP_KEY_HEX deve representar exatamente 32 bytes.");
     }
 
     return {
@@ -285,6 +298,7 @@ export function normaliseBackupOptions(
         now: options.now ?? new Date(),
         dryRun,
         createConnection: options.createConnection ?? createMongooseConnection,
+        backupKey,
     };
 }
 
@@ -309,6 +323,7 @@ export async function createDailyBackup(options: DailyBackupOptions): Promise<Ba
             collections: 0,
             documents: 0,
             retentionDays: config.retentionDays,
+            files: [],
         } satisfies BackupSummary;
         await writeManifest(outputDir, summary);
         return summary;
@@ -322,10 +337,15 @@ export async function createDailyBackup(options: DailyBackupOptions): Promise<Ba
         }
 
         let documentCount = 0;
+        const files: BackupSummary["files"] = [];
         for (const collection of collections) {
             const count = await collection.countDocuments({});
             documentCount += count;
-            await writeCollectionBackup(collection, join(outputDir, `${collection.collectionName}.jsonl.gz`));
+            files.push(await writeCollectionBackup(
+                collection,
+                join(outputDir, `${collection.collectionName}.jsonl.gz.enc`),
+                config.backupKey,
+            ));
         }
 
         const summary = {
@@ -336,6 +356,7 @@ export async function createDailyBackup(options: DailyBackupOptions): Promise<Ba
             collections: collections.length,
             documents: documentCount,
             retentionDays: config.retentionDays,
+            files,
         } satisfies BackupSummary;
         await writeManifest(outputDir, summary);
         await removeExpiredBackups(config.backupRoot, config.now, config.retentionDays);
@@ -361,18 +382,33 @@ async function createMongooseConnection(mongoUri: string): Promise<BackupConnect
  * @param collection Coleção MongoDB a exportar.
  * @param filePath Caminho final do ficheiro comprimido.
  */
-async function writeCollectionBackup(collection: BackupCollectionReader, filePath: string): Promise<void> {
+async function writeCollectionBackup(
+    collection: BackupCollectionReader,
+    filePath: string,
+    backupKey: Buffer,
+): Promise<{ file: string; iv: string; authTag: string; sha256: string }> {
     async function* documentsAsLines() {
         for await (const document of collection.find({})) {
             yield `${JSON.stringify(document)}\n`;
         }
     }
 
+    const iv = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", backupKey, iv);
     await pipeline(
         Readable.from(documentsAsLines()),
         createGzip(),
+        cipher,
         createWriteStream(filePath, { mode: 0o600 }),
     );
+    const hash = createHash("sha256");
+    await pipeline(createReadStream(filePath), hash);
+    return {
+        file: filePath.split("/").at(-1) ?? filePath,
+        iv: iv.toString("base64"),
+        authTag: cipher.getAuthTag().toString("base64"),
+        sha256: hash.digest("hex"),
+    };
 }
 
 /**
@@ -428,6 +464,7 @@ async function runFromCli(): Promise<void> {
             mongoUri: process.env.MONGODB_URI,
             backupRoot: process.env.STUDYFLOW_BACKUP_DIR,
             retentionDays: process.env.STUDYFLOW_BACKUP_RETENTION_DAYS,
+            backupKeyHex: process.env.STUDYFLOW_BACKUP_KEY_HEX,
             dryRun: process.argv.includes("--dry-run"),
         });
         console.log(JSON.stringify(summary));
@@ -440,13 +477,15 @@ async function runFromCli(): Promise<void> {
 
 const executedFileUrl = process.argv[1] ? pathToFileURL(process.argv[1]).href : "";
 if (import.meta.url === executedFileUrl) {
-    void runFromCli();
+    runFromCli().catch(() => {
+        process.exitCode = 1;
+    });
 }
 ```
 
 5. Explicação do código.
 
-O script lê configuração por ambiente, valida retenção, cria uma pasta privada, exporta cada coleção para `.jsonl.gz`, escreve um `manifest.json` sem segredos e apaga backups antigos. A opção `--dry-run` permite confirmar configuração e permissões de escrita sem abrir MongoDB.
+O script valida diretoria e chave, cria uma pasta privada, comprime e cifra cada coleção para `.jsonl.gz.enc`, calcula SHA-256 do ciphertext e escreve IV/auth tag no manifesto sem incluir a chave. A opção `--dry-run` não substitui o backup e restore reais do gate final.
 
 6. Validação do passo.
 
@@ -476,7 +515,8 @@ Adiciona os scripts npm dentro de `scripts` e cria o ficheiro de cron. Mantém `
 {
   "scripts": {
     "backup:daily": "nest build && node dist/scripts/backup-database.js",
-    "backup:daily:dry-run": "nest build && node dist/scripts/backup-database.js --dry-run"
+    "backup:daily:dry-run": "nest build && node dist/scripts/backup-database.js --dry-run",
+    "restore:local": "nest build && node dist/scripts/restore-database.js"
   }
 }
 ```
@@ -484,13 +524,13 @@ Adiciona os scripts npm dentro de `scripts` e cria o ficheiro de cron. Mantém `
 ```cron
 # apps/api/ops/backup-daily.cron
 # Executa todos os dias às 02:15 no servidor que aloja a API.
-# O ficheiro de ambiente do deploy deve definir MONGODB_URI, STUDYFLOW_BACKUP_DIR e STUDYFLOW_BACKUP_RETENTION_DAYS.
+# O ambiente local deve definir URI, diretoria, retenção e a chave manual fora deste ficheiro.
 15 2 * * * cd /srv/studyflow && npm --prefix apps/api run backup:daily >> /var/log/studyflow-backup.log 2>&1
 ```
 
 5. Explicação do código.
 
-`backup:daily` é o comando real do requisito. `backup:daily:dry-run` serve para confirmar permissões, diretório e compilação. O cron torna o backup diário automático e deixa explícita a hora, o comando e o destino do log operacional.
+`backup:daily` é o comando real. `backup:daily:dry-run` só confirma configuração. `restore:local` verifica SHA-256 e auth tag antes de importar, aceita apenas MongoDB loopback, exige base vazia e a confirmação `RESTORE_LOCAL_EMPTY_DATABASE`. Nenhuma destas operações imprime a chave ou documentos.
 
 6. Validação do passo.
 
@@ -546,6 +586,7 @@ function collectionWithDocuments(
 }
 
 describe("backup diário da StudyFlow", () => {
+    const backupKeyHex = "11".repeat(32);
     let tempDir: string;
 
     beforeEach(async () => {
@@ -571,6 +612,7 @@ describe("backup diário da StudyFlow", () => {
         const summary = await createDailyBackup({
             mongoUri: "mongodb://127.0.0.1:27017/studyflow",
             backupRoot: tempDir,
+            backupKeyHex,
             now: new Date("2026-06-23T02:15:00.000Z"),
             createConnection: async () => connection,
         });
@@ -580,7 +622,10 @@ describe("backup diário da StudyFlow", () => {
         // O manifest pode provar contagens, mas nunca deve guardar URI, password ou documentos exportados.
         expect(summary.collections).toBe(2);
         expect(summary.documents).toBe(2);
+        expect(summary.files).toHaveLength(2);
+        expect(summary.files.every((file) => /^[a-f0-9]{64}$/.test(file.sha256))).toBe(true);
         expect(manifest).not.toContain("mongodb://");
+        expect(manifest).not.toContain(backupKeyHex);
         expect(close).toHaveBeenCalledTimes(1);
     });
 
@@ -595,6 +640,7 @@ describe("backup diário da StudyFlow", () => {
                 mongoUri: "mongodb://127.0.0.1:27017/studyflow",
                 backupRoot: tempDir,
                 retentionDays: 0,
+                backupKeyHex,
             }),
         ).toThrow("STUDYFLOW_BACKUP_RETENTION_DAYS");
     });
@@ -651,6 +697,7 @@ npm --prefix apps/api run build
 npm --prefix apps/api run test:unit -- backup-database.spec.ts
 STUDYFLOW_BACKUP_DIR="./tmp/backups" npm --prefix apps/api run backup:daily:dry-run
 npm --prefix apps/api run backup:daily
+npm --prefix apps/api run restore:local
 ```
 
 5. Explicação do código.
@@ -677,7 +724,7 @@ Garantir que `BK-MF6-12` consegue usar o backup como base de recuperação após
 
 3. Instruções do que fazer.
 
-Regista no PR os exports e comandos entregues: `createDailyBackup`, `normaliseBackupOptions`, `backup:daily`, `backup:daily:dry-run` e `apps/api/ops/backup-daily.cron`.
+Regista os exports e comandos entregues: `createDailyBackup`, `normaliseBackupOptions`, `backup:daily`, `restore:local` e o agendamento. Não registes a chave nem a URI.
 
 4. Código completo, correto e integrado com a app final.
 
@@ -703,6 +750,9 @@ Se a evidence não mostrar execução diária ou dry run, volta aos passos 4 a 6
 - Existe agendamento diário explícito em `apps/api/ops/backup-daily.cron`.
 - Existe teste unitário com cenário principal e pelo menos 2 negativos.
 - A retenção é validada e limitada.
+- Cada ficheiro usa gzip + AES-256-GCM, e o manifesto SHA-256/auth tag é verificado antes do restore.
+- A chave manual tem 32 bytes e nunca aparece no repositório, argumentos, logs, output ou manifesto.
+- O restore real termina em menos de 60 min numa base local vazia e explicitamente confirmada.
 - A evidence inclui comando, resultado observado, cenário negativo e interpretação curta.
 - O handoff para `BK-MF6-12` lista comandos, exports e riscos residuais.
 
@@ -712,22 +762,23 @@ Se a evidence não mostrar execução diária ou dry run, volta aos passos 4 a 6
 - `npm --prefix apps/api run test:unit -- backup-database.spec.ts`
 - `STUDYFLOW_BACKUP_DIR="./tmp/backups" npm --prefix apps/api run backup:daily:dry-run`
 - `npm --prefix apps/api run backup:daily` em ambiente com `MONGODB_URI` segura
-- Cenário negativo: execução sem `MONGODB_URI`
+- `npm --prefix apps/api run restore:local` numa base local vazia
+- Negativos: chave ausente/inválida, hash/tag adulterado, base não vazia, URI remota e confirmação ausente
 
 #### Evidence para PR/defesa
 
 - pr: referência do PR ou commit com o BK implementado.
-- proof_tecnico: output do build, teste unitário e dry run.
-- proof_negativos: erro controlado sem `MONGODB_URI` e retenção inválida.
+- proof_tecnico: output sanitizado do build, backup real, verificação SHA-256/GCM e restore real.
+- proof_negativos: chave/manifesto inválidos, base não vazia/remota e confirmação ausente.
 - proof_privacidade: confirmação de que output e manifest não incluem URI, credenciais, documentos de aluno ou conteúdo privado.
 - proof_agendamento: linha de `apps/api/ops/backup-daily.cron` e hora diária definida.
 - proof_handoff: nota curta a explicar como `BK-MF6-12` usa esta base para recovery.
 
 #### Handoff
 
-- Entrega para `BK-MF6-12`: comandos `backup:daily` e `backup:daily:dry-run`, script `createDailyBackup`, manifest seguro e agendamento diário.
-- Decisão DERIVADO registada: usar Mongoose já existente para exportar coleções para `.jsonl.gz`, evitando URI em argumentos de processo.
-- Risco residual: validar restore manual num ambiente de teste antes de usar como garantia total de recuperação.
+- Entrega para `BK-MF6-12`: `backup:daily`, `restore:local`, cifra GCM, manifesto SHA-256 e ensaio de restore.
+- Decisão registada: export local `.jsonl.gz.enc`, chave manual de 32 bytes e RPO 24 h/RTO 60 min.
+- Risco residual: cópia off-site fica fora do scope local.
 - Não há alteração de RF/RNF nem mudança de matriz nesta entrega.
 
 #### Changelog

@@ -6,7 +6,7 @@
 - `area`: `project`
 - `owner`: `Nuno`
 - `status`: `ativo`
-- `last_updated`: `2026-06-30`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Formalizar o contrato de campos BK para eliminar drift entre matriz, backlog, guias e sprints.
@@ -22,12 +22,18 @@ Formalizar o contrato de campos BK para eliminar drift entre matriz, backlog, gu
 - `core_or_reforco`: `P0=>Reforco`, `P1/P2=>Core`.
 - `proximo_bk`: recomendacao de handoff.
 - `guia_path`: caminho canónico do guia BK.
+- `estado`: progresso pedagógico `TODO|DONE`.
+- `real_dev_status`: estado independente da implementação de referência:
+  `VALIDADO|IMPLEMENTADO_NAO_VALIDADO|PARCIAL|MITIGADO_POR_ESCOPO|BLOQUEADO_OPERADOR|NAO_IMPLEMENTADO|NAO_APLICAVEL`.
 
 ## Regras de consistencia
 1. `bk_id` existe em matriz, backlog e guia.
 2. `owner/prioridade/dependencias/rf_rnf/sprint/core_or_reforco` iguais entre matriz e backlog.
 3. `guia_path` aponta para ficheiro existente.
 4. Alteracao de contrato exige regeneracao dos anexos no mesmo commit.
+5. `estado` nunca é usado para inferir `real_dev_status`, nem o inverso.
+6. Todo `real_dev_status` tem evidence, risco residual e condição de reabertura em
+   `../ESTADO-REFERENCIA-REAL_DEV.md`; `VALIDADO` exige evidence ligada ao manifesto corrente.
 
 ## Tabela canónica de campos
 | bk_id | macro | owner | prioridade | dependencias | rf_rnf | sprint | core_or_reforco | proximo_bk | guia_path |

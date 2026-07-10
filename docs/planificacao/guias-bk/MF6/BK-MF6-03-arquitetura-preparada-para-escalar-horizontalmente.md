@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P2`
 - `estado`: `TODO`
+- `real_dev_status`: `MITIGADO_POR_ESCOPO`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF13`
@@ -17,13 +18,13 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF6-04`
 - `guia_path`: `docs/planificacao/guias-bk/MF6/BK-MF6-03-arquitetura-preparada-para-escalar-horizontalmente.md`
-- `last_updated`: `2026-06-23`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais preparar a API para correr em mais do que uma instância sem depender de memória local para sessão, identidade ou contexto crítico.
+Neste BK vais tornar explícito o limite operacional do alvo: `PAP_LOCAL_ENDURECIDA`, single-instance e apenas em `127.0.0.1`. Sessões e jobs ficam persistidos para recuperação local, mas este BK não autoriza escala horizontal.
 
-No fim, a equipa fica com checklist técnico, endpoint de diagnóstico e regra clara para manter estado partilhado em Redis/MongoDB. O foco é entregar uma melhoria real de qualidade, segurança, performance ou continuidade sem inventar requisitos fora de `RNF13`.
+No fim, a equipa fica com checklist técnico, endpoint de diagnóstico e condição de reabertura: qualquer segunda instância exige adapter WebSocket/pub-sub, coordenação distribuída de jobs, testes de concorrência e nova auditoria. `RNF13` fica `MITIGADO_POR_ESCOPO`, nunca apresentado como garantia de produção.
 
 #### Importância
 
@@ -51,7 +52,7 @@ Este guia também prepara `BK-MF6-04` porque entrega contratos, evidence e decis
 #### Estado antes e depois
 
 - Estado antes: os BKs até MF5 entregam autenticação, materiais, IA, guardrails iniciais, UX transversal, feedback e smoke de concorrência.
-- Estado depois: a equipa fica com checklist técnico, endpoint de diagnóstico e regra clara para manter estado partilhado em Redis/MongoDB.
+- Estado depois: o runtime falha com configuração pública/multi-instância e a documentação regista os controlos compensatórios e a condição de reabertura.
 
 #### Pre-requisitos
 
@@ -90,7 +91,7 @@ Este guia também prepara `BK-MF6-04` porque entrega contratos, evidence e decis
 
 #### Arquitetura do BK
 
-- Endpoint(s): `GET /api/runtime/instance`.
+- Endpoint(s): `GET /api/runtime/scope`, apenas para identity check local sem dados sensíveis.
 - Modelo/schema: reutiliza modelos existentes quando possível; só cria persistência nova quando o passo técnico a justificar.
 - Service(s): `apps/api/src/common/runtime/runtime-instance.service.ts` concentra a regra principal deste BK.
 - Controller/route: expõe apenas contratos necessários ao RNF e mantém validação backend.
@@ -159,7 +160,7 @@ Ligar este BK ao que já existe antes dele: `BK-MF6-02`, MF0 a MF5, autenticaç�
 
 3. Instruções do que fazer.
 
-Identifica se o BK toca sessões Redis, MongoDB, jobs persistidos, instâncias horizontais e diagnóstico operacional. Depois confirma que nenhuma instância deve guardar permissões ou sessões em memória local como fonte de verdade.
+Identifica sessões Redis, MongoDB, jobs persistidos e diagnóstico operacional. Confirma que a configuração obriga `local-pap`, loopback e uma única instância, e que permissões nunca ficam em memória como fonte de verdade.
 
 4. Código completo, correto e integrado com a app final.
 
@@ -196,10 +197,11 @@ Cria o ficheiro abaixo e mantém a responsabilidade concentrada. O service não 
 ```ts
 // apps/api/src/common/runtime/runtime-instance.service.ts
 import { Injectable } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
 
 export type RuntimeInstanceView = {
-    instanceId: string;
+    deploymentScope: "local-pap";
+    host: "127.0.0.1";
+    singleInstance: true;
     sessionStore: "redis";
     persistentStore: "mongodb";
 };
@@ -209,23 +211,27 @@ export type RuntimeInstanceView = {
  */
 @Injectable()
 export class RuntimeInstanceService {
-    private readonly instanceId = process.env.STUDYFLOW_INSTANCE_ID ?? randomUUID();
-
     /**
-     * Devolve metadados mínimos para validar balanceamento horizontal.
+     * Devolve metadados mínimos para verificar a identidade da instância local.
      *
      * @returns Dados técnicos seguros para smoke tests e evidence.
      */
     describe(): RuntimeInstanceView {
         // A resposta nunca inclui cookie, userId, email ou conteúdo privado do aluno.
-        return { instanceId: this.instanceId, sessionStore: "redis", persistentStore: "mongodb" };
+        return {
+            deploymentScope: "local-pap",
+            host: "127.0.0.1",
+            singleInstance: true,
+            sessionStore: "redis",
+            persistentStore: "mongodb",
+        };
     }
 }
 ```
 
 5. Explicação do código.
 
-O código cria a peça principal de `BK-MF6-03`. Ele existe porque `RNF13` precisa de uma regra executável, não apenas de uma nota no relatório. Os dados de entrada são os dados mínimos do fluxo; os dados de saída são seguros para UI, testes ou evidence. A validação evita o erro comum de deixar sessões Redis, MongoDB, jobs persistidos, instâncias horizontais e diagnóstico operacional dependente de comportamento implícito.
+O código torna o scope local verificável sem sugerir balanceamento. O loader tipado, não este DTO, é quem deve fazer o arranque falhar se scope/host/proxy/origens forem incompatíveis.
 
 6. Validação do passo.
 
@@ -259,15 +265,15 @@ import { Controller, Get } from "@nestjs/common";
 import { RuntimeInstanceService } from "./runtime-instance.service.js";
 
 /**
- * Endpoint técnico seguro para verificar se há mais do que uma instância ativa.
+ * Endpoint técnico seguro para verificar que o processo certo serve o teste local.
  */
 @Controller("api/runtime")
 export class RuntimeController {
     constructor(private readonly runtime: RuntimeInstanceService) {}
 
-    @Get("instance")
+    @Get("scope")
     instance() {
-        // A resposta ajuda a validar balanceamento sem revelar sessões ou cookies.
+        // A resposta valida a identidade local sem revelar sessões ou cookies.
         return this.runtime.describe();
     }
 }
@@ -380,11 +386,11 @@ export class AppModule {}
 
 5. Explicação do código.
 
-A integração mostra onde o service entra no fluxo real. O controller expõe apenas metadados técnicos, o módulo regista controller e provider no grafo NestJS, e `AppModule` passa a carregar esse módulo. Assim, `GET /api/runtime/instance` deixa de depender de uma classe solta e passa a existir na aplicação final prevista.
+A integração mostra onde o service entra no fluxo real. O controller expõe apenas metadados técnicos e `GET /api/runtime/scope` permite ao E2E verificar que está ligado à instância local esperada.
 
 6. Validação do passo.
 
-Confirma que os imports apontam para ficheiros existentes ou criados neste BK e que a rota indicada em `GET /api/runtime/instance` não duplica outra rota.
+Confirma que os imports apontam para ficheiros existentes ou criados neste BK e que `GET /api/runtime/scope` não duplica outra rota.
 
 7. Cenário negativo/erro esperado.
 
@@ -415,7 +421,13 @@ describe("RuntimeInstanceService", () => {
         const result = new RuntimeInstanceService().describe();
 
         // O smoke protege a fronteira de privacidade do endpoint técnico.
-        expect(Object.keys(result)).toEqual(["instanceId", "sessionStore", "persistentStore"]);
+        expect(result).toEqual({
+            deploymentScope: "local-pap",
+            host: "127.0.0.1",
+            singleInstance: true,
+            sessionStore: "redis",
+            persistentStore: "mongodb",
+        });
         expect(JSON.stringify(result)).not.toMatch(/cookie|email|password|sessionId|userId/i);
     });
 });

@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF4-07`
 - `rf_rnf`: `RF56`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF4-09`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-08-auditoria-completa-materiais-ia-papeis.md`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -101,7 +102,7 @@ Auditoria não é logging livre. Deve ter schema, filtros, minimização e autor
 - CRIAR: `apps/api/src/modules/audit-log/audit-log.module.ts`
 - CRIAR: `apps/api/src/modules/audit-log/audit-log.service.spec.ts`
 - EDITAR: `apps/api/src/modules/admin-users/admin-users.service.ts`
-- EDITAR: services IA que chamam `AI_PROVIDER`
+- EDITAR: `GovernedAiExecutionService`, único ponto que regista eventos de execução IA.
 - EDITAR: services de materiais que criam/alteram materiais
 - CRIAR: `apps/web/src/features/audit-log/audit-log-client.ts`
 - CRIAR: `apps/web/src/features/audit-log/audit-log-panel.tsx`
@@ -164,8 +165,11 @@ export type AuditEventDocument = HydratedDocument<AuditEvent>;
  */
 @Schema({ timestamps: true, collection: "audit_events" })
 export class AuditEvent {
-    @Prop({ type: Types.ObjectId, ref: "User", required: true, index: true })
-    actorId!: Types.ObjectId;
+    @Prop({ type: Types.ObjectId, ref: "User", index: true })
+    actorId?: Types.ObjectId;
+
+    @Prop({ trim: true, maxlength: 80, index: true })
+    anonymousActorId?: string;
 
     @Prop({ required: true, enum: Object.values(AuditDomain), index: true })
     domain!: AuditDomain;
@@ -184,10 +188,18 @@ export class AuditEvent {
 
     @Prop({ type: Object, default: {} })
     metadata!: Record<string, string | number | boolean>;
+
+    @Prop({ index: true })
+    anonymizedAt?: Date;
+
+    // Preenchido apenas quando o actor exerce o direito de eliminação.
+    @Prop({ index: true })
+    expiresAt?: Date;
 }
 
 export const AuditEventSchema = SchemaFactory.createForClass(AuditEvent);
 AuditEventSchema.index({ domain: 1, action: 1, createdAt: -1 });
+AuditEventSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 ```
 
 5. Explicação do código.
@@ -211,7 +223,7 @@ AuditEventSchema.index({ domain: 1, action: 1, createdAt: -1 });
 // apps/api/src/modules/audit-log/audit-log.service.ts
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model, Types } from "mongoose";
+import { ClientSession, Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { AuditDomain, AuditQueryDto, AuditResult } from "./dto/audit-query.dto.js";
 import { AuditEvent, AuditEventDocument } from "./schemas/audit-event.schema.js";
@@ -258,6 +270,27 @@ export class AuditLogService {
         return this.auditModel.find(filter).sort({ createdAt: -1 }).limit(100).lean();
     }
 
+    /** Política ANONYMIZE_90D usada pelo PersonalDataRegistry. */
+    async anonymizeForDeletedUser(
+        actorId: string,
+        anonymousActorId: string,
+        session: ClientSession,
+    ): Promise<void> {
+        await this.auditModel.updateMany(
+            { actorId: new Types.ObjectId(actorId) },
+            {
+                $unset: { actorId: 1, resourceId: 1 },
+                $set: {
+                    anonymousActorId,
+                    metadata: {},
+                    anonymizedAt: new Date(),
+                    expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+                },
+            },
+            { session },
+        );
+    }
+
     private redactMetadata(metadata: Record<string, string | number | boolean>) {
         return Object.fromEntries(
             Object.entries(metadata).filter(([key]) => !this.blockedMetadataKeys.has(key)),
@@ -273,7 +306,7 @@ export class AuditLogService {
 ```
 
 5. Explicação do código.
-   `record` não devolve dados ao chamador e redige metadados antes de persistir. `list` é admin-only e limitado a 100 eventos.
+   `record` não devolve dados ao chamador e redige metadados antes de persistir. O handler `ANONYMIZE_90D` remove a ligação ao actor, limpa metadata/resource e ativa TTL de 90 dias. `list` é admin-only e limitado a 100 eventos.
 6. Validação do passo.
    Um evento com `passwordHash` em metadata deve ser gravado sem essa chave.
 7. Cenário negativo/erro esperado.

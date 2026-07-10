@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `MITIGADO_POR_ESCOPO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF14`
@@ -17,13 +18,13 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF6-05`
 - `guia_path`: `docs/planificacao/guias-bk/MF6/BK-MF6-04-https-obrigatorio-tls-1-2.md`
-- `last_updated`: `2026-06-23`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais aplicar uma barreira backend para recusar tráfego inseguro em produção e documentar como validar TLS 1.2+ no proxy ou plataforma de deploy.
+Neste BK vais documentar a mitigação de `RNF14` no alvo local: a API e a web escutam apenas em `127.0.0.1`, `trust proxy` fica desligado e headers de protocolo enviados pelo cliente nunca transformam HTTP em HTTPS confiável.
 
-No fim, pedidos HTTP inseguros deixam de ser aceites em produção e a equipa passa a ter evidence objetiva do canal seguro. O foco é entregar uma melhoria real de qualidade, segurança, performance ou continuidade sem inventar requisitos fora de `RNF14`.
+TLS 1.2+, HSTS e terminação HTTPS ficam `MITIGADO_POR_ESCOPO`. Qualquer exposição pública reabre obrigatoriamente este finding e exige proxy confiável, certificados, TLS/HSTS e nova auditoria; este BK não faz claim de produção.
 
 #### Importância
 
@@ -51,7 +52,7 @@ Este guia também prepara `BK-MF6-05` porque entrega contratos, evidence e decis
 #### Estado antes e depois
 
 - Estado antes: os BKs até MF5 entregam autenticação, materiais, IA, guardrails iniciais, UX transversal, feedback e smoke de concorrência.
-- Estado depois: pedidos HTTP inseguros deixam de ser aceites em produção e a equipa passa a ter evidence objetiva do canal seguro.
+- Estado depois: o arranque recusa host público, wildcard, proxy ativo e origens não-loopback; um header HTTPS forjado não altera essa decisão.
 
 #### Pre-requisitos
 
@@ -90,7 +91,7 @@ Este guia também prepara `BK-MF6-05` porque entrega contratos, evidence e decis
 
 #### Arquitetura do BK
 
-- Endpoint(s): `todos os endpoints HTTP da API em produção`.
+- Endpoint(s): todos os endpoints locais, limitados a loopback pelo loader tipado.
 - Modelo/schema: reutiliza modelos existentes quando possível; só cria persistência nova quando o passo técnico a justificar.
 - Service(s): `apps/api/src/common/middleware/require-https.middleware.ts` concentra a regra principal deste BK.
 - Controller/route: expõe apenas contratos necessários ao RNF e mantém validação backend.
@@ -101,9 +102,9 @@ Este guia também prepara `BK-MF6-05` porque entrega contratos, evidence e decis
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `apps/api/src/common/middleware/require-https.middleware.ts`
+- CRIAR: `apps/api/src/common/config/assert-local-pap-network.ts`
 - EDITAR: `apps/api/src/main.ts`
-- CRIAR: `apps/api/src/common/middleware/require-https.middleware.spec.ts`
+- CRIAR: `apps/api/src/common/config/assert-local-pap-network.spec.ts`
 - REVER: `docs/RNF.md`
 - REVER: `docs/planificacao/backlogs/MATRIZ-CANONICA-BK.md`
 - REVER: `docs/planificacao/backlogs/BACKLOG-MVP.md`
@@ -187,54 +188,41 @@ Implementar a regra central que torna `RNF14` observável e testável no backend
 
 3. Instruções do que fazer.
 
-Cria o ficheiro abaixo e mantém a responsabilidade concentrada. O middleware não recebe decisões de permissão do frontend; usa configuração backend e o protocolo validado pelo proxy.
+Cria o ficheiro abaixo e chama-o antes de construir a aplicação. A decisão usa apenas configuração local validada; headers do pedido não participam.
 
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// apps/api/src/common/middleware/require-https.middleware.ts
-import { ForbiddenException, Injectable, NestMiddleware } from "@nestjs/common";
-import { NextFunction, Request, Response } from "express";
+// apps/api/src/common/config/assert-local-pap-network.ts
+export type LocalPapNetworkConfig = {
+    deploymentScope: string;
+    host: string;
+    trustProxy: boolean;
+    webOrigins: string[];
+};
 
-/**
- * Recusa tráfego sem HTTPS em produção, assumindo proxy reverso configurado.
- */
-@Injectable()
-export class RequireHttpsMiddleware implements NestMiddleware {
-    /**
-     * Bloqueia pedidos HTTP em produção e deixa desenvolvimento local continuar.
-     *
-     * @param request Pedido Express recebido pela API.
-     * @param _response Resposta Express, mantida para cumprir o contrato NestMiddleware.
-     * @param next Função que entrega o pedido à próxima camada.
-     */
-    use(request: Request, _response: Response, next: NextFunction): void {
-        if (process.env.NODE_ENV !== "production") {
-            next();
-            return;
-        }
+/** Falha cedo quando a release local tenta sair de loopback. */
+export function assertLocalPapNetwork(config: LocalPapNetworkConfig): void {
+    const loopbackHosts = new Set(["127.0.0.1", "::1", "localhost"]);
+    const originsAreLoopback = config.webOrigins.every((origin) => {
+        const url = new URL(origin);
+        return url.protocol === "http:" && loopbackHosts.has(url.hostname);
+    });
 
-        const forwardedProto = String(request.headers["x-forwarded-proto"] ?? request.protocol)
-            .split(",")[0]
-            .trim()
-            .toLowerCase();
-
-        // Em produção, a API confia no protocolo validado pelo proxy e recusa downgrade para HTTP.
-        if (forwardedProto !== "https") {
-            throw new ForbiddenException({
-                code: "HTTPS_REQUIRED",
-                message: "Usa ligação HTTPS para aceder ao StudyFlow.",
-            });
-        }
-
-        next();
+    if (
+        config.deploymentScope !== "local-pap" ||
+        !loopbackHosts.has(config.host) ||
+        config.trustProxy ||
+        !originsAreLoopback
+    ) {
+        throw new Error("LOCAL_PAP_NETWORK_CONFIGURATION_REQUIRED");
     }
 }
 ```
 
 5. Explicação do código.
 
-O middleware fica na fronteira da API e aplica `RNF14`: em produção, qualquer pedido sem protocolo HTTPS informado pelo proxy é recusado antes de chegar aos controllers. A leitura de `x-forwarded-proto` considera apenas o primeiro valor para evitar ambiguidades em cadeias de proxies. O ambiente local continua a aceitar HTTP para não bloquear aulas, testes e desenvolvimento sem certificado TLS.
+O guard de configuração impede exposição acidental. `trust proxy=false` significa que a API não confia em headers de protocolo ou IP enviados pelo cliente. HTTP só é aceitável por estar limitado ao próprio computador.
 
 6. Validação do passo.
 
@@ -242,7 +230,7 @@ Executa teste unitário focado no middleware ou, se ainda não criares o teste n
 
 7. Cenário negativo/erro esperado.
 
-Força um pedido com `NODE_ENV=production` e `x-forwarded-proto: http`. O resultado esperado é `ForbiddenException` com `code: "HTTPS_REQUIRED"`, sem revelar cookies, tokens ou headers sensíveis.
+Tenta arrancar com `HOST=0.0.0.0`, origem wildcard, proxy ativo e host remoto. Todos os casos devem falhar antes de abrir a porta.
 
 ### Passo 4 - Integrar middleware no arranque da API
 
@@ -257,7 +245,7 @@ Ligar o middleware ao ponto real da aplicação sem criar caminhos paralelos ou 
 
 3. Instruções do que fazer.
 
-Substitui o conteúdo de `apps/api/src/main.ts` pela versão completa abaixo ou aplica exatamente as mesmas alterações: importar `RequireHttpsMiddleware`, instanciar o middleware e registá-lo antes dos pipes/CORS/rotas.
+Substitui o conteúdo de `apps/api/src/main.ts` pela versão abaixo ou aplica as mesmas decisões: carregar configuração tipada, validá-la antes do NestJS, manter `trust proxy=false` e fazer bind explícito a loopback.
 
 4. Código completo, correto e integrado com a app final.
 
@@ -272,7 +260,8 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
 import { csrfMiddleware } from "./common/middleware/csrf.middleware.js";
-import { RequireHttpsMiddleware } from "./common/middleware/require-https.middleware.js";
+import { assertLocalPapNetwork } from "./common/config/assert-local-pap-network.js";
+import { loadConfig } from "./common/config/load-config.js";
 import { mf0ValidationExceptionFactory } from "./common/validation/mf0-validation-exception.factory.js";
 
 /**
@@ -281,14 +270,13 @@ import { mf0ValidationExceptionFactory } from "./common/validation/mf0-validatio
  * @returns Promise resolvida quando o servidor HTTP estiver a escutar.
  */
 async function bootstrap(): Promise<void> {
+    const config = loadConfig();
+    assertLocalPapNetwork(config);
     const app = await NestFactory.create(AppModule);
+    app.getHttpAdapter().getInstance().set("trust proxy", false);
 
     app.use(cookieParser());
     app.use(csrfMiddleware);
-
-    const requireHttps = new RequireHttpsMiddleware();
-    // O bloqueio HTTPS fica antes das rotas para impedir que controllers processem tráfego inseguro.
-    app.use(requireHttps.use.bind(requireHttps));
 
     app.useGlobalPipes(
         new ValidationPipe({
@@ -300,20 +288,22 @@ async function bootstrap(): Promise<void> {
     );
 
     app.enableCors({
-        origin: process.env.WEB_ORIGIN ?? "http://localhost:5173",
+        origin: config.webOrigins,
         credentials: true,
     });
 
-    const port = Number(process.env.PORT ?? 3000);
-    await app.listen(port);
+    await app.listen(config.port, "127.0.0.1");
 }
 
-void bootstrap();
+bootstrap().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : "API_STARTUP_FAILED");
+    process.exitCode = 1;
+});
 ```
 
 5. Explicação do código.
 
-A integração coloca o middleware no arranque real da API. O pedido inseguro é bloqueado antes dos controllers, mantendo sessão, CSRF e validação backend como camadas complementares. O frontend continua a usar cookies HttpOnly com `credentials: 'include'`, mas não decide se a ligação é segura; essa decisão fica no backend/proxy.
+A integração valida o scope antes de abrir a porta e faz bind explícito a `127.0.0.1`. Sessão, CSRF e validação backend continuam obrigatórios; nenhum header de um pedido pode ativar confiança em proxy.
 
 6. Validação do passo.
 
@@ -321,7 +311,7 @@ Confirma que `apps/api/src/main.ts` compila, que o import aponta para `apps/api/
 
 7. Cenário negativo/erro esperado.
 
-Em produção, um pedido com `x-forwarded-proto: http` deve falhar com `HTTPS_REQUIRED`. Em desenvolvimento local, o mesmo middleware deve chamar `next()` para não bloquear testes sem proxy TLS.
+Um pedido com header de protocolo forjado não altera `request.secure`, IP efetivo, host de bind nem o resultado do scope guard. Uma configuração pública deve impedir o arranque.
 
 ### Passo 5 - Adicionar teste e negativo obrigatório
 
@@ -340,56 +330,37 @@ Adiciona o teste abaixo e adapta apenas nomes de imports se a organização loca
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// apps/api/src/common/middleware/require-https.middleware.spec.ts
-import { ForbiddenException } from "@nestjs/common";
-import { Request, Response } from "express";
-import { RequireHttpsMiddleware } from "./require-https.middleware.js";
+// apps/api/src/common/config/assert-local-pap-network.spec.ts
+import { assertLocalPapNetwork } from "./assert-local-pap-network.js";
 
-describe("RequireHttpsMiddleware", () => {
-    const originalNodeEnv = process.env.NODE_ENV;
+describe("assertLocalPapNetwork", () => {
+    const valid = {
+        deploymentScope: "local-pap",
+        host: "127.0.0.1",
+        trustProxy: false,
+        webOrigins: ["http://127.0.0.1:5173"],
+    };
 
-    afterEach(() => {
-        process.env.NODE_ENV = originalNodeEnv;
+    it("aceita apenas configuração local explícita", () => {
+        expect(() => assertLocalPapNetwork(valid)).not.toThrow();
     });
 
-    it("permite HTTPS em produção", () => {
-        process.env.NODE_ENV = "production";
-        const middleware = new RequireHttpsMiddleware();
-        const next = jest.fn();
-
-        // O proxy informa HTTPS e o pedido pode continuar para os controllers.
-        middleware.use({ headers: { "x-forwarded-proto": "https" }, protocol: "http" } as Request, {} as Response, next);
-
-        expect(next).toHaveBeenCalledTimes(1);
-    });
-
-    it("recusa HTTP em produção sem expor dados sensíveis", () => {
-        process.env.NODE_ENV = "production";
-        const middleware = new RequireHttpsMiddleware();
-        const next = jest.fn();
-        let thrown: unknown;
-
-        try {
-            // O cenário negativo prova que o backend não aceita downgrade para HTTP em produção.
-            middleware.use({ headers: { "x-forwarded-proto": "http" }, protocol: "http" } as Request, {} as Response, next);
-        } catch (error) {
-            thrown = error;
-        }
-
-        expect(thrown).toBeInstanceOf(ForbiddenException);
-        expect((thrown as ForbiddenException).getResponse()).toMatchObject({
-            code: "HTTPS_REQUIRED",
-            message: "Usa ligação HTTPS para aceder ao StudyFlow.",
-        });
-        expect(JSON.stringify((thrown as ForbiddenException).getResponse())).not.toMatch(/cookie|token|password/i);
-        expect(next).not.toHaveBeenCalled();
+    it.each([
+        { ...valid, host: "0.0.0.0" },
+        { ...valid, trustProxy: true },
+        { ...valid, webOrigins: ["https://studyflow.example"] },
+        { ...valid, deploymentScope: "production" },
+    ])("recusa exposição fora do scope local", (input) => {
+        expect(() => assertLocalPapNetwork(input)).toThrow(
+            "LOCAL_PAP_NETWORK_CONFIGURATION_REQUIRED",
+        );
     });
 });
 ```
 
 5. Explicação do código.
 
-O teste cobre o caminho principal e o cenário negativo. O primeiro caso prova que HTTPS vindo do proxy deixa o pedido continuar. O segundo caso prova que HTTP em produção é recusado com erro controlado e sem dados sensíveis. O valor original de `NODE_ENV` é restaurado para não contaminar outros testes da suite.
+O teste cobre a única configuração autorizada e rejeita host público, proxy, origem externa e scope de produção. Um teste HTTP adicional envia um header de HTTPS forjado e confirma que, com `trust proxy=false`, não ganha confiança nem altera o IP efetivo.
 
 6. Validação do passo.
 
@@ -397,7 +368,7 @@ Executa `npm --prefix apps/api run test:unit`. Se o BK tocar deploy/proxy real, 
 
 7. Cenário negativo/erro esperado.
 
-Altera temporariamente `x-forwarded-proto` para `http` em produção e confirma que a suite falha se o middleware deixar o pedido seguir.
+Altera temporariamente o host para `0.0.0.0` ou ativa `trust proxy`; a suite deve falhar se a API conseguir escutar.
 
 ### Passo 6 - Preparar evidence técnica e pedagógica
 
@@ -416,25 +387,22 @@ Regista comando executado, resultado observado, cenário negativo e interpretaç
 4. Código completo, correto e integrado com a app final.
 
 ```bash
-# Validar que o domínio público aceita TLS 1.2+ sem imprimir cookies nem tokens.
-API_PUBLIC_HOST="${API_PUBLIC_HOST:?define o host publico da API antes de validar TLS}"
-openssl s_client -connect "${API_PUBLIC_HOST}:443" -servername "${API_PUBLIC_HOST}" -tls1_2 </dev/null 2>/dev/null | grep -E "Protocol|Cipher|Verify return code"
-
-# Validar que HTTP simples é redirecionado ou bloqueado no ponto público.
-curl -I "http://${API_PUBLIC_HOST}" | grep -E "HTTP/|Location|Strict-Transport-Security"
+# Validar apenas a instância loopback e um header de protocolo forjado.
+curl --fail --silent http://127.0.0.1:3000/api/runtime/scope
+curl --fail --silent -H 'X-Forwarded-Proto: https' http://127.0.0.1:3000/api/runtime/scope
 ```
 
 5. Explicação do código.
 
-Os comandos são evidence operacional, não código da aplicação. `openssl` confirma que o endpoint público aceita TLS 1.2 ou superior no proxy/deploy. `curl -I` confirma que HTTP simples não é servido como canal normal. A evidence não deve guardar cookies, tokens, sessões, prompts, respostas IA ou dados pessoais.
+Os dois pedidos devem devolver a mesma identidade local: o header forjado não cria HTTPS nem altera a confiança. A evidence não guarda cookies, tokens, sessões, prompts, respostas IA ou dados pessoais.
 
 6. Validação do passo.
 
-Guarda o output mínimo: protocolo/cifra, código HTTP observado e interpretação curta. Se ainda não houver domínio público, marca a validação operacional como bloqueada por ambiente, mantendo a validação unitária do middleware.
+Guarda apenas código HTTP, identidade local sanitizada e interpretação curta. TLS/HSTS não é validado neste scope porque não existe endpoint público autorizado.
 
 7. Cenário negativo/erro esperado.
 
-Se `openssl -tls1_2` falhar ou se `curl -I http://...` devolver conteúdo normal sem redirecionar/bloquear, o requisito `RNF14` ainda não está demonstrado em produção.
+Se a API aceitar bind público, proxy ativo ou origem externa, a release local falha. Se o projeto vier a ser publicado, reabre imediatamente `RNF14` para implementação TLS/HSTS real.
 
 ### Passo 7 - Fechar handoff para o próximo BK
 
@@ -482,28 +450,28 @@ Se o próximo BK depender de algo que não foi entregue aqui, volta ao passo té
 - `npm --prefix apps/api run build`
 - `npm --prefix apps/api run test:unit`
 - `npm --prefix apps/web run build` se o BK tocar frontend
-- `openssl s_client -connect "${API_PUBLIC_HOST}:443" -servername "${API_PUBLIC_HOST}" -tls1_2`
-- `curl -I "http://${API_PUBLIC_HOST}"`
+- identity check em `http://127.0.0.1:3000/api/runtime/scope`
+- teste de arranque negativo com host público, proxy ativo, wildcard e origem externa
 - Cenário negativo obrigatório descrito no passo 5
 
 #### Evidence para PR/defesa
 
 - pr: link ou referência do commit com o BK implementado.
 - proof_tecnico: output do build/teste/smoke.
-- proof_tls: protocolo, cifra e código HTTP observados no domínio público, sem cookies nem tokens.
+- proof_scope: bind loopback, proxy desligado e header HTTPS forjado sem efeito.
 - proof_negativos: erro controlado do cenário negativo.
 - proof_privacidade: confirmação de que não foram expostos cookies, hashes, prompts, respostas IA privadas ou dados pessoais.
 - proof_handoff: nota curta a explicar como BK-MF6-05 consome este trabalho.
 
 #### Handoff
 
-- Entrega para `BK-MF6-05`: pedidos HTTP inseguros deixam de ser aceites em produção e a equipa passa a ter evidence objetiva do canal seguro.
-- Export produzido: `RequireHttpsMiddleware`.
-- Decisão DERIVADO registada: em desenvolvimento local, permitir HTTP para não bloquear aulas e testes locais.
-- Risco residual: validar em ambiente semelhante ao deploy final antes de apresentar como garantia operacional.
+- Entrega para `BK-MF6-05`: scope local fail-closed, loopback e proxy desligado; TLS/HSTS permanece mitigado por scope e reabre com exposição pública.
+- Export produzido: `assertLocalPapNetwork`.
+- Decisão registada: HTTP é permitido exclusivamente em loopback no alvo local.
+- Risco residual: TLS/HSTS não implementado; qualquer publicação reabre o BK.
 - Não há alteração de RF/RNF nem mudança de matriz nesta entrega.
 
 #### Changelog
 
-- `2026-06-23`: corrigidos middleware, integração em `main.ts`, teste unitário robusto e evidence TLS 1.2+.
+- `2026-07-10`: contrato alinhado com `PAP_LOCAL_ENDURECIDA`, bind loopback, proxy desligado e TLS/HSTS mitigado por scope.
 - `2026-06-22`: guia reescrito com estrutura pedagógica completa, passos técnicos, código integrado, validação e handoff para `BK-MF6-05`.

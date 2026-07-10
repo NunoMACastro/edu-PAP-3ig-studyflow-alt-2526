@@ -6,7 +6,7 @@
 - `area`: `project`
 - `owner`: `Nuno`
 - `status`: `ativo`
-- `last_updated`: `2026-04-19`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Definir a linha temporal canónica de 12 sprints para executar os BK da StudyFlow com rastreabilidade RF/RNF, coerencia documental e preparacao para defesa PAP.
@@ -18,6 +18,10 @@ Definir a linha temporal canónica de 12 sprints para executar os BK da StudyFlo
 - Replaneamento deterministico por constraints: `scripts/plan_constraints_studyflow.json`.
 - Output operacional do solver: `scripts/solver_reassignments.json`.
 - Invariantes: IDs BK preservados e cobertura `RF/RNF/BK` sem orfaos.
+- `estado` mede o trabalho pedagógico; `real_dev_status` mede a referência e é governado por
+  `ESTADO-REFERENCIA-REAL_DEV.md`. Nenhum dos dois estados é inferido do outro.
+- O perfil de referência é apenas `PAP_LOCAL_ENDURECIDA`; produção, escala horizontal, TLS
+  público, SSO/email e disponibilidade pública mantêm condições de reabertura explícitas.
 
 ## Calendario macro
 - `MF0` (Fundacoes de plataforma): janela `S01-S03` com `12` BK.
@@ -41,4 +45,6 @@ Definir a linha temporal canónica de 12 sprints para executar os BK da StudyFlo
 - Gate S12: pacote final de defesa com UI alinhada ao mockup, funcionalidades MF8 expandidas antes dos testes finais, testes finais executados, erros corrigidos e auditoria automatica em PASS.
 
 ## Changelog
+- `2026-07-10`: separado o progresso dos alunos do estado/evidence da implementação de
+  referência.
 - `2026-04-19`: plano reescrito para horizonte canónico de 12 sprints com gates S4/S8/S12.

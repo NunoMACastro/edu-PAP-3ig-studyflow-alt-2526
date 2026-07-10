@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF16`
@@ -17,13 +18,15 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF6-07`
 - `guia_path`: `docs/planificacao/guias-bk/MF6/BK-MF6-06-sessoes-com-cookies-httponly-secure-samesite.md`
-- `last_updated`: `2026-06-23`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
 Neste BK vais consolidar a política de cookies de sessão da StudyFlow. O login e o logout passam a usar as mesmas opções de cookie, com `HttpOnly`, `Secure` em produção, `SameSite=Lax`, `path=/` e duração alinhada com a sessão no backend.
 
-No fim, a sessão continua a ser opaca, guardada no servidor, enviada ao browser por cookie HttpOnly e usada pelo frontend através de `credentials: "include"`.
+No fim, a sessão continua opaca e a entrada Redis v2 guarda apenas `{ userId, sessionVersion }`. Cada pedido relê no MongoDB o papel, `accountStatus` e a versão atual; conta não `ACTIVE` ou versão divergente devolve `401 SESSION_REVOKED` e elimina a sessão.
+
+`User` passa a ter `accountStatus: ACTIVE | DELETION_PENDING | DELETED` e `sessionVersion`. Mudança de papel e eliminação incrementam a versão dentro da transaction correspondente, revogando todas as sessões; o rollout invalida deliberadamente sessões antigas. O frontend representa `checking | authenticated | anonymous | unavailable`, e apenas `401` produz `anonymous`.
 
 #### Importância
 
@@ -37,6 +40,7 @@ Este BK consome `BK-MF6-05`, porque a sessão só deve ser criada depois de as c
 - Usar essa política no login e no logout de `AuthController`.
 - Rever o cliente real em `apps/web/src/lib/apiClient.ts`.
 - Criar teste unitário para flags de sessão.
+- Criar testes de múltiplas sessões, mudança concorrente de papel, conta eliminada, sessão antiga e `SESSION_REVOKED`.
 - Validar que o cookie não é lido pelo JavaScript e que o frontend usa `credentials: "include"`.
 
 #### Scope-out

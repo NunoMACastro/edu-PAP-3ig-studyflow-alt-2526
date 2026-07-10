@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF0-08, BK-MF0-10`
 - `rf_rnf`: `RF11`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF0-12`
 - `guia_path`: `docs/planificacao/guias-bk/MF0/BK-MF0-11-obter-resumos-ia-baseados-nos-materiais-enviados.md`
-- `last_updated`: `2026-06-01`
+- `last_updated`: `2026-07-10`
 
 ## O que vamos fazer neste BK
 
@@ -270,7 +271,7 @@ export class OpenAiProvider implements AiProvider {
     async generateSummary(input: { prompt: string }): Promise<SummaryResult> {
         if (!process.env.OPENAI_API_KEY || !process.env.OPENAI_MODEL) {
             throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_NOT_CONFIGURED",
+                code: "AI_EXECUTION_NOT_CONFIGURED",
                 message: "O serviço de IA ainda não está configurado.",
             });
         }
@@ -390,7 +391,8 @@ import { MaterialsService } from "../materials/materials.service";
 import { StudyAreasService } from "../study-areas/study-areas.service";
 import { AiAreaProfileService } from "./ai-area-profile.service";
 import { buildSummaryPrompt } from "./prompts/summary.prompt";
-import { AI_PROVIDER, AiProvider, AiSource } from "./providers/ai-provider";
+import { GovernedAiExecutionService } from "./governed-ai-execution.service";
+import type { AiSource } from "./providers/ai-provider";
 import { AiArtifact, AiArtifactDocument } from "./schemas/ai-artifact.schema";
 
 @Injectable()
@@ -398,7 +400,7 @@ export class SummariesService {
     constructor(
         @InjectModel(AiArtifact.name)
         private readonly artifactModel: Model<AiArtifactDocument>,
-        @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
+        private readonly aiExecution: GovernedAiExecutionService,
         private readonly materialsService: MaterialsService,
         private readonly areasService: StudyAreasService,
         private readonly profileService: AiAreaProfileService,
@@ -424,12 +426,21 @@ export class SummariesService {
         }
 
         try {
-            const result = await this.aiProvider.generateSummary({
-                prompt: buildSummaryPrompt(
-                    area.name,
-                    sources,
-                    profile.voiceTone,
-                ),
+            const { result, sources: usedSources } = await this.aiExecution.execute({
+                userId,
+                purpose: "SUMMARY",
+                quota: { scope: "USER", targetId: userId },
+                sources,
+                guardrailText: area.name,
+                buildPrompt: (limitedSources) =>
+                    buildSummaryPrompt(area.name, limitedSources, profile.voiceTone),
+                invoke: ({ provider, prompt, options }) =>
+                    provider.generateSummary({ prompt, ...options }),
+                validateResult: (value) => {
+                    if (!value || typeof value !== "object") {
+                        throw new TypeError("Resposta de resumo inválida.");
+                    }
+                },
             });
 
             return this.artifactModel.create({
@@ -437,7 +448,7 @@ export class SummariesService {
                 studyAreaId: new Types.ObjectId(studyAreaId),
                 type: "SUMMARY",
                 contentJson: result,
-                sourcesJson: sources.map(({ materialId, title }) => ({
+                sourcesJson: usedSources.map(({ materialId, title }) => ({
                     materialId,
                     title,
                 })),
@@ -445,7 +456,7 @@ export class SummariesService {
         } catch (error) {
             if (error instanceof UnprocessableEntityException) throw error;
             throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_UNAVAILABLE",
+                code: "AI_EXECUTION_UNAVAILABLE",
                 message: "A IA está temporariamente indisponível.",
             });
         }
@@ -475,7 +486,7 @@ export class SummariesService {
 
 5. Explicação do código.
 
-O service bloqueia antes de chamar o provider se não houver fontes. PDF/DOCX pendentes não passam no filtro.
+O service bloqueia antes da execução governada se não houver fontes. PDF/DOCX pendentes não passam no filtro.
 
 6. Como validar este passo.
 
@@ -507,6 +518,7 @@ import { Controller, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request";
 import { SummariesService } from "./summaries.service";
+import { GovernedAiExecutionService } from "./governed-ai-execution.service";
 
 @Controller("api/study-areas/:id/summaries")
 @UseGuards(SessionGuard)
@@ -578,16 +590,17 @@ import { AiArtifact, AiArtifactSchema } from "./schemas/ai-artifact.schema";
     providers: [
         AiAreaProfileService,
         SummariesService,
+        GovernedAiExecutionService,
         { provide: AI_PROVIDER, useClass: OpenAiProvider },
     ],
-    exports: [AiAreaProfileService, SummariesService],
+    exports: [AiAreaProfileService, SummariesService, GovernedAiExecutionService],
 })
 export class AiModule {}
 ```
 
 5. Explicação do código.
 
-Este módulo liga perfil IA, artefactos, materiais e provider. O provider fica registado por token para permitir stub em testes sem trocar o service.
+Este módulo liga perfil IA, artefactos e materiais. O provider fica privado à `GovernedAiExecutionService`, que é a única exportação permitida para novos fluxos e pode receber um stub nos testes.
 
 6. Como validar este passo.
 
@@ -713,7 +726,7 @@ A UI mostra erro quando não há fontes, em vez de apresentar resumo falso.
 - `422 NO_PROCESSABLE_SOURCES` para PDF/DOCX sem texto extraído.
 - `401 UNAUTHENTICATED` sem sessão.
 - `404 STUDY_AREA_NOT_FOUND` para área alheia.
-- `503 AI_PROVIDER_UNAVAILABLE` quando o provider falha.
+- `503 AI_EXECUTION_UNAVAILABLE` quando a execução governada falha.
 
 ### Como validar o BK e cenários negativos
 
@@ -729,12 +742,12 @@ A UI mostra erro quando não há fontes, em vez de apresentar resumo falso.
 - `apps/api`: `npm test` -> PASS (19 suites, 68 tests).
 - `apps/api`: `npm run build` -> PASS.
 - `apps/web`: `npm run build` -> PASS.
-- Testes negativos cobertos neste ciclo: `LOGIN_RATE_LIMITED`, resposta pública de materiais sem `storageKey`/`contentText`, `AI_PROVIDER_TIMEOUT`, `NO_PROCESSABLE_SOURCES`, provider IA não configurado e JSON IA inválido.
+- Testes negativos cobertos neste ciclo: `LOGIN_RATE_LIMITED`, resposta pública de materiais sem `storageKey`/`contentText`, `AI_EXECUTION_TIMEOUT`, `NO_PROCESSABLE_SOURCES`, execução IA não configurada e output IA inválido.
 - Não executado neste ciclo: smoke manual/browser/e2e com MongoDB, Redis e OpenAI reais.
 
 - JSON de resumo com `sourcesJson`.
 - Output `422 NO_PROCESSABLE_SOURCES`.
-- Output `503 AI_PROVIDER_UNAVAILABLE`.
+- Output `503 AI_EXECUTION_UNAVAILABLE`.
 - Screenshot do painel com resumo ou erro pedagógico.
 
 ## Handoff para BK-MF0-12

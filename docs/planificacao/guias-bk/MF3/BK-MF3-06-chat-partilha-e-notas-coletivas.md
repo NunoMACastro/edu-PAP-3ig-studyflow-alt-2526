@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF3-05`
 - `rf_rnf`: `RF42`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF3-07`
 - `guia_path`: `docs/planificacao/guias-bk/MF3/BK-MF3-06-chat-partilha-e-notas-coletivas.md`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -103,8 +104,8 @@ Este BK transforma o requisito RF42 numa entrega copiável e testável. A funcio
 #### Arquitetura do BK
 
 - Endpoint: `POST /api/study-groups/:groupId/messages e GET /api/study-groups/:groupId/messages`.
-- Backend: `real_dev/api/src/modules/study-group-messages`.
-- Frontend: `real_dev/web/src/features/study-group-messages`.
+- Backend: `apps/api/src/modules/study-group-messages`.
+- Frontend: `apps/web/src/features/study-group-messages`.
 - DTO principal: `CreateStudyGroupMessageDto`.
 - Service principal: `StudyGroupMessagesService`.
 - Controller principal: `StudyGroupMessagesController`.
@@ -113,14 +114,14 @@ Este BK transforma o requisito RF42 numa entrega copiável e testável. A funcio
 
 #### Ficheiros a criar/editar/rever
 
-- CRIAR: `real_dev/api/src/modules/study-group-messages/dto/create-study-group-message.dto.ts`
-- CRIAR: `real_dev/api/src/modules/study-group-messages/schemas/study-group-message.schema.ts`
-- CRIAR: `real_dev/api/src/modules/study-group-messages/study-group-messages.service.ts`
-- CRIAR: `real_dev/api/src/modules/study-group-messages/study-group-messages.controller.ts`
-- CRIAR: `real_dev/api/src/modules/study-group-messages/study-group-messages.module.ts`
-- CRIAR: `real_dev/web/src/features/study-group-messages/create-study-group-message.ts`
-- CRIAR: `real_dev/web/src/features/study-group-messages/study-group-messages-panel.tsx`
-- REVER: `real_dev/api/src/app.module.ts` para importar o módulo criado.
+- CRIAR: `apps/api/src/modules/study-group-messages/dto/create-study-group-message.dto.ts`
+- CRIAR: `apps/api/src/modules/study-group-messages/schemas/study-group-message.schema.ts`
+- CRIAR: `apps/api/src/modules/study-group-messages/study-group-messages.service.ts`
+- CRIAR: `apps/api/src/modules/study-group-messages/study-group-messages.controller.ts`
+- CRIAR: `apps/api/src/modules/study-group-messages/study-group-messages.module.ts`
+- CRIAR: `apps/web/src/features/study-group-messages/create-study-group-message.ts`
+- CRIAR: `apps/web/src/features/study-group-messages/study-group-messages-panel.tsx`
+- REVER: `apps/api/src/app.module.ts` para importar o módulo criado.
 
 #### Tutorial técnico linear
 
@@ -131,14 +132,14 @@ Este BK transforma o requisito RF42 numa entrega copiável e testável. A funcio
 1. Objetivo funcional do passo no contexto da app.
    Garantir que o endpoint recebe dados claros e rejeita input inválido antes do service.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/study-group-messages/dto/create-study-group-message.dto.ts`
+   - CRIAR: `apps/api/src/modules/study-group-messages/dto/create-study-group-message.dto.ts`
    - LOCALIZAÇÃO: `ficheiro completo`
 3. Instruções do que fazer.
    Cria o DTO com validações declarativas e nomes iguais ao payload documentado neste BK.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/study-group-messages/dto/create-study-group-message.dto.ts
+// apps/api/src/modules/study-group-messages/dto/create-study-group-message.dto.ts
 import { IsIn, IsString, MaxLength, MinLength } from "class-validator";
 
 export type StudyGroupMessageKind = "MESSAGE" | "NOTE";
@@ -175,14 +176,14 @@ export class CreateStudyGroupMessageDto {
 1. Objetivo funcional do passo no contexto da app.
    Guardar dados mínimos do fluxo para histórico, defesa e integração com BKs seguintes.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/study-group-messages/schemas/study-group-message.schema.ts`
+   - CRIAR: `apps/api/src/modules/study-group-messages/schemas/study-group-message.schema.ts`
    - LOCALIZAÇÃO: `ficheiro completo`
 3. Instruções do que fazer.
    Cria o schema Mongoose do resultado produzido por este BK.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/study-group-messages/schemas/study-group-message.schema.ts
+// apps/api/src/modules/study-group-messages/schemas/study-group-message.schema.ts
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
 import { StudyGroupMessageKind } from "../dto/create-study-group-message.dto.js";
@@ -225,14 +226,14 @@ export const StudyGroupMessageSchema =
 1. Objetivo funcional do passo no contexto da app.
    Concentrar regras de negócio, ownership, membership, erros e efeitos de persistência num ponto testável.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/study-group-messages/study-group-messages.service.ts`
+   - CRIAR: `apps/api/src/modules/study-group-messages/study-group-messages.service.ts`
    - LOCALIZAÇÃO: `classe completa do service`
 3. Instruções do que fazer.
    Cria o service e injeta apenas módulos herdados ou ficheiros criados neste BK.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/study-group-messages/study-group-messages.service.ts
+// apps/api/src/modules/study-group-messages/study-group-messages.service.ts
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
@@ -348,14 +349,14 @@ export class StudyGroupMessagesService {
 1. Objetivo funcional do passo no contexto da app.
    Ligar `POST /api/study-groups/:groupId/messages e GET /api/study-groups/:groupId/messages` ao service sem colocar regras sensíveis no controller.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/study-group-messages/study-group-messages.controller.ts`
+   - CRIAR: `apps/api/src/modules/study-group-messages/study-group-messages.controller.ts`
    - LOCALIZAÇÃO: `classe completa do controller`
 3. Instruções do que fazer.
    Cria o controller com `SessionGuard`, `@Req() request: AuthenticatedRequest` e delegação direta para o service.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/study-group-messages/study-group-messages.controller.ts
+// apps/api/src/modules/study-group-messages/study-group-messages.controller.ts
 import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { SessionGuard } from "../../common/guards/session.guard.js";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
@@ -416,15 +417,15 @@ export class StudyGroupMessagesController {
 1. Objetivo funcional do passo no contexto da app.
    Permitir que a aplicação carregue controller, service, schema e dependências num módulo coeso.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/api/src/modules/study-group-messages/study-group-messages.module.ts`
-   - EDITAR: `real_dev/api/src/app.module.ts`
+   - CRIAR: `apps/api/src/modules/study-group-messages/study-group-messages.module.ts`
+   - EDITAR: `apps/api/src/app.module.ts`
    - LOCALIZAÇÃO: `módulo completo e lista de imports do AppModule`
 3. Instruções do que fazer.
    Cria o módulo e adiciona `StudyGroupMessagesModule` à lista de imports do AppModule, preservando os módulos existentes.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/api/src/modules/study-group-messages/study-group-messages.module.ts
+// apps/api/src/modules/study-group-messages/study-group-messages.module.ts
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "../auth/auth.module.js";
@@ -465,14 +466,14 @@ export class StudyGroupMessagesModule {}
 1. Objetivo funcional do passo no contexto da app.
    Isolar a chamada HTTP para que o componente não tenha URLs, métodos ou parsing espalhados.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/web/src/features/study-group-messages/create-study-group-message.ts`
+   - CRIAR: `apps/web/src/features/study-group-messages/create-study-group-message.ts`
    - LOCALIZAÇÃO: `ficheiro completo`
 3. Instruções do que fazer.
    Cria uma função de API com payload e resposta tipados.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
-// real_dev/web/src/features/study-group-messages/create-study-group-message.ts
+// apps/web/src/features/study-group-messages/create-study-group-message.ts
 import { requestMf3Json } from "../mf3/request-mf3-json.js";
 
 export type StudyGroupMessage = {
@@ -531,14 +532,14 @@ export function createStudyGroupMessage(
 1. Objetivo funcional do passo no contexto da app.
    Dar ao aluno um ecrã simples para testar o endpoint sem ferramentas externas.
 2. Ficheiros envolvidos:
-   - CRIAR: `real_dev/web/src/features/study-group-messages/study-group-messages-panel.tsx`
+   - CRIAR: `apps/web/src/features/study-group-messages/study-group-messages-panel.tsx`
    - LOCALIZAÇÃO: `componente completo`
 3. Instruções do que fazer.
    Cria o componente com formulário, loading, erro, vazio e sucesso.
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
-// real_dev/web/src/features/study-group-messages/study-group-messages-panel.tsx
+// apps/web/src/features/study-group-messages/study-group-messages-panel.tsx
 import { FormEvent, useEffect, useState } from "react";
 import {
     createStudyGroupMessage,
@@ -640,18 +641,18 @@ export function StudyGroupMessagesPanel({ initialGroupId }: StudyGroupMessagesPa
 1. Objetivo funcional do passo no contexto da app.
    Registar o contrato mínimo que a equipa deve cobrir com testes e evidência.
 2. Ficheiros envolvidos:
-   - REVER: `real_dev/api/src/modules/mf3-http-contracts.spec.ts`
+   - REVER: `apps/api/src/modules/mf3-http-contracts.spec.ts`
    - LOCALIZAÇÃO: `teste de contrato MF3 e teste unitário do módulo`
 3. Instruções do que fazer.
    Revê os testes Jest já configurados para a MF3 e confirma o cenário deste BK sem adicionar dependências novas.
 4. Código completo, correto e integrado com a app final.
 
-Sem código neste passo. Este passo é de validação: usa os testes Jest existentes em `real_dev/api/src/modules/mf3-http-contracts.spec.ts` e o teste unitário do módulo correspondente, sem adicionar dependências novas.
+Sem código neste passo. Este passo é de validação: usa os testes Jest existentes em `apps/api/src/modules/mf3-http-contracts.spec.ts` e o teste unitário do módulo correspondente, sem adicionar dependências novas.
 
 5. Explicação do código.
    A validação usa Jest e os testes de contrato existentes da MF3 para confirmar rota, autenticação, DTO e cenário negativo sem introduzir dependências HTTP externas.
 6. Validação do passo.
-   Executa os testes unitários da API e confirma que o ficheiro `real_dev/api/src/modules/mf3-http-contracts.spec.ts` cobre o endpoint documentado.
+   Executa os testes unitários da API e confirma que o ficheiro `apps/api/src/modules/mf3-http-contracts.spec.ts` cobre o endpoint documentado.
 7. Cenário negativo/erro esperado.
    Não marques o BK como concluído sem pelo menos um negativo de autenticação/autorização e um negativo de validação.
 

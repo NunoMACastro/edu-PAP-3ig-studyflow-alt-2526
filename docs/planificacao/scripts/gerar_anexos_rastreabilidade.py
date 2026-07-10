@@ -1,18 +1,64 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 from collections import defaultdict
+from datetime import date
 import re
+import sys
 
-TODAY = "2026-04-19"
+TODAY = date.today().isoformat()
+REAL_DEV_STATUSES = {
+    "VALIDADO",
+    "IMPLEMENTADO_NAO_VALIDADO",
+    "PARCIAL",
+    "MITIGADO_POR_ESCOPO",
+    "BLOQUEADO_OPERADOR",
+    "NAO_IMPLEMENTADO",
+    "NAO_APLICAVEL",
+}
 
 
 def split_md_row(line: str) -> list[str]:
     return [p.strip() for p in line.strip().strip("|").split("|")]
 
 
-def extract_global_rows(backlog_path: Path) -> list[dict[str, str]]:
+def extract_reference_statuses(reference_path: Path) -> dict[str, str]:
+    if not reference_path.exists():
+        return {}
+    lines = reference_path.read_text(encoding="utf-8").splitlines()
+    statuses: dict[str, str] = {}
+    for index, line in enumerate(lines):
+        if not line.strip().startswith("|") or "bk_id" not in line or "real_dev_status" not in line:
+            continue
+        headers = split_md_row(line)
+        bk_index = headers.index("bk_id")
+        status_index = headers.index("real_dev_status")
+        for row_line in lines[index + 2 :]:
+            if not row_line.strip().startswith("|"):
+                break
+            columns = split_md_row(row_line)
+            if len(columns) != len(headers):
+                continue
+            bk_id = columns[bk_index].replace("`", "").strip()
+            status = columns[status_index].replace("`", "").strip()
+            if not re.fullmatch(r"BK-MF\d+-\d+", bk_id):
+                continue
+            if status not in REAL_DEV_STATUSES:
+                raise RuntimeError(f"real_dev_status inválido em {reference_path}: {bk_id}={status!r}")
+            if bk_id in statuses and statuses[bk_id] != status:
+                raise RuntimeError(f"real_dev_status divergente em {reference_path}: {bk_id}")
+            statuses[bk_id] = status
+        break
+    return statuses
+
+
+def extract_global_rows(
+    backlog_path: Path,
+    reference_path: Path | None = None,
+) -> list[dict[str, str]]:
+    reference_statuses = extract_reference_statuses(reference_path) if reference_path else {}
     lines = backlog_path.read_text(encoding="utf-8").splitlines()
     header_idx = None
     for i, line in enumerate(lines):
@@ -36,7 +82,22 @@ def extract_global_rows(backlog_path: Path) -> list[dict[str, str]]:
         cols = split_md_row(line)
         if len(cols) != len(headers):
             continue
-        rows.append(dict(zip(headers, cols)))
+        row = dict(zip(headers, cols))
+        bk_id = row.get("bk_id", "").replace("`", "").strip()
+        explicit_status = row.get("real_dev_status", "").replace("`", "").strip()
+        reference_status = reference_statuses.get(bk_id, "")
+        if explicit_status and reference_status and explicit_status != reference_status:
+            raise RuntimeError(
+                f"real_dev_status divergente para {bk_id}: backlog={explicit_status}, referência={reference_status}"
+            )
+        real_dev_status = reference_status or explicit_status
+        if real_dev_status not in REAL_DEV_STATUSES:
+            raise RuntimeError(
+                f"{bk_id or 'BK desconhecido'} sem real_dev_status explícito/válido; "
+                "o gerador não o infere de estado"
+            )
+        row["real_dev_status"] = real_dev_status
+        rows.append(row)
     return rows
 
 
@@ -74,6 +135,7 @@ def write_contract(rows: list[dict[str, str]], out_path: Path) -> None:
                 r["macro"],
                 r["owner"],
                 r["prioridade"],
+                r["real_dev_status"],
                 r["dependencias"],
                 r["rf_rnf"],
                 r["sprint"],
@@ -107,6 +169,7 @@ Formalizar o contrato de campos BK para eliminar drift entre matriz, backlog, gu
 - `core_or_reforco`: `P0=>Reforco`, `P1/P2=>Core`.
 - `proximo_bk`: recomendacao de handoff.
 - `guia_path`: caminho canónico do guia BK.
+- `real_dev_status`: estado independente vindo de `ESTADO-REFERENCIA-REAL_DEV.md`; nunca inferido de `estado`.
 
 ## Regras de consistencia
 1. `bk_id` existe em matriz, backlog e guia.
@@ -116,7 +179,7 @@ Formalizar o contrato de campos BK para eliminar drift entre matriz, backlog, gu
 
 ## Tabela canónica de campos
 {fmt_md_table([
-    'bk_id', 'macro', 'owner', 'prioridade', 'dependencias', 'rf_rnf', 'sprint', 'core_or_reforco', 'proximo_bk', 'guia_path'
+    'bk_id', 'macro', 'owner', 'prioridade', 'real_dev_status', 'dependencias', 'rf_rnf', 'sprint', 'core_or_reforco', 'proximo_bk', 'guia_path'
 ], table_rows)}
 
 ## Changelog
@@ -196,6 +259,7 @@ def write_bk_sprint_owner(rows: list[dict[str, str]], out_path: Path) -> None:
                 r["owner"],
                 r["apoio"],
                 r["prioridade"],
+                r["real_dev_status"],
                 r["core_or_reforco"],
                 r["rf_rnf"],
                 r["dependencias"],
@@ -218,7 +282,7 @@ Rastreabilidade operacional `BK -> Sprint -> Owner` com contrato `Core/Reforco`.
 
 ## Mapeamento canónico
 {fmt_md_table([
-    'bk_id', 'macro', 'sprint', 'owner', 'apoio', 'prioridade', 'core_or_reforco', 'rf_rnf', 'dependencias', 'guia_path'
+    'bk_id', 'macro', 'sprint', 'owner', 'apoio', 'prioridade', 'real_dev_status', 'core_or_reforco', 'rf_rnf', 'dependencias', 'guia_path'
 ], table_rows)}
 
 ## Changelog
@@ -227,11 +291,25 @@ Rastreabilidade operacional `BK -> Sprint -> Owner` com contrato `Core/Reforco`.
     out_path.write_text(content, encoding="utf-8")
 
 
-def main() -> None:
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Gera anexos de rastreabilidade sem inferir estados da referência.")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Valida a tabela fonte sem escrever anexos.",
+    )
+    args = parser.parse_args()
     plan_root = Path(__file__).resolve().parents[1]
     backlogs_dir = plan_root / "backlogs"
 
-    rows = extract_global_rows(backlogs_dir / "BACKLOG-MVP.md")
+    rows = extract_global_rows(
+        backlogs_dir / "BACKLOG-MVP.md",
+        plan_root / "ESTADO-REFERENCIA-REAL_DEV.md",
+    )
+
+    if args.check:
+        print(f"Rastreabilidade consistente: {len(rows)} BK; nenhum ficheiro alterado.")
+        return 0
 
     write_contract(rows, backlogs_dir / "CONTRATO-CAMPOS-BK.md")
     write_rf_annex(rows, backlogs_dir / "ANEXO-RF-PARA-BKS.md")
@@ -239,7 +317,12 @@ def main() -> None:
     write_bk_sprint_owner(rows, backlogs_dir / "ANEXO-BK-SPRINT-OWNER.md")
 
     print(f"Anexos gerados: {len(rows)} BK processados.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        raise SystemExit(main())
+    except RuntimeError as error:
+        print(f"CHECK_FAILED: {error}", file=sys.stderr)
+        raise SystemExit(1) from None

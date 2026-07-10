@@ -8,6 +8,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF1-08`
 - `rf_rnf`: `RF28`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF2-05`
 - `guia_path`: `docs/planificacao/guias-bk/MF2/BK-MF2-04-criar-testes-mini-testes-oficiais.md`
-- `last_updated`: `2026-06-10`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo do BK
 
@@ -66,7 +67,7 @@ Existe `OfficialTestsModule` com schema, DTO, service e controller. Os testes fi
 - **Fonte de métricas.** as perguntas guardam tópico/disciplina para alimentar relatórios. Este conceito vem de `RF28` e das dependências `BK-MF1-08`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-04 - Criar testes/mini-testes oficiais.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
 - **Backend, validação e segurança.** O backend recebe a identidade pela sessão autenticada, valida DTOs antes do service e confirma ownership ou membership nos services herdados. Esta regra vem da fundação MF0/MF1 e segue para os BKs seguintes como contrato de segurança. Serve para impedir leitura ou escrita entre alunos, professores, turmas e disciplinas diferentes.
 - **Frontend tipado e sessão real.** O frontend usa cliente API tipado em `apps/web/src/lib/api/...`, envia cookies com `credentials: "include"`, mostra estados de carregamento, erro, vazio e sucesso, e não guarda tokens em `localStorage`. Isto evita chamadas anónimas, dados de actor no body e payloads sem tipo claro.
-- **IA, fontes e guardrails.** Este BK só envolve provider de IA quando o próprio requisito o pede. Quando não há chamada de IA, o guia limita-se a preparar fontes, autorização ou contexto sem prometer geração automática; quando há chamada de IA, o provider vem de `AiModule`/`AI_PROVIDER`, as fontes são recolhidas antes da chamada e a resposta só é persistida depois de validação mínima.
+- **IA, fontes e guardrails.** Este BK só envolve IA quando o requisito o pede. Os services de domínio consomem `GovernedAiExecutionService`; a fachada aplica consentimento, policy, limites, guardrails, quota e validação/audit. As fontes são autorizadas antes da execução e a resposta só é persistida depois de validação.
 
 ## Decisões documentais
 
@@ -115,7 +116,12 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
 
 export type OfficialTestDocument = HydratedDocument<OfficialTest>;
-export type OfficialTestQuestion = { statement: string; options: string[]; correctAnswer: string };
+export type OfficialTestStatus = "DRAFT" | "PUBLISHED" | "CLOSED";
+export type OfficialTestQuestion = {
+    statement: string;
+    options: [string, string, string, string];
+    correctOptionIndex: 0 | 1 | 2 | 3;
+};
 
 @Schema({ timestamps: true, collection: "official_tests" })
 export class OfficialTest {
@@ -131,7 +137,10 @@ export class OfficialTest {
     @Prop({ required: true, enum: ["MINI_TEST", "TEST"] })
     type!: "MINI_TEST" | "TEST";
 
-    @Prop({ type: [{ statement: String, options: [String], correctAnswer: String }], default: [] })
+    @Prop({ required: true, enum: ["DRAFT", "PUBLISHED", "CLOSED"], default: "DRAFT", index: true })
+    status!: OfficialTestStatus;
+
+    @Prop({ type: [{ statement: String, options: [String], correctOptionIndex: Number }], required: true })
     questions!: OfficialTestQuestion[];
 }
 
@@ -139,7 +148,7 @@ export const OfficialTestSchema = SchemaFactory.createForClass(OfficialTest);
 OfficialTestSchema.index({ subjectId: 1, createdAt: -1 });
 
 // apps/api/src/modules/official-tests/dto/official-test.dto.ts
-import { ArrayMinSize, IsArray, IsEnum, IsString, MaxLength, MinLength, ValidateNested } from "class-validator";
+import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsIn, IsInt, IsString, Max, MaxLength, Min, MinLength, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
 
 export class OfficialTestQuestionDto {
@@ -148,13 +157,16 @@ export class OfficialTestQuestionDto {
     statement!: string;
 
     @IsArray()
-    @ArrayMinSize(2)
+    @ArrayMinSize(4)
+    @ArrayMaxSize(4)
+    @ArrayUnique()
     @IsString({ each: true })
     options!: string[];
 
-    @IsString()
-    @MinLength(1)
-    correctAnswer!: string;
+    @IsInt()
+    @Min(0)
+    @Max(3)
+    correctOptionIndex!: number;
 }
 
 export class CreateOfficialTestDto {
@@ -163,11 +175,12 @@ export class CreateOfficialTestDto {
     @MaxLength(160)
     title!: string;
 
-    @IsEnum(["MINI_TEST", "TEST"])
+    @IsIn(["MINI_TEST", "TEST"])
     type!: "MINI_TEST" | "TEST";
 
     @IsArray()
     @ArrayMinSize(1)
+    @ArrayMaxSize(60)
     @ValidateNested({ each: true })
     @Type(() => OfficialTestQuestionDto)
     questions!: OfficialTestQuestionDto[];
@@ -203,7 +216,7 @@ export class CreateOfficialTestDto {
 
 ~~~ts
 // apps/api/src/modules/official-tests/official-tests.service.ts
-import { ForbiddenException, Injectable } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request";
@@ -222,7 +235,50 @@ export class OfficialTestsService {
     async create(actor: AuthenticatedUser, subjectId: string, dto: CreateOfficialTestDto) {
         this.assertTeacher(actor);
         const subject = await this.subjectsService.findOwnedSubject(actor.id, subjectId);
-        const test = await this.tests.create({ subjectId: subject._id, teacherId: new Types.ObjectId(actor.id), title: dto.title.trim(), type: dto.type, questions: dto.questions });
+        const test = await this.tests.create({
+            subjectId: subject._id,
+            teacherId: new Types.ObjectId(actor.id),
+            title: dto.title.trim(),
+            type: dto.type,
+            status: "DRAFT",
+            questions: this.normalizeQuestions(dto.questions),
+        });
+        return this.toView(test);
+    }
+
+    async publish(actor: AuthenticatedUser, subjectId: string, testId: string) {
+        this.assertTeacher(actor);
+        const subject = await this.subjectsService.findOwnedSubject(actor.id, subjectId);
+        const test = await this.tests.findOneAndUpdate(
+            { _id: testId, subjectId: subject._id, teacherId: new Types.ObjectId(actor.id), status: "DRAFT" },
+            { $set: { status: "PUBLISHED" } },
+            { new: true, runValidators: true },
+        );
+        if (!test) throw new ConflictException({ code: "TEST_NOT_DRAFT", message: "Só um rascunho pode ser publicado." });
+        return this.toView(test);
+    }
+
+    async updateDraft(actor: AuthenticatedUser, subjectId: string, testId: string, dto: CreateOfficialTestDto) {
+        this.assertTeacher(actor);
+        const subject = await this.subjectsService.findOwnedSubject(actor.id, subjectId);
+        const test = await this.tests.findOneAndUpdate(
+            { _id: testId, subjectId: subject._id, teacherId: new Types.ObjectId(actor.id), status: "DRAFT" },
+            { $set: { title: dto.title.trim(), type: dto.type, questions: this.normalizeQuestions(dto.questions) } },
+            { new: true, runValidators: true },
+        );
+        if (!test) throw new ConflictException({ code: "TEST_NOT_DRAFT", message: "Só um rascunho pode ser editado." });
+        return this.toView(test);
+    }
+
+    async close(actor: AuthenticatedUser, subjectId: string, testId: string) {
+        this.assertTeacher(actor);
+        const subject = await this.subjectsService.findOwnedSubject(actor.id, subjectId);
+        const test = await this.tests.findOneAndUpdate(
+            { _id: testId, subjectId: subject._id, teacherId: new Types.ObjectId(actor.id), status: "PUBLISHED" },
+            { $set: { status: "CLOSED" } },
+            { new: true, runValidators: true },
+        );
+        if (!test) throw new ConflictException({ code: "TEST_NOT_PUBLISHED", message: "Só um teste publicado pode ser fechado." });
         return this.toView(test);
     }
 
@@ -239,8 +295,23 @@ export class OfficialTestsService {
         }
     }
 
+    private normalizeQuestions(questions: CreateOfficialTestDto["questions"]) {
+        return questions.map((question) => {
+            const options = question.options.map((option) => option.trim());
+            const distinct = new Set(options.map((option) => option.toLocaleLowerCase("pt-PT")));
+            if (options.some((option) => option.length === 0) || distinct.size !== 4) {
+                throw new BadRequestException({ code: "TEST_OPTIONS_INVALID", message: "Cada pergunta exige quatro opções distintas." });
+            }
+            return {
+                statement: question.statement.trim(),
+                options,
+                correctOptionIndex: question.correctOptionIndex,
+            };
+        });
+    }
+
     private toView(test: OfficialTest) {
-        return { id: test._id.toString(), title: test.title, type: test.type, questionCount: test.questions.length };
+        return { id: test._id.toString(), title: test.title, type: test.type, status: test.status, questionCount: test.questions.length };
     }
 }
 ~~~
@@ -275,7 +346,7 @@ export class OfficialTestsService {
 
 ~~~ts
 // apps/api/src/modules/official-tests/official-tests.controller.ts
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Put, UseGuards } from "@nestjs/common";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { SessionGuard } from "../../common/guards/session.guard";
 import { AuthenticatedUser } from "../../common/types/authenticated-request";
@@ -295,6 +366,21 @@ export class OfficialTestsController {
     @Get()
     list(@CurrentUser() actor: AuthenticatedUser, @Param("subjectId") subjectId: string) {
         return this.testsService.listForTeacher(actor, subjectId);
+    }
+
+    @Put(":testId")
+    updateDraft(@CurrentUser() actor: AuthenticatedUser, @Param("subjectId") subjectId: string, @Param("testId") testId: string, @Body() dto: CreateOfficialTestDto) {
+        return this.testsService.updateDraft(actor, subjectId, testId, dto);
+    }
+
+    @Post(":testId/publish")
+    publish(@CurrentUser() actor: AuthenticatedUser, @Param("subjectId") subjectId: string, @Param("testId") testId: string) {
+        return this.testsService.publish(actor, subjectId, testId);
+    }
+
+    @Post(":testId/close")
+    close(@CurrentUser() actor: AuthenticatedUser, @Param("subjectId") subjectId: string, @Param("testId") testId: string) {
+        return this.testsService.close(actor, subjectId, testId);
     }
 }
 
@@ -392,8 +478,12 @@ export class Mf2Module {}
 
 ~~~ts
 // apps/web/src/lib/api/official-tests.ts
-export type OfficialTestView = { id: string; title: string; type: "MINI_TEST" | "TEST"; questionCount: number };
-export type OfficialTestQuestionInput = { statement: string; options: string[]; correctAnswer: string };
+export type OfficialTestView = { id: string; title: string; type: "MINI_TEST" | "TEST"; status: "DRAFT" | "PUBLISHED" | "CLOSED"; questionCount: number };
+export type OfficialTestQuestionInput = {
+    statement: string;
+    options: [string, string, string, string];
+    correctOptionIndex: 0 | 1 | 2 | 3;
+};
 export type CreateOfficialTestInput = { title: string; type: "MINI_TEST" | "TEST"; questions: OfficialTestQuestionInput[] };
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -476,7 +566,7 @@ export function OfficialTestsPage() {
                 {
                     statement: "Pergunta inicial",
                     options: ["A", "B", "C", "D"],
-                    correctAnswer: "A",
+                    correctOptionIndex: 0,
                 },
             ],
         });

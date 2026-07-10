@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF37`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF8-05`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-04-ia-externa-segue-politicas-e-filtros-proprios.md`
-- `last_updated`: `2026-07-01`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -588,7 +589,6 @@ Atualiza o service para importar `resolveExternalAiPolicy(...)`. A decisão exte
  */
 import {
     ForbiddenException,
-    Inject,
     Injectable,
     ServiceUnavailableException,
     UnprocessableEntityException,
@@ -596,7 +596,7 @@ import {
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
-import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider.js";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service.js";
 import { MaterialsService } from "../materials/materials.service.js";
 import { StudyAreasService } from "../study-areas/study-areas.service.js";
 import { AskExternalKnowledgeAiDto } from "./dto/ask-external-knowledge-ai.dto.js";
@@ -630,15 +630,14 @@ export class ExternalKnowledgeAiService {
      * @param answerModel Modelo Mongoose usado para persistir respostas.
      * @param studyAreasService Service que valida ownership da área.
      * @param materialsService Service que lista fontes internas processáveis.
-     * @param aiProvider Provider isolado usado apenas depois das validações.
+     * @param governedAiExecutionService Fachada única de execução IA.
      */
     constructor(
         @InjectModel(ExternalKnowledgeAiAnswer.name)
         private readonly answerModel: Model<ExternalKnowledgeAiAnswerDocument>,
         private readonly studyAreasService: StudyAreasService,
         private readonly materialsService: MaterialsService,
-        @Inject(AI_PROVIDER)
-        private readonly aiProvider: AiProvider,
+        private readonly governedAiExecutionService: GovernedAiExecutionService,
     ) {}
 
     /**
@@ -692,6 +691,7 @@ export class ExternalKnowledgeAiService {
 
         // O provider recebe a decisão final da policy, não o valor bruto vindo da UI.
         const answer = await this.generateAnswer(
+            actor,
             area.name,
             input.question,
             citations,
@@ -722,7 +722,7 @@ export class ExternalKnowledgeAiService {
     }
 
     /**
-     * Chama o provider IA mantendo fontes internas como verdade principal.
+     * Delega na fachada mantendo fontes internas como verdade principal.
      *
      * @param areaName Nome da área privada do aluno.
      * @param question Pergunta validada do aluno.
@@ -731,6 +731,7 @@ export class ExternalKnowledgeAiService {
      * @returns Texto validado devolvido pelo provider.
      */
     private async generateAnswer(
+        actor: AuthenticatedUser,
         areaName: string,
         question: string,
         citations: ExternalKnowledgeInternalCitation[],
@@ -755,38 +756,22 @@ export class ExternalKnowledgeAiService {
             "Devolve JSON com a chave answer.",
         ].join("\n");
 
-        let providerResult: Record<string, unknown>;
-        try {
-            // A chamada externa fica isolada para ser substituída por fixture nos testes.
-            providerResult = await this.aiProvider.generateStudyTool({
-                prompt,
-                type: "EXPLANATION",
-            });
-        } catch {
-            throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_UNAVAILABLE",
-                message: "A IA está temporariamente indisponível.",
-            });
-        }
-
-        const answer = providerResult.answer;
-        if (typeof answer !== "string" || answer.trim().length === 0) {
-            throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_INVALID_RESPONSE",
-                message: "A IA devolveu uma resposta inválida.",
-            });
-        }
-
-        return answer.trim();
+        const result = await this.governedAiExecutionService.execute({
+            actor,
+            purpose: "EXTERNAL_KNOWLEDGE_AI",
+            prompt,
+            externalContextAllowed: externalAllowed,
+        });
+        return result.answer;
     }
 }
 ```
 
 Explicação do código
 
-O service é a parte central do BK. Ele começa por validar `actor.role`, depois confirma ownership da área usando `StudyAreasService`, lista fontes internas com `MaterialsService`, bloqueia a resposta se não houver fontes, calcula a policy e só então chama o provider IA.
+O service valida role, ownership, fontes internas e policy antes de delegar na fachada governada.
 
-Esta ordem evita dois problemas graves: gerar resposta sem fontes internas e deixar o frontend decidir se contexto externo pode ser usado. O provider recebe `policy.externalAllowed`, não recebe diretamente o valor bruto da checkbox. Assim, se a policy bloquear, o prompt diz para não usar conhecimento externo.
+O valor bruto da checkbox nunca decide a execução; a fachada recebe apenas a decisão final `externalAllowed` e reaplica policy/guardrails.
 
 Os dados que entram são `actor` e `AskExternalKnowledgeAiDto`. Os dados que saem são `ExternalKnowledgeAiAnswerView`, com citações internas e notas externas separadas. A persistência usa `studentId` vindo da sessão, não do body. Para testar, usa uma suite unitária com provider isolado e valida `externalUsed`, `externalNotes`, erro sem fontes e erro de role.
 
@@ -1140,7 +1125,7 @@ import {
 } from "@nestjs/common";
 import { Model } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
-import { AiProvider } from "../ai/providers/ai-provider.js";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service.js";
 import { MaterialsService } from "../materials/materials.service.js";
 import { StudyAreasService } from "../study-areas/study-areas.service.js";
 import { ExternalKnowledgeAiService } from "./external-knowledge-ai.service.js";
@@ -1160,7 +1145,7 @@ describe("ExternalKnowledgeAiService", () => {
     const studyAreaId = "507f1f77bcf86cd799439014";
 
     it("responde com citações internas e nota externa separada quando permitido", async () => {
-        const { aiProvider, answerModel, materialsService, service, studyAreasService } =
+        const { governedAiExecutionService, answerModel, materialsService, service, studyAreasService } =
             makeService();
 
         await expect(
@@ -1189,7 +1174,7 @@ describe("ExternalKnowledgeAiService", () => {
                 externalUsed: true,
             }),
         );
-        expect(aiProvider.generateStudyTool).toHaveBeenCalledWith(
+        expect(governedAiExecutionService.execute).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: "EXPLANATION",
                 prompt: expect.stringContaining("Podes acrescentar contexto externo"),
@@ -1198,7 +1183,7 @@ describe("ExternalKnowledgeAiService", () => {
     });
 
     it("usa apenas fontes internas quando não há permissão externa", async () => {
-        const { aiProvider, answerModel, service } = makeService();
+        const { governedAiExecutionService, answerModel, service } = makeService();
 
         await expect(
             service.ask(student, {
@@ -1216,7 +1201,7 @@ describe("ExternalKnowledgeAiService", () => {
                 externalNotes: [],
             }),
         );
-        expect(aiProvider.generateStudyTool).toHaveBeenCalledWith(
+        expect(governedAiExecutionService.execute).toHaveBeenCalledWith(
             expect.objectContaining({
                 prompt: expect.stringContaining("Não uses conhecimento externo."),
             }),
@@ -1224,7 +1209,7 @@ describe("ExternalKnowledgeAiService", () => {
     });
 
     it("bloqueia sem fontes internas processáveis", async () => {
-        const { aiProvider, materialsService, service } = makeService();
+        const { governedAiExecutionService, materialsService, service } = makeService();
         materialsService.listReadyTextSources.mockResolvedValueOnce([]);
 
         await expect(
@@ -1235,7 +1220,7 @@ describe("ExternalKnowledgeAiService", () => {
             }),
         ).rejects.toBeInstanceOf(UnprocessableEntityException);
         // O provider não pode ser chamado quando falta a base interna autorizada.
-        expect(aiProvider.generateStudyTool).not.toHaveBeenCalled();
+        expect(governedAiExecutionService.execute).not.toHaveBeenCalled();
     });
 
     it("bloqueia utilizadores que não sejam alunos", async () => {
@@ -1252,8 +1237,10 @@ describe("ExternalKnowledgeAiService", () => {
     });
 
     it("devolve erro controlado quando o provider não devolve resposta válida", async () => {
-        const { aiProvider, service } = makeService();
-        aiProvider.generateStudyTool.mockResolvedValueOnce({ answer: "" });
+        const { governedAiExecutionService, service } = makeService();
+        governedAiExecutionService.execute.mockRejectedValueOnce(
+            new ServiceUnavailableException({ code: "AI_INVALID_OUTPUT" }),
+        );
 
         await expect(
             service.ask(student, {
@@ -1293,22 +1280,22 @@ function makeService() {
             },
         ]),
     } as unknown as jest.Mocked<Pick<MaterialsService, "listReadyTextSources">>;
-    const aiProvider = {
-        generateStudyTool: jest
+    const governedAiExecutionService = {
+        execute: jest
             .fn()
             .mockResolvedValue({ answer: "Resposta externa gerada pelo provider." }),
-    } as unknown as jest.Mocked<Pick<AiProvider, "generateStudyTool">>;
+    } as unknown as jest.Mocked<Pick<GovernedAiExecutionService, "execute">>;
 
     // As conversões mantêm a fixture curta, mas os objetos continuam com os métodos que o service usa.
     const service = new ExternalKnowledgeAiService(
         answerModel as unknown as Model<ExternalKnowledgeAiAnswerDocument>,
         studyAreasService as unknown as StudyAreasService,
         materialsService as unknown as MaterialsService,
-        aiProvider as unknown as AiProvider,
+        governedAiExecutionService as unknown as GovernedAiExecutionService,
     );
 
     return {
-        aiProvider,
+        governedAiExecutionService,
         answerModel,
         materialsService,
         service,

@@ -8,6 +8,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF1-08`
 - `rf_rnf`: `RF21`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF1-10`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-09-submeter-materiais-da-disciplina-versao-oficial.md`
-- `last_updated`: `2026-05-30`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Implementar `RF21`: permitir que professores submetam materiais oficiais de uma disciplina. Estes materiais são a fonte autorizada para a IA limitada de `BK-MF1-11`.

@@ -8,6 +8,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF2-02`
 - `rf_rnf`: `RF27`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF2-04`
 - `guia_path`: `docs/planificacao/guias-bk/MF2/BK-MF2-03-a-ia-deve-ajudar-o-aluno-a-elaborar-projetos-de-forma-gradual.md`
-- `last_updated`: `2026-06-10`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo do BK
 
@@ -30,7 +31,7 @@ O aluno recebe apoio sem a IA resolver o trabalho por ele. A funcionalidade melh
 
 - Criar planos de trabalho por aluno e projecto.
 - Ler apenas projectos publicados através de `findPublishedForStudent`.
-- Usar `AI_PROVIDER` exportado pela cadeia MF0/MF1.
+- Usar `GovernedAiExecutionService` exportado pela cadeia MF0/MF1.
 - Guardar passos, objectivo do aluno e referência ao projecto usado.
 
 ## Scope-out
@@ -50,7 +51,7 @@ Existe `ProjectAiModule`, com planos persistidos, validação de aluno inscrito 
 ## Pré-requisitos
 
 - `ClassProjectsModule` exporta `ClassProjectsService`.
-- `AiModule` exporta `AI_PROVIDER`.
+- `AiModule` exporta `GovernedAiExecutionService`.
 - O projecto está publicado e pertence à turma do aluno.
 
 ## Glossário
@@ -66,7 +67,7 @@ Existe `ProjectAiModule`, com planos persistidos, validação de aluno inscrito 
 - **Runtime não confiável.** a saída da IA deve ser tratada como texto a validar antes de persistir. Este conceito vem de `RF27` e das dependências `BK-MF2-02`; entra no service/controller como regra verificável, sai no endpoint ou na página como comportamento visível, serve para tornar o domínio `BK-MF2-03 - A IA deve ajudar o aluno a elaborar projetos de forma gradual.` implementável por passos e evita que o aluno escreva código desligado do contrato da StudyFlow.
 - **Backend, validação e segurança.** O backend recebe a identidade pela sessão autenticada, valida DTOs antes do service e confirma ownership ou membership nos services herdados. Esta regra vem da fundação MF0/MF1 e segue para os BKs seguintes como contrato de segurança. Serve para impedir leitura ou escrita entre alunos, professores, turmas e disciplinas diferentes.
 - **Frontend tipado e sessão real.** O frontend usa cliente API tipado em `apps/web/src/lib/api/...`, envia cookies com `credentials: "include"`, mostra estados de carregamento, erro, vazio e sucesso, e não guarda tokens em `localStorage`. Isto evita chamadas anónimas, dados de actor no body e payloads sem tipo claro.
-- **IA, fontes e guardrails.** Este BK só envolve provider de IA quando o próprio requisito o pede. Quando não há chamada de IA, o guia limita-se a preparar fontes, autorização ou contexto sem prometer geração automática; quando há chamada de IA, o provider vem de `AiModule`/`AI_PROVIDER`, as fontes são recolhidas antes da chamada e a resposta só é persistida depois de validação mínima.
+- **IA, fontes e guardrails.** Este BK só envolve IA quando o requisito o pede. Os services de domínio consomem `GovernedAiExecutionService`; a fachada aplica consentimento, policy, limites, guardrails, quota e validação/audit. As fontes são autorizadas antes da execução e a resposta só é persistida depois de validação.
 
 ## Decisões documentais
 
@@ -77,7 +78,7 @@ Existe `ProjectAiModule`, com planos persistidos, validação de aluno inscrito 
 
 ## Arquitetura do BK
 
-`ProjectAiService` valida inscrição via `ClassProjectsService.findPublishedForStudent`, chama `AI_PROVIDER`, normaliza a resposta em passos e grava `ProjectAiPlan`. O controller expõe criação e histórico do aluno.
+`ProjectAiService` valida inscrição via `ClassProjectsService.findPublishedForStudent`, executa a finalidade `PROJECT_AI` pela fachada governada, normaliza a resposta em passos e grava `ProjectAiPlan`.
 
 ## Ficheiros previstos
 
@@ -190,7 +191,7 @@ import { ForbiddenException, Inject, Injectable, ServiceUnavailableException } f
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request";
-import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service";
 import { ClassProjectsService } from "../class-projects/class-projects.service";
 import { CreateProjectAiPlanDto } from "./dto/project-ai-plan.dto";
 import { ProjectAiPlan, ProjectAiPlanDocument } from "./schemas/project-ai-plan.schema";
@@ -201,13 +202,13 @@ export class ProjectAiService {
         @InjectModel(ProjectAiPlan.name)
         private readonly plans: Model<ProjectAiPlanDocument>,
         private readonly classProjectsService: ClassProjectsService,
-        @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
+        private readonly aiExecution: GovernedAiExecutionService,
     ) {}
 
     async createPlan(actor: AuthenticatedUser, classId: string, projectId: string, dto: CreateProjectAiPlanDto) {
         this.assertStudent(actor);
         const project = await this.classProjectsService.findPublishedForStudent(actor, classId, projectId);
-        const text = await this.generatePlan(project.brief, dto);
+        const text = await this.generatePlan(actor, project.classId.toString(), project.brief, dto);
         const steps = text.split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
         const plan = await this.plans.create({
             classId: project.classId,
@@ -227,17 +228,38 @@ export class ProjectAiService {
         return plans.map((plan) => this.toView(plan));
     }
 
-    private async generatePlan(projectBrief: string, dto: CreateProjectAiPlanDto) {
+    private async generatePlan(
+        actor: AuthenticatedUser,
+        classId: string,
+        projectBrief: string,
+        dto: CreateProjectAiPlanDto,
+    ) {
         try {
-            return await this.aiProvider.generateText({
-                system: "Ajuda o aluno a decompor o projeto em passos graduais, sem fazer o trabalho por ele.",
-                user: [
-                    "Enunciado: " + projectBrief,
+            const { result } = await this.aiExecution.execute({
+                userId: actor.id,
+                purpose: "PROJECT_AI",
+                quota: { scope: "CLASS", targetId: classId },
+                sources: [{ id: "class-project", title: "Projeto publicado", text: projectBrief }],
+                guardrailText: dto.objective,
+                buildPrompt: (sources) => [
+                    "Ajuda o aluno a decompor o projeto em passos graduais, sem fazer o trabalho por ele.",
+                    "Enunciado: " + sources[0].text,
                     "Objetivo do aluno: " + dto.objective,
                     "Dificuldades: " + (dto.knownDifficulties ?? []).join(", "),
                 ].join("\n"),
-                sources: [{ id: "class-project", title: "Projeto publicado" }],
+                invoke: ({ provider, prompt, options }) => provider.generateText({
+                    system: "Produz apenas passos pedagógicos e progressivos.",
+                    user: prompt,
+                    sources: [{ id: "class-project", title: "Projeto publicado" }],
+                    ...options,
+                }),
+                validateResult: (value) => {
+                    if (typeof value !== "string" || value.trim().length === 0) {
+                        throw new TypeError("Plano IA inválido.");
+                    }
+                },
             });
+            return result;
         } catch (error) {
             throw new ServiceUnavailableException("Não foi possível gerar o plano do projeto neste momento.");
         }

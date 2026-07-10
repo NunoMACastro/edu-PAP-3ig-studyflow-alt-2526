@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RF53`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF4-06`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-05-eliminar-conta-e-dados.md`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -106,6 +107,10 @@ Eliminar dados é irreversível para a experiência do utilizador. Por isso, o e
 
 #### Tutorial técnico linear
 
+### Contrato normativo pós-remediação
+
+A eliminação usa o mesmo `PersonalDataRegistry` da exportação e corre numa transaction Mongo. O registry classifica todos os models como `DELETE`, `PULL_MEMBERSHIP`, `ANONYMIZE_90D` ou `RETAIN_NONPERSONAL`: dados privados e artefactos próprios são apagados; memberships/recipients removem o ID; posts/chat partilhados ficam como tombstones sem autor nem conteúdo; contextos exclusivamente detidos pelo titular são eliminados em cascata. A transaction incrementa `sessionVersion`, marca `accountStatus`, protege o último admin através do sentinel partilhado e cria outbox durável para remoção física. O registo de conclusão guarda apenas uma referência aleatória e expira após 90 dias — nunca guarda `userId`.
+
 ### Passo 1 - Criar DTO e schema do pedido
 
 1. Objetivo funcional do passo no contexto da app.
@@ -141,7 +146,7 @@ export class RequestAccountDeletionDto {
 ```ts
 // apps/api/src/modules/account-deletion/schemas/account-deletion-request.schema.ts
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { HydratedDocument, Types } from "mongoose";
+import { HydratedDocument } from "mongoose";
 
 export type AccountDeletionRequestDocument = HydratedDocument<AccountDeletionRequest>;
 
@@ -150,24 +155,25 @@ export type AccountDeletionRequestDocument = HydratedDocument<AccountDeletionReq
  */
 @Schema({ timestamps: true, collection: "account_deletion_requests" })
 export class AccountDeletionRequest {
-    @Prop({ type: Types.ObjectId, ref: "User", required: true, index: true })
-    userId!: Types.ObjectId;
+    @Prop({ required: true, unique: true, index: true })
+    reference!: string;
 
     @Prop({ required: true, enum: ["COMPLETED"], default: "COMPLETED" })
     status!: "COMPLETED";
 
-    @Prop({ trim: true, maxlength: 300 })
-    reason?: string;
-
     @Prop({ required: true, default: Date.now })
     completedAt!: Date;
+
+    @Prop({ required: true, index: true })
+    expiresAt!: Date;
 }
 
 export const AccountDeletionRequestSchema = SchemaFactory.createForClass(AccountDeletionRequest);
+AccountDeletionRequestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 ```
 
 5. Explicação do código.
-   O DTO não aceita `targetUserId`; a sessão define quem é apagado. O schema guarda rasto sem guardar dados sensíveis.
+   O DTO não aceita `targetUserId`; a sessão define quem é apagado. O schema guarda apenas referência aleatória, estado e TTL de 90 dias, sem `userId`, motivo ou outros dados pessoais.
 6. Validação do passo.
    Submeter outra frase deve falhar com 400.
 7. Cenário negativo/erro esperado.
@@ -186,17 +192,20 @@ export const AccountDeletionRequestSchema = SchemaFactory.createForClass(Account
 ```ts
 // apps/api/src/modules/account-deletion/account-deletion.service.ts
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model, Types } from "mongoose";
+import { InjectConnection, InjectModel } from "@nestjs/mongoose";
+import { randomUUID } from "node:crypto";
+import { Connection, Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { User, UserDocument } from "../auth/schemas/user.schema.js";
-import { Material, MaterialDocument } from "../materials/schemas/material.schema.js";
-import { StudyArea, StudyAreaDocument } from "../study-areas/schemas/study-area.schema.js";
-import { StudyEvent, StudyEventDocument } from "../study/schemas/study-event.schema.js";
+import { PersonalDataRegistry } from "../privacy/personal-data-registry.js";
 import { RequestAccountDeletionDto } from "./dto/request-account-deletion.dto.js";
 import { AccountDeletionRequest, AccountDeletionRequestDocument } from "./schemas/account-deletion-request.schema.js";
 
-export type AccountDeletionResult = { status: "COMPLETED"; deletedStudyAreas: number; deletedMaterials: number; deletedEvents: number };
+export type AccountDeletionResult = {
+    status: "COMPLETED";
+    deletionReference: string;
+    affectedCounts: Record<string, number>;
+};
 
 /**
  * Executa eliminação da própria conta com limites explícitos.
@@ -204,72 +213,90 @@ export type AccountDeletionResult = { status: "COMPLETED"; deletedStudyAreas: nu
 @Injectable()
 export class AccountDeletionService {
     constructor(
+        @InjectConnection() private readonly connection: Connection,
         @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
-        @InjectModel(StudyArea.name) private readonly areaModel: Model<StudyAreaDocument>,
-        @InjectModel(Material.name) private readonly materialModel: Model<MaterialDocument>,
-        @InjectModel(StudyEvent.name) private readonly eventModel: Model<StudyEventDocument>,
         @InjectModel(AccountDeletionRequest.name) private readonly deletionModel: Model<AccountDeletionRequestDocument>,
+        private readonly personalDataRegistry: PersonalDataRegistry,
     ) {}
 
     async deleteOwnAccount(actor: AuthenticatedUser, input: RequestAccountDeletionDto): Promise<AccountDeletionResult> {
-        const user = await this.userModel.findById(actor.id).lean();
-        if (!user) throw new NotFoundException({ code: "USER_NOT_FOUND", message: "Utilizador não encontrado." });
-        if (user.role === "ADMIN") await this.assertAnotherAdminExists(actor.id);
-
         const userId = new Types.ObjectId(actor.id);
-        const [materials, areas, events] = await Promise.all([
-            this.materialModel.deleteMany({ userId }),
-            this.areaModel.deleteMany({ userId }),
-            this.eventModel.deleteMany({ userId }),
-        ]);
+        const deletionReference = randomUUID();
+        const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+        const deletionPlan = await this.personalDataRegistry.prepareDeletion(actor.id);
 
-        await this.userModel.updateOne(
-            { _id: userId },
-            {
-                $set: {
-                    email: `deleted-${actor.id}@studyflow.local`,
-                    passwordHash: "account-deleted",
-                    role: "STUDENT",
+        const result = await this.connection.transaction(async (session) => {
+            // O mesmo sentinel usado na mudança de papel serializa operações sobre admins.
+            await this.connection.collection("security_sentinels").findOneAndUpdate(
+                { _id: "last-admin" },
+                { $inc: { revision: 1 } },
+                { upsert: true, session },
+            );
+            const user = await this.userModel.findById(userId).session(session);
+            if (!user || user.accountStatus !== "ACTIVE") {
+                throw new NotFoundException({ code: "USER_NOT_FOUND", message: "Utilizador não encontrado." });
+            }
+            if (user.role === "ADMIN") {
+                const activeAdmins = await this.userModel
+                    .countDocuments({ role: "ADMIN", accountStatus: "ACTIVE" })
+                    .session(session);
+                if (activeAdmins <= 1) {
+                    throw new ForbiddenException({ code: "LAST_ADMIN_REQUIRED", message: "Não podes eliminar o último administrador." });
+                }
+            }
+
+            await this.userModel.updateOne(
+                { _id: userId, accountStatus: "ACTIVE" },
+                { $set: { accountStatus: "DELETION_PENDING" }, $inc: { sessionVersion: 1 } },
+                { session },
+            );
+            const applied = await this.personalDataRegistry.applyDeletion(deletionPlan, session);
+            await this.userModel.updateOne(
+                { _id: userId, accountStatus: "DELETION_PENDING" },
+                {
+                    $set: {
+                        email: `deleted-${deletionPlan.anonymousId}@studyflow.local`,
+                        passwordHash: "deleted-account",
+                        role: "STUDENT",
+                        accountStatus: "DELETED",
+                    },
+                    $inc: { sessionVersion: 1 },
                 },
-            },
-        );
+                { session },
+            );
+            await this.deletionModel.create([{
+                reference: deletionReference,
+                status: "COMPLETED",
+                completedAt: new Date(),
+                expiresAt,
+            }], { session });
+            return { status: "COMPLETED" as const, deletionReference, affectedCounts: applied.affectedCounts };
+        });
 
-        // O registo fica depois das remoções para reflectir uma execução concluída.
-        await this.deletionModel.create({ userId, reason: input.reason?.trim(), completedAt: new Date(), status: "COMPLETED" });
-        return {
-            status: "COMPLETED",
-            deletedStudyAreas: areas.deletedCount ?? 0,
-            deletedMaterials: materials.deletedCount ?? 0,
-            deletedEvents: events.deletedCount ?? 0,
-        };
-    }
-
-    private async assertAnotherAdminExists(userId: string): Promise<void> {
-        const adminCount = await this.userModel.countDocuments({ role: "ADMIN", _id: { $ne: new Types.ObjectId(userId) } });
-        if (adminCount < 1) {
-            throw new ForbiddenException({ code: "LAST_ADMIN_REQUIRED", message: "Não podes eliminar o último administrador." });
-        }
+        // O commit já contém a outbox; falhas físicas são recuperadas pelo reconciliador.
+        await this.personalDataRegistry.finalizeDeletion(deletionPlan);
+        return result;
     }
 }
 ```
 
 5. Explicação do código.
-   A eliminação é limitada ao `actor.id`. A conta é anonimizada para cortar login por email antigo e a protecção de último admin evita bloquear a gestão da plataforma.
+   A eliminação é limitada ao `actor.id`, classificada pelo registry e atómica em Mongo. `sessionVersion` revoga todas as sessões; a outbox permite concluir ficheiros depois do commit sem perder trabalho num crash.
 6. Validação do passo.
-   Testa aluno com materiais/áreas/eventos e confirma contadores.
+   Semeia pelo menos um documento de cada model registado e confirma políticas, contadores, tombstones, memberships, outbox e remoção física.
 7. Cenário negativo/erro esperado.
    Último admin deve receber `LAST_ADMIN_REQUIRED`.
 
-### Passo 3 - Revogar sessão no controller
+### Passo 3 - Confirmar revogação global e limpar o cookie atual
 
 1. Objetivo funcional do passo no contexto da app.
-   Fechar a sessão actual depois da eliminação.
+   A transaction já incrementou `sessionVersion` e revogou todas as sessões; o controller remove ainda a chave/cookie atual em best effort.
 2. Ficheiros envolvidos:
    - CRIAR: `apps/api/src/modules/account-deletion/account-deletion.controller.ts`
    - CRIAR: `apps/api/src/modules/account-deletion/account-deletion.module.ts`
    - EDITAR: `apps/api/src/app.module.ts`
 3. Instruções do que fazer.
-   Lê o cookie `sf_sid` e chama `SessionService.destroySession`.
+   Lê o cookie `sf_sid`, chama `SessionService.destroySession` apenas para limpeza imediata e limpa o cookie. A segurança não depende desta chave: qualquer sessão antiga falha com `SESSION_REVOKED` ao comparar a versão em Mongo.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
@@ -310,9 +337,7 @@ import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "../auth/auth.module.js";
 import { User, UserSchema } from "../auth/schemas/user.schema.js";
-import { Material, MaterialSchema } from "../materials/schemas/material.schema.js";
-import { StudyArea, StudyAreaSchema } from "../study-areas/schemas/study-area.schema.js";
-import { StudyEvent, StudyEventSchema } from "../study/schemas/study-event.schema.js";
+import { PrivacyModule } from "../privacy/privacy.module.js";
 import { AccountDeletionController } from "./account-deletion.controller.js";
 import { AccountDeletionService } from "./account-deletion.service.js";
 import { AccountDeletionRequest, AccountDeletionRequestSchema } from "./schemas/account-deletion-request.schema.js";
@@ -323,11 +348,9 @@ import { AccountDeletionRequest, AccountDeletionRequestSchema } from "./schemas/
 @Module({
     imports: [
         AuthModule,
+        PrivacyModule,
         MongooseModule.forFeature([
             { name: User.name, schema: UserSchema },
-            { name: StudyArea.name, schema: StudyAreaSchema },
-            { name: Material.name, schema: MaterialSchema },
-            { name: StudyEvent.name, schema: StudyEventSchema },
             { name: AccountDeletionRequest.name, schema: AccountDeletionRequestSchema },
         ]),
     ],

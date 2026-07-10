@@ -8,6 +8,7 @@
 - `apoio`: `Kaua`
 - `prioridade`: `P2`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF1-02, BK-MF1-03`
 - `rf_rnf`: `RF16`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF1-07`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-04-ia-partilhada-da-sala-mistura-das-areas-dos-membros.md`
-- `last_updated`: `2026-07-02`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Implementar `RF16`: permitir que membros de uma sala usem uma IA partilhada baseada apenas nas fontes textuais partilhadas nessa sala.
@@ -54,7 +55,7 @@ A IA da sala mistura contribuições dos membros, mas não pode consultar materi
 - `StudyRoomsService.ensureMember`.
 - `RoomSharesService.findUsableSharesForRoom`.
 - `StudentProfileService.getMyProfile`.
-- `AiModule` com `AI_PROVIDER` exportado.
+- `AiModule` com `GovernedAiExecutionService` exportado e finalidade `ROOM_AI` disponível mas desativada por omissão.
 - `BK-MF1-03` merged, porque a IA só pode responder sobre `RoomShare` validado.
 
 ## Glossário
@@ -119,7 +120,7 @@ O código abaixo deve ser tratado como código final previsto, não como exemplo
 
 - `StudyRoomsService.ensureMember`.
 - `RoomSharesService.findUsableSharesForRoom`.
-- `AiModule` com `AI_PROVIDER` exportado.
+- `AiModule` com `GovernedAiExecutionService` exportado e finalidade `ROOM_AI` disponível mas desativada por omissão.
 - `BK-MF1-03` implementado e merged para obter fontes `RoomShare.usableByAi`.
 
 ### Passo 1 - Criar schema da interação
@@ -306,7 +307,7 @@ import {
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request";
-import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service";
 import { AskRoomAiDto } from "./dto/ask-room-ai.dto";
 import { buildRoomAiPrompt } from "./prompts/room-ai.prompt";
 import { RoomSharesService } from "./room-shares.service";
@@ -320,8 +321,7 @@ export class RoomAiService {
         private readonly interactionModel: Model<RoomAiInteractionDocument>,
         private readonly studyRoomsService: StudyRoomsService,
         private readonly roomSharesService: RoomSharesService,
-        @Inject(AI_PROVIDER)
-        private readonly aiProvider: AiProvider,
+        private readonly aiExecution: GovernedAiExecutionService,
     ) {}
 
     async answer(actor: AuthenticatedUser, roomId: string, dto: AskRoomAiDto) {
@@ -340,10 +340,25 @@ export class RoomAiService {
 
         let result: Record<string, unknown>;
         try {
-            result = await this.aiProvider.generateStudyTool({
-                prompt,
-                type: "EXPLANATION",
-            });
+            ({ result } = await this.aiExecution.execute({
+                userId: actor.id,
+                purpose: "ROOM_AI",
+                quota: { scope: "GROUP", targetId: room._id.toString() },
+                sources: shares,
+                guardrailText: dto.question,
+                buildPrompt: () => prompt,
+                invoke: ({ provider, prompt: governedPrompt, options }) =>
+                    provider.generateStudyTool({
+                        prompt: governedPrompt,
+                        type: "EXPLANATION",
+                        ...options,
+                    }),
+                validateResult: (value) => {
+                    if (!value || typeof value !== "object") {
+                        throw new TypeError("Resposta da IA da sala inválida.");
+                    }
+                },
+            }));
         } catch {
             throw new ServiceUnavailableException("A IA não está disponível neste momento.");
         }
@@ -400,7 +415,7 @@ export class RoomAiService {
 
 5. Explicação do código.
 
-    O service é a barreira de segurança da IA da sala. Recebe sessão, `roomId`, pergunta e `sourceIds`; valida que o actor é aluno, membro da sala, e que existem fontes `RoomShare.usableByAi` da própria sala. Antes de guardar, valida o runtime do provider: `answer` tem de ser texto não vazio e `sourceShareIds` têm de corresponder às fontes autorizadas. Os erros esperados são `403` para não aluno/não membro, `422` sem fontes e `503` quando o provider falha ou devolve dados inválidos.
+    O service valida aluno, membership e fontes `RoomShare.usableByAi`, depois entrega a execução `ROOM_AI` à fachada governada. A fachada valida output e fontes antes de devolver; o domínio volta a confirmar `sourceShareIds` antes de persistir. Erros: `403` sem acesso, `422` sem fontes e erro estável quando a execução falha.
 
 6. Como validar este passo.
 

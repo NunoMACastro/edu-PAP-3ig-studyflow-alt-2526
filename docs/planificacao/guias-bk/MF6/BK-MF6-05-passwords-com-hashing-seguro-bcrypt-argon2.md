@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF15`
@@ -17,17 +18,17 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF6-06`
 - `guia_path`: `docs/planificacao/guias-bk/MF6/BK-MF6-05-passwords-com-hashing-seguro-bcrypt-argon2.md`
-- `last_updated`: `2026-06-23`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
 Neste BK vais transformar a regra de hashing de passwords numa peça própria da autenticação. O registo e o login continuam a usar email/password, mas deixam de chamar `bcrypt` diretamente dentro do `AuthService`.
 
-No fim, a password só existe durante o pedido HTTP, a base de dados guarda apenas `passwordHash`, o login compara a password recebida contra o hash guardado e os testes provam que o fluxo não aceita regressões inseguras.
+No fim, a password só existe durante o pedido HTTP, tem máximo de 128 caracteres, a base de dados guarda apenas `passwordHash`, o login compara a password recebida contra o hash guardado e os testes provam que o fluxo não aceita regressões inseguras.
 
 #### Importância
 
-`RNF15` é CANONICO em `docs/RNF.md`: passwords têm de usar hashing seguro com bcrypt ou argon2. Como `bcrypt` já existe em `apps/api/package.json`, a decisão deste BK é manter bcrypt e isolar o seu uso num service backend.
+`RNF15` é CANONICO em `docs/RNF.md`: passwords têm de usar hashing seguro com bcrypt ou argon2. A release usa `bcrypt@6.0.0`, com lockfile auditado sem a cadeia vulnerável de `tar`, e isola o seu uso num service backend.
 
 Este BK reforça o que `BK-MF0-01` criou no registo e prepara `BK-MF6-06`, porque cookies de sessão só fazem sentido depois de as credenciais serem validadas de forma segura.
 

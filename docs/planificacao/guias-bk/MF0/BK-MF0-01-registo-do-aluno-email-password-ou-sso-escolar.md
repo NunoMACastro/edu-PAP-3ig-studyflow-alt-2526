@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `DONE`
+- `real_dev_status`: `PARCIAL`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RF01`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF0-02`
 - `guia_path`: `docs/planificacao/guias-bk/MF0/BK-MF0-01-registo-do-aluno-email-password-ou-sso-escolar.md`
-- `last_updated`: `2026-06-01`
+- `last_updated`: `2026-07-10`
 
 ## O que vamos fazer neste BK
 
@@ -187,6 +188,7 @@ import { HydratedDocument } from "mongoose";
 export type UserDocument = HydratedDocument<User>;
 export type UserRole = "STUDENT" | "TEACHER" | "ADMIN";
 export type AuthProvider = "local" | "school_sso";
+export type AccountStatus = "ACTIVE" | "DELETION_PENDING" | "DELETED";
 
 @Schema({ timestamps: true, collection: "users" })
 export class User {
@@ -211,6 +213,14 @@ export class User {
         default: "STUDENT",
     })
     role!: UserRole;
+
+    // A autenticação relê estes campos em Mongo em todos os pedidos.
+    @Prop({ required: true, enum: ["ACTIVE", "DELETION_PENDING", "DELETED"], default: "ACTIVE", index: true })
+    accountStatus!: AccountStatus;
+
+    // Alterar papel ou eliminar conta incrementa a versão e revoga todas as sessões anteriores.
+    @Prop({ required: true, min: 1, default: 1 })
+    sessionVersion!: number;
 
     // O SSO fica apenas preparado como contrato. A integração real está bloqueada por falta de fornecedor.
     @Prop({ required: true, enum: ["local", "school_sso"], default: "local" })
@@ -319,6 +329,8 @@ export class UsersService {
             passwordHash,
             role: "STUDENT",
             authProvider: "local",
+            accountStatus: "ACTIVE",
+            sessionVersion: 1,
         });
 
         return this.toPublicUser(created);
@@ -903,7 +915,7 @@ Erros esperados:
 - `apps/api`: `npm test` -> PASS (19 suites, 68 tests).
 - `apps/api`: `npm run build` -> PASS.
 - `apps/web`: `npm run build` -> PASS.
-- Testes negativos cobertos neste ciclo: `LOGIN_RATE_LIMITED`, resposta pública de materiais sem `storageKey`/`contentText`, `AI_PROVIDER_TIMEOUT`, `NO_PROCESSABLE_SOURCES`, provider IA não configurado e JSON IA inválido.
+- Testes negativos cobertos neste ciclo: `LOGIN_RATE_LIMITED`, resposta pública de materiais sem `storageKey`/`contentText`, `AI_EXECUTION_TIMEOUT`, `NO_PROCESSABLE_SOURCES`, execução IA não configurada e output IA inválido.
 - Não executado neste ciclo: smoke manual/browser/e2e com MongoDB, Redis e OpenAI reais.
 
 - Screenshot da página `Criar conta StudyFlow`.

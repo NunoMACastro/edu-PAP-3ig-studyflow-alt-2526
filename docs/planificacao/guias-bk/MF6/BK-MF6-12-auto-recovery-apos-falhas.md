@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF22`
@@ -17,13 +18,13 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF7-01`
 - `guia_path`: `docs/planificacao/guias-bk/MF6/BK-MF6-12-auto-recovery-apos-falhas.md`
-- `last_updated`: `2026-06-23`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais criar uma camada pequena de recovery para falhas transitórias, integrada no fluxo real de indexação de materiais por URL.
+Neste BK vais fechar a recuperação do runner Mongo e das operações idempotentes. No arranque, leases expiradas regressam a `QUEUED`; heartbeat/fencing impede um worker antigo de finalizar trabalho após perder a lease.
 
-No fim, a API consegue repetir uma leitura externa quando a falha é temporária, mas continua a falhar de forma explícita quando o erro é permanente, inseguro ou não idempotente.
+No fim, jobs têm lease de 30 s, concorrência 2, três tentativas e backoff 1/5/30 s; processadores são idempotentes e há fault injection de crash/restart. Leituras URL podem usar retry, mas redirects e cada ligação repetem toda a validação SSRF.
 
 #### Importância
 
@@ -36,6 +37,7 @@ Este guia prepara `BK-MF7-01` porque deixa eventos e erros com nomes estáveis p
 - Criar helper partilhado `retryWithRecovery` em `apps/api`.
 - Validar limites de tentativas e delays.
 - Integrar o helper no fluxo recuperável de `MaterialIndexService.fetchTextFromUrl`.
+- Recuperar leases expiradas no arranque e testar fencing, heartbeat, crash/restart e um único job ativo.
 - Repetir apenas leitura externa idempotente; não repetir escritas, pagamentos, criação de dados ou operações com efeitos laterais.
 - Criar testes unitários com cenário principal e pelo menos 2 negativos.
 - Manter ownership, membership, sessão HttpOnly e validação backend intactos.

@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `BLOQUEADO_OPERADOR`
 - `esforco`: `M`
 - `dependencias`: `BK-MF8-15`
 - `rf_rnf`: `RNF42`
@@ -17,11 +18,11 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF8-17`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-16-execucao-final-de-testes.md`
-- `last_updated`: `2026-07-02`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais transformar `RNF42` num gate final executável. O resultado observável é um runner em `apps/api/src/scripts/run-mf8-final-tests.ts` que valida a evidence do BK anterior, executa comandos reais de planificação, API e web, recolhe estados observados e escreve `docs/evidence/MF8/TESTES-FINAIS.md`.
+Neste BK vais transformar `RNF42` no gate obrigatório `verify:local-release`, associado ao manifesto SHA-256 final. E2E, axe, audits, recovery, readiness negativa e restore real são requisitos de aceitação, nunca opcionais.
 
 Este BK não cria endpoint, página React, controller, DTO ou service de domínio. A execução final de testes é uma tarefa técnica de fecho de produto: corre localmente, produz evidence segura e prepara o `BK-MF8-17` para corrigir apenas erros confirmados.
 
@@ -46,7 +47,7 @@ Este BK também protege a defesa PAP. O aluno passa a conseguir mostrar uma tabe
 - Criar endpoint HTTP, controller, DTO, service, schema, cliente API ou página React.
 - Alterar IDs, owners, prioridades, esforço, sprint, dependências, RF/RNF ou ordem dos BKs.
 - Corrigir testes ou bugs encontrados na execução final; isso pertence ao `BK-MF8-17`.
-- Executar Playwright como obrigatório se o ambiente local não tiver browser ou servidores configurados; nesse caso o runner deve registar `BLOQUEADO` para o comando opcional.
+- Tratar falta de browser, servidor ou configuração E2E como falha/bloqueio da release, sem aprovar o gate.
 - Guardar tokens, cookies, prompts privados, respostas IA completas, dados pessoais, materiais privados ou outputs extensos em evidence.
 - Adicionar dependências novas ao projeto.
 
@@ -81,7 +82,7 @@ Este BK também protege a defesa PAP. O aluno passa a conseguir mostrar uma tabe
 
 - **Gate final:** ponto de decisão técnico que executa validações antes de fechar a MF8.
 - **Comando obrigatório:** comando que tem de passar para a entrega avançar sem bloqueio.
-- **Comando opcional:** comando importante, mas dependente de ambiente local; se falhar por ambiente, fica registado sem esconder o risco.
+- **Comando obrigatório:** qualquer validação do gate que falhe ou não possa correr bloqueia a release.
 - **Evidence:** ficheiro Markdown com comandos, resultados observados, falhas e decisão final.
 - **Exit code:** número devolvido por um processo; `0` significa sucesso e valores diferentes de `0` indicam falha.
 - **Stdout:** texto normal escrito pelo comando.
@@ -94,7 +95,7 @@ Este BK também protege a defesa PAP. O aluno passa a conseguir mostrar uma tabe
 - **Runner CLI.** É um programa executado por terminal. Neste BK, o runner corre comandos reais, guarda resultados e decide se a bateria final passou.
 - **Processo filho.** Quando o Node executa `npm` ou `bash`, cria um processo filho. O runner lê o exit code e os outputs desse processo para saber se houve sucesso.
 - **Evidence segura.** A evidence deve provar execução sem copiar dados sensíveis. Por isso o runner corta outputs longos e substitui padrões como `token=...`, `cookie=...` ou `password=...`.
-- **Comando obrigatório vs opcional.** Planificação, API tests e builds são obrigatórios. E2E Playwright é registado, mas pode ficar `BLOQUEADO` se o ambiente não tiver browser ou servidor preparado.
+- **Gate fail-closed.** Nenhum comando de aceitação pode ser skipped ou convertido em sucesso por falta de ambiente.
 - **Handoff.** O próximo BK não deve procurar erros manualmente. Deve receber `TESTES-FINAIS.md` e corrigir apenas o que ficou `FAIL` ou `BLOQUEADO` com impacto real.
 - **Privacidade.** Este BK toca outputs técnicos, não dados de alunos. Mesmo assim, a regra é minimizar evidence para evitar expor prompts, cookies, tokens, materiais ou respostas privadas.
 
@@ -115,7 +116,8 @@ Este BK também protege a defesa PAP. O aluno passa a conseguir mostrar uma tabe
   - usar script local sem dependência nova;
   - usar Markdown para evidence final;
   - bloquear execução se a evidence de `BK-MF8-15` não existir ou indicar lacunas `P0`;
-  - tratar Playwright E2E como comando opcional registado, porque depende de ambiente.
+  - executar Playwright isolado com portas, Mongo, Redis e runId únicos, `reuseExistingServer=false` e identidade verificada;
+  - exigir três execuções Chromium completas e consecutivas, mais smoke crítico Firefox/WebKit.
 
 #### Ficheiros a criar/editar/rever
 
@@ -342,9 +344,9 @@ export function buildMf8FinalTestPlan(repoRoot: string): FinalTestCommand[] {
             cwd: repoRoot,
             command: "npm",
             args: ["--prefix", "apps/web", "run", "test:e2e"],
-            required: false,
+            required: true,
             timeoutMs: 180_000,
-            expected: "As suites Playwright passam quando o ambiente E2E está preparado.",
+            expected: "As suites Playwright isoladas passam; falta de ambiente bloqueia a release.",
         },
     ];
 }
@@ -575,7 +577,7 @@ Os tipos exportados têm JSDoc próprio porque representam contratos de evidence
 
 `validateInventoryEvidence(...)` liga este BK ao BK anterior. Se `TESTES-EM-FALTA.md` não existir ou disser que não se deve avançar, o runner não finge sucesso: cria `TESTES-FINAIS.md` com estado `BLOQUEADO`.
 
-`runFinalTestCommand(...)` executa cada comando como processo filho, recolhe exit code, stdout e stderr, e converte o resultado para `PASS`, `FAIL` ou `BLOQUEADO`. Comandos obrigatórios falham como `FAIL`; comandos opcionais, como Playwright E2E, podem ficar `BLOQUEADO` por ambiente.
+`runFinalTestCommand(...)` recolhe exit code e output sanitizado. `FAIL` ou `BLOQUEADO` em qualquer subcheck impede aprovação de `verify:local-release`.
 
 `sanitizeOutput(...)` evita guardar valores sensíveis na evidence. Esta função não substitui revisão humana, mas reduz o risco de copiar tokens, cookies, passwords ou secrets para um ficheiro de defesa.
 
@@ -824,14 +826,14 @@ Abre `../../docs/evidence/MF8/TESTES-FINAIS.md` e confirma a decisão final, a t
 | Sim | Testes unitários da API | PASS | 0 | `npm --prefix apps/api run test:unit` |
 | Sim | Build da API | PASS | 0 | `npm --prefix apps/api run build` |
 | Sim | Build da web | PASS | 0 | `npm --prefix apps/web run build` |
-| Não | E2E Playwright da web | BLOQUEADO | - | `npm --prefix apps/web run test:e2e` |
+| Sim | E2E Playwright da web | PASS obrigatório | `0` | `npm --prefix apps/web run test:e2e` |
 ```
 
 5. Explicação do código.
 
 Este bloco mostra a forma final da evidence. O conteúdo real é criado pelo runner e pode mudar conforme o estado local. A decisão final fica no topo para o professor e a equipa perceberem rapidamente se a entrega pode avançar.
 
-A tabela separa comandos obrigatórios de opcionais. Se a web E2E ficar `BLOQUEADO` por ambiente, isso não esconde o risco; apenas distingue bloqueio ambiental de falha de build ou de testes unitários.
+A tabela pode distinguir causa técnica de bloqueio, mas só uma tabela totalmente `PASS` permite fechar a release.
 
 6. Validação do passo.
 
@@ -859,7 +861,7 @@ Separar falhas reais de produto, bloqueios de ambiente e riscos que seguem para 
 Lê a tabela final:
 
 - se `planificacao`, `api-unit`, `api-build` ou `web-build` estiverem `FAIL`, envia essa falha para `BK-MF8-17`;
-- se `web-e2e` estiver `BLOQUEADO`, confirma se falta browser, servidor local ou configuração E2E;
+- se `web-e2e` estiver `BLOQUEADO`, instala/configura o ambiente e repete; a release não avança;
 - se a evidence de entrada estiver `BLOQUEADO`, volta ao `BK-MF8-15`;
 - se todos os obrigatórios estiverem `PASS`, podes avançar para a correção de erros com risco residual documentado.
 
@@ -871,7 +873,7 @@ Este passo é de interpretação e decisão, porque o runner já gerou o artefac
 
 5. Explicação do código.
 
-Não há código novo neste passo. O raciocínio importante é que nem todos os estados têm o mesmo significado. `FAIL` num build ou teste unitário aponta para erro técnico. `BLOQUEADO` em Playwright pode indicar ambiente incompleto, mas continua a ser risco a explicar.
+Não há código novo neste passo. `FAIL` e `BLOQUEADO` têm causas diferentes, mas ambos impedem o fecho.
 
 6. Validação do passo.
 
@@ -970,4 +972,4 @@ Se a evidence final tiver comandos obrigatórios em `FAIL` ou evidence de entrad
 #### Changelog
 
 - `2026-07-02`: ajustado o import ESM do teste para `.js` e acrescentado JSDoc aos tipos exportados centrais do runner.
-- `2026-07-02`: guia reforçado com runner CLI completo, teste Jest, script `mf8:final-tests`, evidence final e handoff operacional para `BK-MF8-17`; o comando E2E ficou alinhado com `test:e2e`.
+- `2026-07-10`: gate alinhado com `verify:local-release`; E2E isolado e cross-browser tornou-se obrigatório e fail-closed.

@@ -1,4 +1,25 @@
-# Estatísticas Do Projeto - StudyFlow
+# Estatísticas do projeto — ponte e snapshot histórico
+
+```yaml
+status: SUPERSEDED_SNAPSHOT
+snapshot_date: 2026-07-07
+authoritative_for_current_counts: false
+current_function_inventory: real_dev/docs/technical/STUDYFLOW-FUNCTION-INVENTORY.md
+```
+
+As tabelas numéricas abaixo são um levantamento histórico anterior ao manifesto da
+remediação integral. Foram preservadas apenas para rastreabilidade e não descrevem o checkout
+atual. Não atualizar estes números manualmente nem usá-los para defesa, release ou evidence.
+
+O inventário atual de funções/handlers é gerado por AST a partir da implementação real:
+
+- artefacto canónico:
+  [real_dev/docs/technical/STUDYFLOW-FUNCTION-INVENTORY.md](../../real_dev/docs/technical/STUDYFLOW-FUNCTION-INVENTORY.md);
+- atualização: `npm --prefix real_dev/api run function-inventory:write`;
+- verificação fail-closed: `npm --prefix real_dev/api run function-inventory:check`.
+
+As contagens gerais de ficheiros/linhas não têm, neste documento, um gerador canónico ligado ao
+manifesto. Até esse gerador existir, devem permanecer apenas como snapshot histórico.
 
 Data do levantamento: 2026-07-07
 Base do levantamento: checkout local `studyflow_alt`
@@ -13,7 +34,7 @@ Base do levantamento: checkout local `studyflow_alt`
 - Backend: `real_dev/api`.
 - Frontend: `real_dev/web`.
 
-## Documentação
+## Snapshot histórico — Documentação
 
 | Categoria                            |                                           Âmbito | Ficheiros | Linhas | Média por ficheiro |
 | ------------------------------------ | -----------------------------------------------: | --------: | -----: | -----------------: |
@@ -23,7 +44,7 @@ Base do levantamento: checkout local `studyflow_alt`
 
 A maior parte da documentação textual do projeto está na planificação. A planificação representa `159` dos `168` ficheiros Markdown contabilizados.
 
-## Código
+## Snapshot histórico — Código
 
 ### Ficheiros Da App
 
@@ -45,7 +66,7 @@ Os ficheiros auxiliares próprios representam `11` ficheiros e `12113` linhas: `
 | Backend                 |                  `real_dev/api` |       445 |            42748 |              96.06 |
 | Frontend                |                  `real_dev/web` |       125 |            15044 |             120.35 |
 
-## Código Por Extensão
+## Snapshot histórico — Código por extensão
 
 | Extensão |     Área | Ficheiros | Linhas |
 | -------- | -------: | --------: | -----: |
@@ -58,9 +79,11 @@ Os ficheiros auxiliares próprios representam `11` ficheiros e `12113` linhas: `
 | `.js`    | Frontend |         2 |     30 |
 | `.html`  | Frontend |         1 |     12 |
 
-## Funções E Estrutura Interna
+## Snapshot histórico — Funções e estrutura interna
 
-A contagem de funções foi feita por AST com o parser de TypeScript, sobre ficheiros `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs` e `.cjs`. A métrica "funções" inclui declarações `function`, métodos de classes, construtores e arrow functions. Também inclui callbacks de testes, porque são funções reais mantidas no codebase.
+A contagem abaixo foi feita por AST em 2026-07-07, mas foi substituída pelo inventário canónico
+ligado acima. Incluía declarações `function`, métodos, construtores, arrow functions e callbacks
+de teste daquele snapshot.
 
 | Métrica                             | Total | Backend | Frontend |
 | ----------------------------------- | ----: | ------: | -------: |
@@ -71,7 +94,7 @@ A contagem de funções foi feita por AST com o parser de TypeScript, sobre fich
 | Construtores                        |   121 |     121 |        0 |
 | Classes                             |   305 |     305 |        0 |
 
-## Testes E Código Fonte
+## Snapshot histórico — Testes e código fonte
 
 | Métrica                   | Total | Backend | Frontend |
 | ------------------------- | ----: | ------: | -------: |
@@ -82,7 +105,7 @@ A contagem de funções foi feita por AST com o parser de TypeScript, sobre fich
 
 As linhas de teste representam `22.49%` das linhas dos ficheiros próprios da app. As linhas dentro de `src` representam `79.57%` das linhas dos ficheiros próprios da app.
 
-## Leitura Rápida
+## Leitura rápida do snapshot histórico
 
 - O projeto tem `168` ficheiros Markdown de documentação e planificação.
 - A documentação e planificação somam `111850` linhas.

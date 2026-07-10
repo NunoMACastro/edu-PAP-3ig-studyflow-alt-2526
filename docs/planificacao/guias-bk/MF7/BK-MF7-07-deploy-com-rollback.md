@@ -9,6 +9,7 @@
 - `apoio`: `Kaua`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `BLOQUEADO_OPERADOR`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF29`
@@ -17,11 +18,13 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF7-08`
 - `guia_path`: `docs/planificacao/guias-bk/MF7/BK-MF7-07-deploy-com-rollback.md`
-- `last_updated`: `2026-06-27`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais preparar o contrato mínimo de deploy com rollback do StudyFlow. O resultado final é um procedimento que só permite avançar com uma release quando existe versão identificada, plano de rollback documentado, comando `deploy:check` e testes que provam o caminho principal e dois negativos P1.
+Neste BK vais criar o gate obrigatório `verify:local-release` para `PAP_LOCAL_ENDURECIDA`. O antigo `deploy:check` passa a ser apenas um subcheck de versão/rollback e nunca aprova uma release sozinho.
+
+O gate associa resultados ao manifesto SHA-256 e executa, sem skips de aceitação: configuração/secrets, instalação limpa, builds, API unit/integration/contracts, web unit/component, coverage, bundle budgets, E2E isolado, axe, audits de dependências, smoke 200, crash/recovery, readiness negativa e backup/restore real. Falha ao primeiro requisito obrigatório não satisfeito.
 
 #### Importância
 
@@ -32,7 +35,7 @@ Neste BK vais preparar o contrato mínimo de deploy com rollback do StudyFlow. O
 - Criar o documento operacional `docs/ops/DEPLOY-ROLLBACK.md`.
 - Criar o script `apps/api/src/scripts/validate-deploy-readiness.ts`.
 - Criar testes unitários em `apps/api/src/scripts/validate-deploy-readiness.spec.ts`.
-- Adicionar o comando `deploy:check` a `apps/api/package.json`.
+- Adicionar `verify:local-release` na raiz pública e manter `deploy:check` apenas como subcheck interno.
 - Provar um caminho principal com versão e documento de rollback.
 - Provar dois negativos P1: versão ausente e documento de rollback ausente.
 - Preparar handoff para `BK-MF7-08`, que entrega o health check.
@@ -48,7 +51,7 @@ Neste BK vais preparar o contrato mínimo de deploy com rollback do StudyFlow. O
 #### Estado antes e depois
 
 - Estado antes: `BK-MF7-06` deixa testes automatizados para módulos críticos. Ainda falta um gate operacional que impeça deploy sem versão e sem plano de rollback.
-- Estado depois: `apps/api` passa a ter um comando `deploy:check`, um script de readiness, testes para caminho principal e negativos, e um documento operacional de rollback em `docs/ops`.
+- Estado depois: a release local só é aceite por `verify:local-release`, com manifesto/evidence atual e rollback documentado; não existe claim de deploy público.
 
 #### Pre-requisitos
 
@@ -362,47 +365,47 @@ Resultado esperado: a API compila e o ficheiro é emitido para `dist/scripts/val
 
 Se `STUDYFLOW_RELEASE_VERSION` estiver vazio ou o documento de rollback não existir, `assertDeployReadiness` deve lançar `Deploy bloqueado: define STUDYFLOW_RELEASE_VERSION e cria docs/ops/DEPLOY-ROLLBACK.md.`
 
-### Passo 4 - Ligar o script ao package.json da API
+### Passo 4 - Ligar os subchecks ao gate local
 
 1. Objetivo funcional do passo no contexto da app.
 
 Criar um comando repetível para a equipa executar a validação antes de publicar uma release.
 
 2. Ficheiros envolvidos:
-- EDITAR: `apps/api/package.json`
+- EDITAR: `package.json` e `apps/api/package.json`
 - LOCALIZAÇÃO: objeto `scripts` existente.
 
 3. Instruções do que fazer.
 
-Abre `apps/api/package.json`, mantém os scripts existentes e adiciona a entrada `deploy:check` dentro de `scripts`. Não removas `build`, `test`, `test:unit`, `start` ou outros comandos já usados pela equipa.
+Mantém `deploy:check` como verificação estreita da API e adiciona na raiz o único comando de aceitação, `verify:local-release`.
 
 4. Código completo, correto e integrado com a app final.
 
 ```json
 {
   "scripts": {
-    "deploy:check": "npm run build && node dist/scripts/validate-deploy-readiness.js"
+    "verify:local-release": "node tools/verify-local-release.mjs"
   }
 }
 ```
 
 5. Explicação do código.
 
-Esta entrada deve ser adicionada ao objeto `scripts` existente, não substitui o ficheiro inteiro. O comando compila a API primeiro e só depois executa o JavaScript gerado. Isto evita executar TypeScript por fora do fluxo normal de build e torna a evidence fácil de repetir.
+O orquestrador executa todos os subchecks obrigatórios, recolhe apenas resultados sanitizados e associa-os ao manifesto. `deploy:check` pode continuar a validar versão/rollback, mas nunca é a última linha do gate.
 
 6. Validação do passo.
 
 Executa:
 
 ```bash
-npm --prefix apps/api run deploy:check
+npm run verify:local-release
 ```
 
-Resultado esperado: se a versão ou o documento estiverem em falta, o comando falha com a mensagem portuguesa de bloqueio.
+Resultado esperado: qualquer subcheck ausente, skipped, vulnerável ou vermelho termina com exit code não-zero.
 
 7. Cenário negativo/erro esperado.
 
-Se `deploy:check` for adicionado fora de `scripts`, o npm deve responder que o script não existe. Corrige a localização antes de avançar.
+O teste de contrato do gate exige E2E, audit, restore e readiness negativa, sem bypasses.
 
 ### Passo 5 - Criar testes unitários para readiness
 
@@ -595,7 +598,7 @@ STUDYFLOW_RELEASE_VERSION=2026.06.27 npm --prefix apps/api run deploy:check
 
 5. Explicação do código.
 
-Estes comandos representam a evidence mínima positiva: build, testes e deploy check com versão. Os negativos do passo anterior complementam esta prova. O handoff para `BK-MF7-08` deve dizer que o deploy check existe, mas que ainda falta validar a saúde da API por endpoint.
+Build e `deploy:check` são subchecks; a evidence mínima positiva é exclusivamente uma execução completa e verde de `verify:local-release` sobre o manifesto final.
 
 6. Validação do passo.
 
@@ -609,7 +612,8 @@ Se a evidence disser apenas "funciona", sem comandos, outputs e negativos, o BK 
 
 - `RNF29` fica demonstrável por documento, script, comando npm, testes e evidence.
 - O guia mantém `bk_id`, `macro`, owner, apoio, prioridade, sprint, esforço, `rf_rnf` e `proximo_bk` alinhados com matriz e backlog.
-- O comando `deploy:check` existe em `apps/api/package.json`.
+- O comando `verify:local-release` existe na raiz e não admite bypasses de aceitação.
+- `deploy:check` existe apenas como subcheck de versão/rollback.
 - O script `validate-deploy-readiness.ts` compila sem erros.
 - Os testes cobrem caminho principal, negativo sem versão e negativo sem documento.
 - O documento `docs/ops/DEPLOY-ROLLBACK.md` existe e não contém segredos.
@@ -624,23 +628,21 @@ Executa:
 npm --prefix apps/api run build
 npm --prefix apps/api run test:unit -- validate-deploy-readiness
 STUDYFLOW_RELEASE_VERSION=2026.06.27 npm --prefix apps/api run deploy:check
-npm --prefix apps/api run deploy:check
-STUDYFLOW_RELEASE_VERSION=2026.06.27 STUDYFLOW_ROLLBACK_DOC_PATH=../../docs/ops/ROLLBACK-INEXISTENTE.md npm --prefix apps/api run deploy:check
+npm run verify:local-release
 ```
 
 Resultado esperado:
 
 - `build`: passa.
 - `test:unit`: passa.
-- `deploy:check` com versão e documento: passa com `ready: true`.
-- `deploy:check` sem versão: falha com `Deploy bloqueado`.
-- `deploy:check` sem documento: falha com `Deploy bloqueado`.
+- `deploy:check` com versão e documento: subcheck passa.
+- `verify:local-release`: só passa depois de todos os gates, três E2E Chromium, browsers críticos, audits, recovery, readiness negativa e restore real.
 
 #### Evidence para PR/defesa
 
 - `proof_build`: output de `npm --prefix apps/api run build`.
 - `proof_unit`: output de `npm --prefix apps/api run test:unit -- validate-deploy-readiness`.
-- `proof_deploy_check_ok`: output de `STUDYFLOW_RELEASE_VERSION=2026.06.27 npm --prefix apps/api run deploy:check`.
+- `proof_local_release`: resumo sanitizado de `npm run verify:local-release`, ligado ao manifesto final.
 - `proof_negativo_sem_versao`: erro esperado de `npm --prefix apps/api run deploy:check`.
 - `proof_negativo_sem_documento`: erro esperado de `STUDYFLOW_RELEASE_VERSION=2026.06.27 STUDYFLOW_ROLLBACK_DOC_PATH=../../docs/ops/ROLLBACK-INEXISTENTE.md npm --prefix apps/api run deploy:check`.
 - `proof_rollback_doc`: confirmação de `docs/ops/DEPLOY-ROLLBACK.md`.
@@ -650,10 +652,10 @@ Resultado esperado:
 
 Depois deste BK, o `BK-MF7-08` recebe:
 
-- comando `deploy:check` validado;
+- gate `verify:local-release` validado e subcheck `deploy:check` integrado;
 - plano de rollback documentado;
 - evidence positiva e negativa;
-- limite explícito de que produção só fica completa depois do endpoint de health check.
+- limite explícito de release local, sem claim de produção.
 
 O próximo BK não deve recriar o rollback. Deve apenas acrescentar a prova de que a API responde de forma observável.
 

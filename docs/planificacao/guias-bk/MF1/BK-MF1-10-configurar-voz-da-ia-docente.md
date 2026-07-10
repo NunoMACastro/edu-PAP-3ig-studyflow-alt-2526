@@ -8,6 +8,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF1-09`
 - `rf_rnf`: `RF22`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF1-11`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-10-configurar-voz-da-ia-docente.md`
-- `last_updated`: `2026-05-30`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Implementar `RF22`: permitir que o professor configure a voz pedagógica base da IA para uma turma, mantendo override opcional por disciplina.

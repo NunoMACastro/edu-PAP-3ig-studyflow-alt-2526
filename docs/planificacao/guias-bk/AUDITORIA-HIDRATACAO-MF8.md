@@ -1,3 +1,9 @@
+---
+status: SUPERSEDED
+authoritative_for_release: false
+superseded_by: docs/PLANO-CORRECAO-AUDITORIA-COMPLETA-REAL_DEV-2026-07-09.md
+---
+
 # Auditoria e hidratação MF8 - StudyFlow
 
 ## Execução 2026-07-02 - auditoria final MF8 pós-correção textual

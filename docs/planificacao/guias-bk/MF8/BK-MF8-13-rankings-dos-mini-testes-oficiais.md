@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF8-12`
 - `rf_rnf`: `RF28, RF30`
@@ -17,13 +18,13 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF8-14`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-13-rankings-dos-mini-testes-oficiais.md`
-- `last_updated`: `2026-07-02`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
 Neste BK vais implementar o ranking dos mini-testes oficiais por disciplina. O professor autenticado consegue abrir um mini-teste publicado, ver uma tabela ordenada por pontuação e confirmar o desempenho da turma sem consultar dados fora da disciplina que controla.
 
-O ranking consome a tentativa oficial criada no `BK-MF8-12`: `OfficialTestAttempt`. Esse contrato já guarda `testId`, `subjectId`, `classId`, `studentId`, `correctAnswers`, `totalQuestions`, `percentage`, `results` e `answeredAt`. Neste BK vais transformar essas tentativas em resposta segura para professor, endpoint HTTP, cliente frontend, página React e testes focados.
+O ranking aplica `BEST_ATTEMPT`: uma única linha por aluno, com a maior percentagem entre até três tentativas. Empate entre melhores tentativas do mesmo aluno usa a melhor tentativa mais antiga; empate final usa ID estável. O DTO devolve `attemptCount`, `bestPercentage` e `bestAnsweredAt`, sem respostas completas.
 
 #### Importância
 
@@ -39,7 +40,7 @@ Este BK também é importante para segurança e defesa PAP. Resultados de alunos
 - Expor `GET /api/teacher/subjects/:subjectId/tests/:testId/ranking`.
 - Criar cliente API tipado em `apps/web/src/lib/apiClient.ts`.
 - Criar página React `OfficialTestRankingPage` com loading, vazio, erro e sucesso.
-- Criar testes unitários para professor errado, ordenação por pontuação e empate por data.
+- Criar testes para professor errado, uma linha por aluno, melhor tentativa, empate pela melhor mais antiga e ID estável.
 - Minimizar dados pessoais no ranking, usando identificador curto do aluno em vez de email completo.
 
 #### Scope-out
@@ -113,7 +114,7 @@ Este BK também é importante para segurança e defesa PAP. Resultados de alunos
 - Backend:
   - `OfficialTestRankingService` valida professor, disciplina e teste;
   - lê `OfficialTestAttempt` filtrado por `testId`, `subjectId` e `classId`;
-  - ordena por `percentage` descendente e `answeredAt` ascendente;
+  - agrupa por aluno, escolhe `BEST_ATTEMPT` e ordena por `bestPercentage`, melhor tentativa mais antiga e ID estável;
   - devolve dados mínimos.
 - Frontend:
   - `getOfficialTestRanking(...)` chama o endpoint com cookies de sessão através de `requestJson(...)`;
@@ -225,9 +226,8 @@ import {
 } from "./schemas/official-test.schema.js";
 
 export type OfficialTestRankingAttempt = {
+    _id: unknown;
     studentId: unknown;
-    correctAnswers: number;
-    totalQuestions: number;
     percentage: number;
     answeredAt: Date;
 };
@@ -236,10 +236,9 @@ export type OfficialTestRankingRow = {
     position: number;
     studentRef: string;
     displayName: string;
-    correctAnswers: number;
-    totalQuestions: number;
-    percentage: number;
-    answeredAt: Date;
+    attemptCount: number;
+    bestPercentage: number;
+    bestAnsweredAt: Date;
 };
 
 export type OfficialTestRankingView = {
@@ -258,27 +257,34 @@ export type OfficialTestRankingView = {
 export function buildOfficialTestRanking(
     attempts: OfficialTestRankingAttempt[],
 ): OfficialTestRankingRow[] {
-    return [...attempts]
-        .sort((left, right) => {
-            if (right.percentage !== left.percentage) {
-                return right.percentage - left.percentage;
-            }
+    const byStudent = new Map<string, OfficialTestRankingAttempt[]>();
+    for (const attempt of attempts) {
+        const studentId = String(attempt.studentId);
+        byStudent.set(studentId, [...(byStudent.get(studentId) ?? []), attempt]);
+    }
 
-            // Em empate, a tentativa mais antiga fica primeiro para a regra ser previsível.
-            return left.answeredAt.getTime() - right.answeredAt.getTime();
-        })
-        .map((attempt, index) => {
-            const studentRef = String(attempt.studentId);
+    return [...byStudent.entries()]
+        .map(([studentRef, studentAttempts]) => {
+            const best = [...studentAttempts].sort((left, right) =>
+                right.percentage - left.percentage ||
+                left.answeredAt.getTime() - right.answeredAt.getTime() ||
+                String(left._id).localeCompare(String(right._id)),
+            )[0];
             return {
-                position: index + 1,
+                position: 0,
                 studentRef,
                 displayName: `Aluno ${studentRef.slice(-4)}`,
-                correctAnswers: attempt.correctAnswers,
-                totalQuestions: attempt.totalQuestions,
-                percentage: attempt.percentage,
-                answeredAt: attempt.answeredAt,
+                attemptCount: studentAttempts.length,
+                bestPercentage: best.percentage,
+                bestAnsweredAt: best.answeredAt,
             };
-        });
+        })
+        .sort((left, right) => {
+            return right.bestPercentage - left.bestPercentage ||
+                left.bestAnsweredAt.getTime() - right.bestAnsweredAt.getTime() ||
+                left.studentRef.localeCompare(right.studentRef);
+        })
+        .map((row, index) => ({ ...row, position: index + 1 }));
 }
 
 /**
@@ -625,10 +631,9 @@ export type OfficialTestRankingRow = {
     position: number;
     studentRef: string;
     displayName: string;
-    correctAnswers: number;
-    totalQuestions: number;
-    percentage: number;
-    answeredAt: string;
+    attemptCount: number;
+    bestPercentage: number;
+    bestAnsweredAt: string;
 };
 
 export type OfficialTestRanking = {
@@ -1044,7 +1049,7 @@ Se `npm run test:unit -- official-test-ranking` não existir no projeto, executa
 - `OfficialTestRankingService` valida professor antes de qualquer query sensível.
 - `SubjectsService.findOwnedSubject(...)` valida ownership docente da disciplina.
 - A query de tentativas filtra por `testId`, `subjectId` e `classId`.
-- O ranking ordena por `percentage` descendente e `answeredAt` ascendente em empate.
+- O ranking devolve uma linha por aluno com `attemptCount`, `bestPercentage` e `bestAnsweredAt`; empates usam melhor tentativa mais antiga e ID estável.
 - A resposta não devolve respostas completas, email completo, cookies, sessão ou dados excessivos.
 - `OfficialTestsController` expõe `GET /api/teacher/subjects/:subjectId/tests/:testId/ranking`.
 - `apiClient.ts` tem tipos e função `getOfficialTestRanking(...)`.

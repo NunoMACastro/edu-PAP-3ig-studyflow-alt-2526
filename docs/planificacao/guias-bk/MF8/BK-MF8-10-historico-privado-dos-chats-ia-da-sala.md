@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF1-04`
 - `rf_rnf`: `RF16, RF42, RNF20, RNF23`
@@ -17,13 +18,15 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF8-11`
 - `guia_path`: `docs/planificacao/guias-bk/MF8/BK-MF8-10-historico-privado-dos-chats-ia-da-sala.md`
-- `last_updated`: `2026-07-02`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
 Neste BK vais implementar a leitura privada das respostas da IA da sala. O aluno autenticado deve conseguir ver apenas as interações que ele próprio criou numa sala onde é membro, sem receber mensagens de outros alunos nem de outras salas.
 
 O resultado final é um endpoint `GET /api/study-rooms/:roomId/ai/answers?scope=mine`, uma função cliente tipada, uma área de interface com vazio, loading, erro e sucesso, e testes que provam a fronteira de privacidade.
+
+Qualquer nova resposta usa a finalidade `ROOM_AI` através de `GovernedAiExecutionService`. Esta finalidade começa desativada, não cria consentimentos automáticos e só a fachada pode executar a integração externa.
 
 #### Importância
 
@@ -268,7 +271,6 @@ Atualiza os imports do service para incluir `BadRequestException` e a função c
 import {
     BadRequestException,
     GatewayTimeoutException,
-    Inject,
     Injectable,
     ServiceUnavailableException,
     UnprocessableEntityException,
@@ -276,13 +278,15 @@ import {
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
-import { AI_PROVIDER, AiProvider, RoomAiResult } from "../ai/providers/ai-provider.js";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service.js";
 import { AskRoomAiDto } from "./dto/ask-room-ai.dto.js";
 import { buildRoomAiPrompt } from "./prompts/room-ai.prompt.js";
 import { RoomAiHistoryItem, toPrivateRoomAiHistory } from "./room-ai-history.js";
 import { RoomSharesService, RoomShareSource } from "./room-shares.service.js";
 import { RoomAiInteraction, RoomAiInteractionDocument } from "./schemas/room-ai-interaction.schema.js";
 import { StudyRoomsService } from "./study-rooms.service.js";
+
+type RoomAiResult = { answer: string; sourceShareIds: string[] };
 
 /**
  * Serviço da IA partilhada da sala.
@@ -293,14 +297,14 @@ export class RoomAiService {
      * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
      *
      * @param interactionModel Modelo Mongoose injetado para ler e persistir interações IA da sala.
-     * @param aiProvider Provider injetado para isolar integração externa e facilitar testes.
+     * @param governedAiExecutionService Fachada única de execução IA.
      * @param studyRoomsService Service injetado para reutilizar regras de membership da sala.
      * @param roomSharesService Service injetado para reutilizar regras de partilhas da sala.
      */
     constructor(
         @InjectModel(RoomAiInteraction.name)
         private readonly interactionModel: Model<RoomAiInteractionDocument>,
-        @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
+        private readonly governedAiExecutionService: GovernedAiExecutionService,
         private readonly studyRoomsService: StudyRoomsService,
         private readonly roomSharesService: RoomSharesService,
     ) {}
@@ -363,7 +367,10 @@ export class RoomAiService {
         }
 
         try {
-            const result = await this.aiProvider.generateRoomAnswer({
+            const result = await this.governedAiExecutionService.execute({
+                actor,
+                purpose: "ROOM_AI",
+                context: { roomId },
                 prompt: buildRoomAiPrompt({
                     question: input.question.trim(),
                     sources,
@@ -401,7 +408,7 @@ export class RoomAiService {
                 throw error;
             }
             throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_UNAVAILABLE",
+                code: "AI_EXECUTION_UNAVAILABLE",
                 message: "A IA está temporariamente indisponível.",
             });
         }
@@ -423,7 +430,7 @@ export class RoomAiService {
             result.sourceShareIds.some((sourceId) => !allowedIds.has(sourceId))
         ) {
             throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_INVALID_ROOM_ANSWER",
+                code: "AI_INVALID_ROOM_ANSWER",
                 message: "A IA devolveu uma resposta inválida para a sala.",
             });
         }
@@ -435,7 +442,7 @@ export class RoomAiService {
 
 `listMyRoomAiHistory(...)` começa por validar `roomId`. Depois chama `ensureMember(...)`, porque pertencer à sala é condição obrigatória antes de ler qualquer interação.
 
-A query usa `roomId` e `studentId` convertidos para `ObjectId`. O `studentId` vem sempre de `actor.id`, que foi criado pela sessão autenticada. O método não chama `aiProvider`, porque listar histórico é leitura de dados já persistidos.
+A query usa `roomId` e `studentId` da sessão. A leitura de histórico não invoca a fachada porque usa dados já persistidos.
 
 6. Validação do passo.
 
@@ -872,12 +879,12 @@ describe("RoomAiService history", () => {
     });
 
     it("não chama o provider de IA para listar histórico", async () => {
-        const { aiProvider, historyQuery, service } = makeService();
+        const { governedAiExecutionService, historyQuery, service } = makeService();
         historyQuery.exec.mockResolvedValue([]);
 
         await service.listMyRoomAiHistory(student, roomId);
 
-        expect(aiProvider.generateRoomAnswer).not.toHaveBeenCalled();
+        expect(governedAiExecutionService.execute).not.toHaveBeenCalled();
     });
 });
 
@@ -896,8 +903,8 @@ function makeService() {
         create: jest.fn(),
         find: jest.fn().mockReturnValue(historyQuery),
     };
-    const aiProvider = {
-        generateRoomAnswer: jest.fn(),
+    const governedAiExecutionService = {
+        execute: jest.fn(),
     };
     const studyRoomsService = {
         ensureMember: jest.fn().mockResolvedValue(undefined),
@@ -907,13 +914,13 @@ function makeService() {
     };
     const service = new RoomAiService(
         interactionModel as never,
-        aiProvider as never,
+        governedAiExecutionService as never,
         studyRoomsService as never,
         roomSharesService as never,
     );
 
     return {
-        aiProvider,
+        governedAiExecutionService,
         historyQuery,
         interactionModel,
         roomSharesService,

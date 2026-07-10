@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF17`
@@ -17,13 +18,13 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF6-08`
 - `guia_path`: `docs/planificacao/guias-bk/MF6/BK-MF6-07-protecoes-contra-xss-csrf-injection-brute-force.md`
-- `last_updated`: `2026-06-23`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
 Neste BK vais consolidar a defesa transversal da API StudyFlow contra quatro riscos de `RNF17`: XSS refletido em respostas HTTP, CSRF em pedidos com cookies, injection por campos extra nos DTOs e brute force no login.
 
-No fim, a API fica com cabeçalhos defensivos próprios, mantém o middleware CSRF antes dos controllers, mantém validação global com `whitelist` e `forbidNonWhitelisted`, e confirma que o login usa limite de tentativas por email e IP.
+No fim, a API fica com cabeçalhos defensivos próprios, mantém o middleware CSRF antes dos controllers, mantém validação global com `whitelist` e `forbidNonWhitelisted`, e usa rate limits Redis transversais. Além do login, o registo permite no máximo 5 pedidos/hora/IP e o upload 20 pedidos/hora/utilizador; passwords acima de 128 caracteres são rejeitadas antes do hash.
 
 #### Importância
 
@@ -38,6 +39,7 @@ Este BK consome `BK-MF6-06`, porque os cookies de sessão tornam CSRF uma preocu
 - Rever que `csrfMiddleware` continua ativo antes dos controllers.
 - Rever que `ValidationPipe` rejeita campos extra com `forbidNonWhitelisted`.
 - Rever que `LoginAttemptsService` limita brute force por email e IP.
+- Generalizar o limiter Redis para registo e upload, com chaves sanitizadas, TTL atómico e testes de expiração/concorrência.
 - Criar teste unitário para os cabeçalhos defensivos.
 - Validar negativos de CSRF, campos extra e brute force sem expor cookies, emails em claro ou dados pessoais.
 

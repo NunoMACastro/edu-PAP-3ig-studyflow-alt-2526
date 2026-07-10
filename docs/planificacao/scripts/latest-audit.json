@@ -37,6 +37,12 @@
     "guide_header_issues": [],
     "guide_content_issues": []
   },
+  "semantic_contract_issues": [],
+  "pedagogical_state_issues": [],
+  "reference_status_issues": [],
+  "historical_authority_issues": [],
+  "manifest_link_issues": [],
+  "secret_evidence_issues": [],
   "governance": {
     "governance_issues": [],
     "adequacao_12o_issues": [],
@@ -66,6 +72,22 @@
     "adequacao_12o_pass": true,
     "score_ge_97": true,
     "drift_critical_zero": true,
+    "semantic_contracts_pass": true,
+    "pedagogical_states_pass": true,
+    "reference_status_pass": true,
+    "historical_authority_pass": true,
+    "manifest_links_pass": true,
+    "secret_evidence_pass": true,
     "overall_pass": true
-  }
+  },
+  "semantic_fixtures": {
+    "fixtures": 11,
+    "failures": [],
+    "pass": true
+  },
+  "audit_execution": {
+    "status": "COMPLETE",
+    "validator_exit_code": 0
+  },
+  "implementation_manifest_sha256": "799990e7a86c9595c786069889ce2a4e893cf5c9077d23a67e9df6194a84e538"
 }

@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF03`
@@ -17,11 +18,13 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF5-06`
 - `guia_path`: `docs/planificacao/guias-bk/MF5/BK-MF5-05-feedback-imediato-em-acoes-guardar-ia-uploads.md`
-- `last_updated`: `2026-06-19`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais implementar feedback imediato para ações assíncronas importantes: submissão de materiais, uploads e pedidos à IA privada. O utilizador deve perceber quando uma ação começou, quando terminou com sucesso e quando falhou.
+Neste BK vais implementar feedback imediato para ações assíncronas importantes: privacidade, perfil, materiais, publicações, projetos, versões, uploads, IA e logout. O utilizador deve perceber quando uma ação começou, quando terminou com sucesso e quando falhou.
+
+Todas estas mutações usam o hook comum `useAsyncAction`, que impede submissões concorrentes, aceita `AbortSignal`, preserva erro por ação e só anuncia sucesso depois da resposta confirmada. O cliente HTTP comum devolve `ApiError`, trata JSON, texto e `204`, e invalida a sessão apenas perante `401`; `403`, `5xx`, timeout e offline não simulam logout.
 
 #### Importância
 
@@ -29,10 +32,10 @@ Neste BK vais implementar feedback imediato para ações assíncronas importante
 
 #### Scope-in
 
-- Criar `ActionFeedbackProvider` e `useActionFeedback`.
+- Criar `ActionFeedbackProvider`, `useActionFeedback` e `useAsyncAction`.
 - Envolver a zona autenticada em `App.tsx`.
 - Integrar feedback no formulário de submissão de materiais.
-- Integrar feedback no pedido à IA privada da área.
+- Integrar o padrão nas mutações de privacidade, perfil, materiais, publicações, projetos, versões, IA e logout.
 - Criar smoke Playwright focado em feedback visível e `aria-live`.
 
 #### Scope-out
@@ -257,9 +260,8 @@ Substitui o conteúdo completo de `App.tsx` pelo código abaixo. Mantém login, 
 // apps/web/src/App.tsx
 import { ActionFeedbackProvider } from "./features/mf5/action-feedback.js";
 import { useSession } from "./hooks/useSession.js";
-import { LoginPage } from "./pages/auth/LoginPage.js";
-import { RegisterPage } from "./pages/auth/RegisterPage.js";
-import { ProtectedRoutes } from "./routes/protectedRoutes.js";
+import { AppErrorBoundary } from "./routes/AppErrorBoundary.js";
+import { AppRouter } from "./routes/AppRouter.js";
 
 /**
  * Componente raiz da aplicação.
@@ -268,11 +270,8 @@ import { ProtectedRoutes } from "./routes/protectedRoutes.js";
  */
 export function App() {
     const session = useSession();
-    const pathname = window.location.pathname;
 
-    if (pathname === "/registar") return <RegisterPage />;
-
-    if (session.loading) {
+    if (session.status === "checking") {
         return (
             <main className="flex min-h-screen items-center justify-center">
                 <p className="text-sm text-slate-600">A carregar sessão...</p>
@@ -280,24 +279,29 @@ export function App() {
         );
     }
 
-    if (!session.user) {
-        return <LoginPage onLoggedIn={session.refresh} />;
+    if (session.status === "unavailable") {
+        return (
+            <main className="flex min-h-screen items-center justify-center" role="alert">
+                <p>Não foi possível contactar o serviço. Tenta novamente.</p>
+            </main>
+        );
     }
 
     return (
-        <ActionFeedbackProvider>
-            {/* O provider fica dentro da sessão para evitar feedback autenticado em páginas públicas. */}
-            <ProtectedRoutes user={session.user} onLogout={session.signOut} />
-        </ActionFeedbackProvider>
+        <AppErrorBoundary>
+            <ActionFeedbackProvider>
+                <AppRouter session={session} />
+            </ActionFeedbackProvider>
+        </AppErrorBoundary>
     );
 }
 ```
 
 5. Explicação do código.
 
-O `App` continua a resolver registo, loading de sessão, login e rotas protegidas. A única alteração é envolver `ProtectedRoutes` em `ActionFeedbackProvider`.
+O `BrowserRouter` é montado uma única vez em `main.tsx`; `AppRouter` declara as rotas públicas e lazy, o `ProtectedLayout`, os `RoleGuard`, 403 e 404. `App` trata separadamente `checking` e `unavailable`: uma falha de rede ou `5xx` não simula logout nem monta a página de login.
 
-Isto cumpre `RNF03` porque qualquer página autenticada passa a poder mostrar feedback imediato. A sessão continua no hook `useSession` e nos cookies HttpOnly; o provider não altera autenticação. O erro evitado é mostrar feedback de fluxos protegidos antes de saber quem é o utilizador.
+Isto cumpre `RNF03` porque qualquer ação passa a poder mostrar feedback imediato. A sessão continua no hook `useSession` e nos cookies HttpOnly; apenas um `401` muda o estado para `anonymous`. `403`, `5xx`, timeout e offline conservam semânticas distintas.
 
 6. Validação do passo.
 
@@ -305,7 +309,7 @@ Faz login e confirma que a aplicação continua a mostrar a shell protegida. Dep
 
 7. Cenário negativo/erro esperado.
 
-Se envolveres também páginas públicas no provider, podes misturar mensagens de fluxos autenticados com login/registo. Mantém o provider apenas à volta de `ProtectedRoutes`.
+Se `useSession` mapear indisponibilidade para `anonymous`, a UI mostra login a alguém que ainda pode ter uma sessão válida. Testa obrigatoriamente `401`, `403`, `500` e erro de rede como casos separados.
 
 ### Passo 4 - Integrar feedback na submissão de materiais
 

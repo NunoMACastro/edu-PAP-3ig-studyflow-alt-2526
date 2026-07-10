@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF0-04`
 - `rf_rnf`: `RF55`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF4-08`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-07-gestao-de-utilizadores-e-papeis.md`
-- `last_updated`: `2026-06-16`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -189,8 +190,8 @@ UserRoleChangeSchema.index({ targetUserId: 1, createdAt: -1 });
 ```ts
 // apps/api/src/modules/admin-users/admin-users.service.ts
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model, Types } from "mongoose";
+import { InjectConnection, InjectModel } from "@nestjs/mongoose";
+import { Connection, Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { PublicUserDto } from "../users/users.service.js";
 import { User, UserDocument } from "../auth/schemas/user.schema.js";
@@ -203,6 +204,7 @@ import { UserRoleChange, UserRoleChangeDocument } from "./schemas/user-role-chan
 @Injectable()
 export class AdminUsersService {
     constructor(
+        @InjectConnection() private readonly connection: Connection,
         @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
         @InjectModel(UserRoleChange.name) private readonly changeModel: Model<UserRoleChangeDocument>,
     ) {}
@@ -216,36 +218,64 @@ export class AdminUsersService {
     async changeRole(actor: AuthenticatedUser, targetUserId: string, input: ChangeUserRoleDto): Promise<PublicUserDto> {
         this.assertAdmin(actor);
         if (!Types.ObjectId.isValid(targetUserId)) throw this.notFound();
-        const target = await this.userModel.findById(targetUserId).lean();
-        if (!target) throw this.notFound();
-        if (target.role === "ADMIN" && input.nextRole !== "ADMIN") await this.assertAnotherAdminExists(targetUserId);
+        const mongoSession = await this.connection.startSession();
+        let result: PublicUserDto | undefined;
+        try {
+            await mongoSession.withTransaction(async () => {
+                // Todas as mutações do conjunto de admins escrevem o mesmo sentinel.
+                // Duas alterações concorrentes entram em conflito e a transaction é repetida.
+                await this.connection.collection("security_sentinels").findOneAndUpdate(
+                    { _id: "last-admin" },
+                    { $inc: { revision: 1 }, $setOnInsert: { createdAt: new Date() } },
+                    { upsert: true, session: mongoSession },
+                );
 
-        const updated = await this.userModel
-            .findByIdAndUpdate(targetUserId, { $set: { role: input.nextRole } }, { new: true, runValidators: true })
-            .lean();
-        if (!updated) throw this.notFound();
+                const target = await this.userModel
+                    .findById(targetUserId)
+                    .session(mongoSession)
+                    .lean();
+                if (!target) throw this.notFound();
 
-        // O histórico é escrito depois da mutação para reflectir o estado aplicado.
-        await this.changeModel.create({
-            actorId: new Types.ObjectId(actor.id),
-            targetUserId: new Types.ObjectId(targetUserId),
-            previousRole: target.role,
-            nextRole: input.nextRole,
-            reason: input.reason.trim(),
-        });
-        return { id: String(updated._id), email: updated.email, role: updated.role };
+                if (target.role === "ADMIN" && input.nextRole !== "ADMIN") {
+                    const adminCount = await this.userModel
+                        .countDocuments({ role: "ADMIN", accountStatus: "ACTIVE" })
+                        .session(mongoSession);
+                    if (adminCount <= 1) {
+                        throw new ForbiddenException({
+                            code: "LAST_ADMIN_REQUIRED",
+                            message: "Tem de existir pelo menos um administrador ativo.",
+                        });
+                    }
+                }
+
+                const updated = await this.userModel
+                    .findByIdAndUpdate(
+                        targetUserId,
+                        { $set: { role: input.nextRole }, $inc: { sessionVersion: 1 } },
+                        { new: true, runValidators: true, session: mongoSession },
+                    )
+                    .lean();
+                if (!updated) throw this.notFound();
+
+                await this.changeModel.create([{
+                    actorId: new Types.ObjectId(actor.id),
+                    targetUserId: new Types.ObjectId(targetUserId),
+                    previousRole: target.role,
+                    nextRole: input.nextRole,
+                    reason: input.reason.trim(),
+                }], { session: mongoSession });
+                result = { id: String(updated._id), email: updated.email, role: updated.role };
+            });
+        } finally {
+            await mongoSession.endSession();
+        }
+        if (!result) throw new Error("ROLE_CHANGE_TRANSACTION_ABORTED");
+        return result;
     }
 
     private assertAdmin(actor: AuthenticatedUser): void {
         if (actor.role !== "ADMIN") {
             throw new ForbiddenException({ code: "ADMIN_ROLE_REQUIRED", message: "Apenas administradores podem gerir utilizadores." });
-        }
-    }
-
-    private async assertAnotherAdminExists(targetUserId: string): Promise<void> {
-        const count = await this.userModel.countDocuments({ role: "ADMIN", _id: { $ne: new Types.ObjectId(targetUserId) } });
-        if (count < 1) {
-            throw new ForbiddenException({ code: "LAST_ADMIN_REQUIRED", message: "Tem de existir pelo menos um administrador." });
         }
     }
 
@@ -256,11 +286,11 @@ export class AdminUsersService {
 ```
 
 5. Explicação do código.
-   `changeRole` altera `User.role`, não um registo paralelo. O histórico fica ligado a actor e alvo por ObjectId e a listagem exclui `passwordHash`.
+   `changeRole` altera `User.role`, incrementa `sessionVersion` e escreve o histórico na mesma transaction. O sentinel `last-admin` serializa mutações concorrentes do conjunto de administradores; a listagem exclui `passwordHash`.
 6. Validação do passo.
    Alterar `STUDENT` para `TEACHER` deve devolver o utilizador actualizado.
 7. Cenário negativo/erro esperado.
-   Rebaixar o único admin deve devolver `LAST_ADMIN_REQUIRED`.
+   Rebaixar/eliminar em paralelo dois dos últimos administradores deve deixar pelo menos um ativo; o pedido perdedor devolve `LAST_ADMIN_REQUIRED` após retry transacional.
 
 ### Passo 3 - Criar controller e módulo
 

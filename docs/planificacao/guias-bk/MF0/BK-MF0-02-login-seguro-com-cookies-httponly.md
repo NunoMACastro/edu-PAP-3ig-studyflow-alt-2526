@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RF02`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF0-03`
 - `guia_path`: `docs/planificacao/guias-bk/MF0/BK-MF0-02-login-seguro-com-cookies-httponly.md`
-- `last_updated`: `2026-06-01`
+- `last_updated`: `2026-07-10`
 
 ## O que vamos fazer neste BK
 
@@ -154,6 +155,10 @@ O código abaixo deve ser tratado como código final previsto, não como exemplo
 - Dependência Redis no backend, por exemplo `ioredis`, justificada pelo README.
 - Dependência `bcrypt` disponível, herdada do BK-MF0-01.
 
+### Contrato transversal de configuração local
+
+Antes de implementar a autenticação, cria `apps/api/src/common/config/studyflow-config.ts` e faz a API e todos os scripts standalone chamarem `loadStudyFlowConfig()`. O loader valida tipos uma única vez e devolve pelo menos `deploymentScope`, `host`, `webOrigins`, `mongoUri`, `redisUrl` e `materialsStorageDir`. Para `deploymentScope="local-pap"`, aceita apenas `host="127.0.0.1"`, origens loopback explícitas, `trustProxy=false` e storage absoluto fora do checkout; wildcard, host público ou fallback implícito fazem o arranque falhar. Fixa ainda Node `24.11.1` e npm `11.6.2` em `engines`, `.node-version`, `.nvmrc` e `packageManager`.
+
 ### Passo 1 - Criar DTO de login
 
 1. Explicação do objetivo.
@@ -189,6 +194,8 @@ O DTO aceita apenas credenciais. O aluno nunca pode enviar `role`, `userId` ou q
 7. Erros comuns ou cenário negativo.
 
     O erro mais comum é copiar o código sem respeitar a ordem dos BKs: isso cria imports para ficheiros ainda não definidos. Outro erro é quebrar ownership, aceitando IDs enviados pelo frontend em vez de usar `request.user.id` da sessão.
+
+Os gateways WebSocket reutilizam exatamente `SessionService.getUserFromSession` no handshake e voltam a chamá-lo em cada `join` e `send`. Uma versão divergente fecha a operação com ack `{ ok: false, code: "SESSION_REVOKED" }`; alterar papel ou eliminar conta não pode deixar um socket antigo autorizado. O rollout para Redis v2 invalida deliberadamente todas as sessões legadas.
 
 ### Passo 2 - Criar tipo de request autenticado
 
@@ -252,30 +259,34 @@ Este tipo documenta o que o `SessionGuard` acrescenta ao pedido. Os BKs seguinte
 
 ```ts
 import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
 import { randomBytes } from "crypto";
 import Redis from "ioredis";
+import { loadStudyFlowConfig } from "../../common/config/studyflow-config";
+import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request";
+import { User, UserDocument } from "./schemas/user.schema";
 
 export const SESSION_REDIS = Symbol("SESSION_REDIS");
 export const SESSION_COOKIE_NAME = "sf_sid";
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
 
 type SessionPayload = {
-    user: AuthenticatedUser;
-    createdAt: string;
+    userId: string;
+    sessionVersion: number;
 };
 
 @Injectable()
 export class SessionService {
-    constructor(@Inject(SESSION_REDIS) private readonly redis: Redis) {}
+    constructor(
+        @Inject(SESSION_REDIS) private readonly redis: Redis,
+        @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    ) {}
 
-    async createSession(user: AuthenticatedUser): Promise<string> {
-        // O identificador opaco não contém dados pessoais. Só aponta para dados guardados no servidor.
+    async createSession(userId: string, sessionVersion: number): Promise<string> {
+        // Redis v2 guarda apenas identidade e versão; papel/estado são relidos no Mongo.
         const sessionId = randomBytes(32).toString("hex");
-        const payload: SessionPayload = {
-            user,
-            createdAt: new Date().toISOString(),
-        };
+        const payload: SessionPayload = { userId, sessionVersion };
 
         await this.redis.setex(
             this.key(sessionId),
@@ -304,7 +315,25 @@ export class SessionService {
         }
 
         const payload = JSON.parse(raw) as SessionPayload;
-        return payload.user;
+        if (!Types.ObjectId.isValid(payload.userId) || !Number.isInteger(payload.sessionVersion)) {
+            await this.redis.del(this.key(sessionId));
+            throw this.revoked();
+        }
+
+        const user = await this.userModel
+            .findById(payload.userId)
+            .select("email role accountStatus sessionVersion")
+            .lean();
+        if (
+            !user ||
+            user.accountStatus !== "ACTIVE" ||
+            user.sessionVersion !== payload.sessionVersion
+        ) {
+            await this.redis.del(this.key(sessionId));
+            throw this.revoked();
+        }
+
+        return { id: String(user._id), email: user.email, role: user.role };
     }
 
     async destroySession(sessionId: string | undefined): Promise<void> {
@@ -324,7 +353,14 @@ export class SessionService {
     }
 
     private key(sessionId: string): string {
-        return `studyflow:sessions:${sessionId}`;
+        return `studyflow:sessions:v2:${sessionId}`;
+    }
+
+    private revoked(): UnauthorizedException {
+        return new UnauthorizedException({
+            code: "SESSION_REVOKED",
+            message: "A sessão foi revogada. Inicia sessão novamente.",
+        });
     }
 }
 ```
@@ -383,7 +419,17 @@ async login(input: LoginDto) {
     });
   }
 
-  return this.usersService.toPublicUser(user);
+  if (user.accountStatus !== 'ACTIVE') {
+    throw new UnauthorizedException({
+      code: 'INVALID_CREDENTIALS',
+      message: 'Email ou password inválidos.',
+    });
+  }
+
+  return {
+    ...this.usersService.toPublicUser(user),
+    sessionVersion: user.sessionVersion,
+  };
 }
 ```
 
@@ -455,14 +501,18 @@ export class AuthController {
         @Res({ passthrough: true }) response: Response,
     ): Promise<PublicUser> {
         const user = await this.authService.login(body);
-        const sessionId = await this.sessionService.createSession(user);
+        const sessionId = await this.sessionService.createSession(
+            user.id,
+            user.sessionVersion,
+        );
 
         response.cookie(
             SESSION_COOKIE_NAME,
             sessionId,
             this.sessionService.getCookieOptions(),
         );
-        return user;
+        const { sessionVersion: _internalVersion, ...publicUser } = user;
+        return publicUser;
     }
 
     @Post("logout")
@@ -593,8 +643,7 @@ import { UsersService } from "../users/users.service";
         SessionGuard,
         {
             provide: SESSION_REDIS,
-            useFactory: () =>
-                new Redis(process.env.REDIS_URL ?? "redis://localhost:6379"),
+            useFactory: () => new Redis(loadStudyFlowConfig().redisUrl),
         },
     ],
     exports: [AuthService, UsersService, SessionService, SessionGuard],
@@ -933,23 +982,23 @@ describe("SessionService", () => {
     });
 
     it("cria sessão opaca em Redis", async () => {
-        const service = new SessionService(redis);
-        const sessionId = await service.createSession({
-            id: "u1",
-            email: "aluno@example.com",
-            role: "STUDENT",
-        });
+        const users = {} as never;
+        const service = new SessionService(redis, users);
+        const sessionId = await service.createSession("507f1f77bcf86cd799439011", 3);
 
         expect(sessionId).toHaveLength(64);
         expect(redis.setex).toHaveBeenCalledWith(
             expect.stringContaining("studyflow:sessions:"),
             expect.any(Number),
-            expect.stringContaining("aluno@example.com"),
+            JSON.stringify({
+                userId: "507f1f77bcf86cd799439011",
+                sessionVersion: 3,
+            }),
         );
     });
 
     it("define opções seguras para cookie", () => {
-        const service = new SessionService(redis);
+        const service = new SessionService(redis, {} as never);
         const options = service.getCookieOptions();
 
         expect(options.httpOnly).toBe(true);
@@ -968,7 +1017,7 @@ O teste valida o contrato de sessão sem precisar de Redis real. O e2e do projet
 - `apps/api`: `npm test` -> PASS (19 suites, 68 tests).
 - `apps/api`: `npm run build` -> PASS.
 - `apps/web`: `npm run build` -> PASS.
-- Testes negativos cobertos neste ciclo: `LOGIN_RATE_LIMITED`, resposta pública de materiais sem `storageKey`/`contentText`, `AI_PROVIDER_TIMEOUT`, `NO_PROCESSABLE_SOURCES`, provider IA não configurado e JSON IA inválido.
+- Testes negativos cobertos neste ciclo: `LOGIN_RATE_LIMITED`, resposta pública de materiais sem `storageKey`/`contentText`, `AI_EXECUTION_TIMEOUT`, `NO_PROCESSABLE_SOURCES`, execução IA não configurada e output IA inválido.
 - Não executado neste ciclo: smoke manual/browser/e2e com MongoDB, Redis e OpenAI reais.
 
 - Print do `Set-Cookie` com `HttpOnly` e `SameSite`.

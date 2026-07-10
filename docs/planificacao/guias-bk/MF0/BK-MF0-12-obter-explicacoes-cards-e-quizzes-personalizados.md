@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF0-11`
 - `rf_rnf`: `RF12`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF1-01`
 - `guia_path`: `docs/planificacao/guias-bk/MF0/BK-MF0-12-obter-explicacoes-cards-e-quizzes-personalizados.md`
-- `last_updated`: `2026-05-31`
+- `last_updated`: `2026-07-10`
 
 ## O que vamos fazer neste BK
 
@@ -27,7 +28,7 @@ O requisito RF12 fala em personalização, mas a adaptação profunda ao ritmo/d
 
 Decisão explícita de escopo MF0: a IA só pode usar fontes já disponíveis e processáveis no sistema. PDF/DOCX sem texto extraído, sem estado processável ou sem indexação completa devem bloquear a geração com mensagem clara. RAG, embeddings, chunking semântico, OCR e indexação completa pertencem a fases posteriores e não devem ser prometidos por este BK.
 
-O output deste BK fecha tecnicamente a fundação de IA da MF0 e prepara a MF1. O próximo BK vai melhorar a adaptação ao ritmo e dificuldades, por isso este BK deve guardar resultados e feedback mínimo para reutilização futura. O `AiModule` final da MF0 deve preservar `AiAreaProfileService`, `SummariesService`, `StudyToolsService` e exportar também `AI_PROVIDER`.
+O output deste BK fecha tecnicamente a fundação de IA da MF0 e prepara a MF1. O próximo BK vai melhorar a adaptação ao ritmo e dificuldades, por isso este BK deve guardar resultados e feedback mínimo para reutilização futura. O `AiModule` preserva os services de domínio e exporta `GovernedAiExecutionService`; o provider fica privado à fachada.
 
 ## Porque é que isto é importante
 
@@ -159,9 +160,9 @@ O código abaixo deve ser tratado como código final previsto, não como exemplo
 - BK-MF0-07 com `StudyAreasService.getMyStudyArea`.
 - BK-MF0-08 com `MaterialsModule` exportando `MaterialsService`.
 - BK-MF0-10 com `AiAreaProfileService.prepareProfile`.
-- BK-MF0-11 com `AiArtifact`, `AI_PROVIDER` e `OpenAiProvider`.
+- BK-MF0-11 com `AiArtifact` e `GovernedAiExecutionService`.
 - Pelo menos um material `READY` com `contentText` na área.
-- Contrato final esperado: `AiModule` exporta `AI_PROVIDER`, `AiAreaProfileService`, `SummariesService` e `StudyToolsService`.
+- Contrato final esperado: `AiModule` exporta `GovernedAiExecutionService`, `AiAreaProfileService`, `SummariesService` e `StudyToolsService`.
 
 ### Passo 1 - Criar DTO de pedido
 
@@ -479,7 +480,7 @@ export class OpenAiProvider implements AiProvider {
 
         if (!apiKey || !model) {
             throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_NOT_CONFIGURED",
+                code: "AI_EXECUTION_NOT_CONFIGURED",
                 message: "O serviço de IA ainda não está configurado.",
             });
         }
@@ -494,7 +495,7 @@ export class OpenAiProvider implements AiProvider {
             return JSON.parse(response.output_text ?? "{}") as T;
         } catch {
             throw new BadGatewayException({
-                code: "AI_PROVIDER_INVALID_JSON",
+                code: "AI_EXECUTION_INVALID_OUTPUT",
                 message: "A IA devolveu uma resposta inválida.",
             });
         }
@@ -551,7 +552,8 @@ import {
 } from "./dto/create-study-tool.dto";
 import { AiAreaProfileService } from "./ai-area-profile.service";
 import { buildStudyToolPrompt } from "./prompts/study-tools.prompt";
-import { AI_PROVIDER, AiProvider, AiSource } from "./providers/ai-provider";
+import { GovernedAiExecutionService } from "./governed-ai-execution.service";
+import type { AiSource } from "./providers/ai-provider";
 import { AiArtifact, AiArtifactDocument } from "./schemas/ai-artifact.schema";
 import { validateQuizArtifact } from "./validators/quiz.validator";
 
@@ -560,7 +562,7 @@ export class StudyToolsService {
     constructor(
         @InjectModel(AiArtifact.name)
         private readonly artifactModel: Model<AiArtifactDocument>,
-        @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
+        private readonly aiExecution: GovernedAiExecutionService,
         private readonly materialsService: MaterialsService,
         private readonly areasService: StudyAreasService,
         private readonly profileService: AiAreaProfileService,
@@ -608,16 +610,29 @@ export class StudyToolsService {
         }
 
         try {
-            const contentJson = await this.aiProvider.generateStudyTool({
-                type: input.type,
-                prompt: buildStudyToolPrompt({
-                    areaName: area.name,
-                    type: input.type,
-                    topic: input.topic,
-                    voiceTone: profile.voiceTone,
+            const { result: contentJson, sources: usedSources } =
+                await this.aiExecution.execute({
+                    userId,
+                    purpose: "STUDY_TOOL",
+                    quota: { scope: "USER", targetId: userId },
                     sources,
-                }),
-            });
+                    guardrailText: input.topic ?? area.name,
+                    buildPrompt: (limitedSources) =>
+                        buildStudyToolPrompt({
+                            areaName: area.name,
+                            type: input.type,
+                            topic: input.topic,
+                            voiceTone: profile.voiceTone,
+                            sources: limitedSources,
+                        }),
+                    invoke: ({ provider, prompt, options }) =>
+                        provider.generateStudyTool({ type: input.type, prompt, ...options }),
+                    validateResult: (value) => {
+                        if (!value || typeof value !== "object") {
+                            throw new TypeError("Artefacto IA inválido.");
+                        }
+                    },
+                });
 
             if (input.type === "QUIZ") {
                 validateQuizArtifact(contentJson);
@@ -628,7 +643,7 @@ export class StudyToolsService {
                 studyAreaId: new Types.ObjectId(studyAreaId),
                 type: input.type,
                 contentJson,
-                sourcesJson: sources.map(({ materialId, title }) => ({
+                sourcesJson: usedSources.map(({ materialId, title }) => ({
                     materialId,
                     title,
                 })),
@@ -642,7 +657,7 @@ export class StudyToolsService {
                 throw error;
             }
             throw new ServiceUnavailableException({
-                code: "AI_PROVIDER_UNAVAILABLE",
+                code: "AI_EXECUTION_UNAVAILABLE",
                 message: "A IA está temporariamente indisponível.",
             });
         }
@@ -714,6 +729,7 @@ import { SessionGuard } from "../../common/guards/session.guard";
 import { AuthenticatedRequest } from "../../common/types/authenticated-request";
 import { CreateStudyToolDto, StudyToolType } from "./dto/create-study-tool.dto";
 import { StudyToolsService } from "./study-tools.service";
+import { GovernedAiExecutionService } from "./governed-ai-execution.service";
 
 @Controller("api/study-areas/:id/study-tools")
 @UseGuards(SessionGuard)
@@ -809,10 +825,11 @@ import { AiArtifact, AiArtifactSchema } from "./schemas/ai-artifact.schema";
         AiAreaProfileService,
         SummariesService,
         StudyToolsService,
+        GovernedAiExecutionService,
         { provide: AI_PROVIDER, useClass: OpenAiProvider },
     ],
     exports: [
-        AI_PROVIDER,
+        GovernedAiExecutionService,
         AiAreaProfileService,
         SummariesService,
         StudyToolsService,
@@ -823,7 +840,7 @@ export class AiModule {}
 
 5. Explicação do código.
 
-Este módulo fecha a MF0 de IA: perfil, resumos e ferramentas usam o mesmo provider e os mesmos artefactos. O export de `AI_PROVIDER` é intencional para a MF1 importar `AiModule` em fluxos como IA adaptativa, IA da sala e IA limitada da turma, sem redefinir provider nem perder os services já criados.
+Este módulo fecha a MF0 de IA: perfil, resumos e ferramentas usam a mesma fachada governada e os mesmos artefactos. A MF1 importa `AiModule` e injeta apenas `GovernedAiExecutionService`; o provider nunca atravessa a fronteira do módulo.
 
 6. Como validar este passo.
 
@@ -1207,7 +1224,7 @@ A página trata loading, erro e resultado. Se não houver fontes, mostra a mensa
 - `404 STUDY_AREA_NOT_FOUND` para área inexistente ou área de outro aluno.
 - `422 NO_PROCESSABLE_SOURCES` se não houver materiais `READY` com `contentText`.
 - `502 INVALID_QUIZ_OPTIONS` ou código equivalente se a IA devolver quiz inválido.
-- `503 AI_PROVIDER_UNAVAILABLE` se o provider falhar.
+- `503 AI_EXECUTION_UNAVAILABLE` se a execução governada falhar.
 - `409` não é aplicável neste BK porque não há regra de unicidade ou conflito de versão para artefactos.
 
 ### Como validar o BK e cenários negativos
@@ -1263,7 +1280,7 @@ Este teste prova a regra mais importante: sem fontes, não há chamada útil à 
 - `apps/api`: `npm test` -> PASS (19 suites, 68 tests).
 - `apps/api`: `npm run build` -> PASS.
 - `apps/web`: `npm run build` -> PASS.
-- Testes negativos cobertos neste ciclo: `LOGIN_RATE_LIMITED`, resposta pública de materiais sem `storageKey`/`contentText`, `AI_PROVIDER_TIMEOUT`, `NO_PROCESSABLE_SOURCES`, provider IA não configurado e JSON IA inválido.
+- Testes negativos cobertos neste ciclo: `LOGIN_RATE_LIMITED`, resposta pública de materiais sem `storageKey`/`contentText`, `AI_EXECUTION_TIMEOUT`, `NO_PROCESSABLE_SOURCES`, execução IA não configurada e output IA inválido.
 - Não executado neste ciclo: smoke manual/browser/e2e com MongoDB, Redis e OpenAI reais.
 
 - Output `201` de explicação com `sourcesJson`.
@@ -1276,7 +1293,7 @@ Este teste prova a regra mais importante: sem fontes, não há chamada útil à 
 
 ## Handoff para BK-MF1-01
 
-- BK-MF1-01 pode reutilizar `AiArtifact`, `StudyEvent`, `type`, `StudyToolsService` e `AI_PROVIDER` para adaptar ritmo/dificuldades.
+- BK-MF1-01 pode reutilizar `AiArtifact`, `StudyEvent`, `type`, `StudyToolsService` e `GovernedAiExecutionService` para adaptar ritmo/dificuldades.
 - Este BK não cria métricas avançadas de aprendizagem. Se for necessário feedback detalhado, MF1 deve definir o contrato antes de persistir novas métricas.
 - O `AiProvider` herdado pela MF1 mantém `generateSummary` e `generateStudyTool`; novos métodos devem ser acrescentados de forma acumulada.
 

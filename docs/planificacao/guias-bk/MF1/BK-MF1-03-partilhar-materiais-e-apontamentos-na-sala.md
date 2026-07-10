@@ -8,6 +8,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF1-02`
 - `rf_rnf`: `RF15`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF1-04`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-03-partilhar-materiais-e-apontamentos-na-sala.md`
-- `last_updated`: `2026-05-31`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Implementar `RF15`: permitir que membros de uma sala partilhem apontamentos, URLs e referências de material dentro da sala.

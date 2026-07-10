@@ -1,3 +1,9 @@
+---
+status: SUPERSEDED
+authoritative_for_release: false
+superseded_by: docs/PLANO-CORRECAO-AUDITORIA-COMPLETA-REAL_DEV-2026-07-09.md
+---
+
 # AUDITORIA-IMPLEMENTACAO-real_dev-MF5
 
 ## Header
@@ -180,7 +186,7 @@ Resultado:
 | Mesmo E2E fora da sandbox em portas default | `FALHA_INVOCACAO` - Playwright reutilizou servidor existente na porta `4175`, que servia FaithFlix. O erro mostrou `/login` com heading `Entrar no FaithFlix`; por isso nao foi classificado como falha StudyFlow. |
 | `env STUDYFLOW_E2E_API_PORT=3317 STUDYFLOW_E2E_WEB_PORT=4317 npm run test:e2e -- tests/e2e/mf5-*.spec.ts` em `real_dev/web` fora da sandbox | `PASS` - 12 testes executados, 12 passed. |
 | `env PORT=3321 WEB_ORIGIN=http://127.0.0.1:4321 npm --prefix real_dev/api run start:e2e` fora da sandbox | `PASS_OPERACIONAL` - API E2E arrancou com contas seedadas e rotas mapeadas; encerrada apos o smoke. |
-| `env STUDYFLOW_BASE_URL=http://127.0.0.1:3321 STUDYFLOW_SMOKE_EMAIL=aluno.dev@studyflow.local STUDYFLOW_SMOKE_PASSWORD=aluno-dev-12345 STUDYFLOW_SMOKE_USERS=200 npm --prefix real_dev/api run smoke:200-users` | `PASS` - 200 pedidos completos, 200 status `200`, `averageMs=28`, `p95Ms=31`, `maxMs=32`, zero erros. |
+| `env STUDYFLOW_BASE_URL=http://127.0.0.1:3321 STUDYFLOW_SMOKE_EMAIL=aluno.dev@studyflow.local STUDYFLOW_SMOKE_PASSWORD=<redacted> STUDYFLOW_SMOKE_USERS=200 npm --prefix real_dev/api run smoke:200-users` | `PASS` - 200 pedidos completos, 200 status `200`, `averageMs=28`, `p95Ms=31`, `maxMs=32`, zero erros. |
 | `npm --prefix real_dev/api run smoke:200-users` | `PASS_NEGATIVO` - exit code `1`; falha explicitamente sem cookie nem credenciais de smoke. |
 | `env STUDYFLOW_SMOKE_COOKIE=sf_sid=fake STUDYFLOW_BASE_URL=http://127.0.0.1:3999 STUDYFLOW_SMOKE_USERS=3 npm --prefix real_dev/api run smoke:200-users` | `PASS_NEGATIVO` - exit code `1`, `networkErrorCount=3`, sem imprimir cookie/body. |
 | `rg -n "[[:blank:]]$" docs/planificacao/guias-bk/AUDITORIA-IMPLEMENTACAO-real_dev-MF5.md` | `PASS` - sem trailing whitespace no relatorio final. |

@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF27`
@@ -17,11 +18,13 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF7-06`
 - `guia_path`: `docs/planificacao/guias-bk/MF7/BK-MF7-05-documentacao-tecnica-minima-modelos-fluxos-endpoints.md`
-- `last_updated`: `2026-06-26`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais criar um mapa técnico mínimo que liga modelos, fluxos e endpoints críticos. O resultado observável é um documento curto, mantido no repositório, que ajuda a equipa a defender a arquitetura sem depender de memória oral.
+Neste BK vais gerar o mapa técnico e a evidence a partir de uma única fonte de metadados. Cada resultado fica associado ao manifesto SHA-256 da implementação, porque a raiz operacional pode estar ignorada por Git; `git status` isolado nunca prova o estado validado.
+
+Qualquer alteração posterior num ficheiro coberto muda o manifesto e invalida a evidence afetada. O mapa nunca inclui secrets, URIs com credenciais, cookies, prompts, respostas IA ou dados pessoais.
 
 No fim, a equipa consegue demonstrar `RNF27` com código, validação e evidence, sem depender de decisões escondidas nem de memória oral.
 

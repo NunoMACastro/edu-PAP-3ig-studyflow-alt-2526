@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF12`
@@ -17,11 +18,13 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF6-03`
 - `guia_path`: `docs/planificacao/guias-bk/MF6/BK-MF6-02-geracao-de-quizzes-em-background-quando-necessario.md`
-- `last_updated`: `2026-06-22`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais separar a criação de quizzes mais pesados do pedido imediato do aluno, devolvendo um job e mostrando estados de progresso.
+Neste BK vais separar a criação de quizzes mais pesados do pedido imediato do aluno, devolvendo `202` com um job persistido e mostrando estados de progresso.
+
+O mesmo runner Mongo de MF6-01 executa estes jobs com lease de 30 s, heartbeat/fencing, concorrência 2, três tentativas e backoff 1/5/30 s. O processador é idempotente, recupera leases expiradas e um índice parcial impede dois jobs ativos equivalentes. Toda a chamada IA passa pela `GovernedAiExecutionService`; o token externo nunca é exportado.
 
 No fim, a IA gera quizzes sem prender a interface e bloqueia o fluxo quando não existem fontes processáveis suficientes. O foco é entregar uma melhoria real de qualidade, segurança, performance ou continuidade sem inventar requisitos fora de `RNF12`.
 
@@ -291,7 +294,7 @@ async assertQuizGenerationReady(
 
 ```ts
 // apps/api/src/modules/ai/quiz-generation-jobs.service.ts
-import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { CreateQuizJobDto } from "./dto/create-quiz-job.dto.js";
@@ -301,6 +304,7 @@ import {
     QuizGenerationJobStatus,
 } from "./schemas/quiz-generation-job.schema.js";
 import { StudyToolsService } from "./study-tools.service.js";
+import { DurableJobRunner } from "../jobs/durable-job-runner.service.js";
 
 export type QuizGenerationJobView = {
     _id: string;
@@ -332,13 +336,12 @@ export type QuizGenerationStudyToolsPort = Pick<
  */
 @Injectable()
 export class QuizGenerationJobsService {
-    private readonly logger = new Logger(QuizGenerationJobsService.name);
-
     constructor(
         @InjectModel(QuizGenerationJob.name)
         private readonly jobModel: Model<QuizGenerationJobDocument>,
         @Inject(StudyToolsService)
         private readonly studyToolsService: QuizGenerationStudyToolsPort,
+        private readonly durableJobRunner: DurableJobRunner,
     ) {}
 
     /**
@@ -356,16 +359,26 @@ export class QuizGenerationJobsService {
     ): Promise<QuizGenerationJobView> {
         await this.studyToolsService.assertQuizGenerationReady(userId, studyAreaId);
 
-        const job = await this.jobModel.create({
-            userId: this.parseObjectId(userId),
-            studyAreaId: this.parseObjectId(studyAreaId),
-            status: "QUEUED",
-            topic: input.topic,
-        });
+        const job = await this.jobModel.findOneAndUpdate(
+            {
+                userId: this.parseObjectId(userId),
+                studyAreaId: this.parseObjectId(studyAreaId),
+                status: { $in: ["QUEUED", "PROCESSING"] },
+            },
+            {
+                $setOnInsert: {
+                    userId: this.parseObjectId(userId),
+                    studyAreaId: this.parseObjectId(studyAreaId),
+                    status: "QUEUED",
+                    topic: input.topic,
+                    attemptCount: 0,
+                },
+            },
+            { upsert: true, new: true },
+        );
         const view = this.toView(job.toObject() as QuizGenerationJobLean);
 
-        // A pré-validação já confirmou ownership e fontes; a geração pesada continua fora da resposta HTTP.
-        void this.processQuizJob(userId, studyAreaId, view._id, input);
+        await this.durableJobRunner.wake("QUIZ_GENERATION");
 
         return view;
     }
@@ -397,52 +410,33 @@ export class QuizGenerationJobsService {
     /**
      * Gera o quiz usando o service canónico de ferramentas de estudo.
      *
-     * @param userId Utilizador autenticado vindo da sessão.
-     * @param studyAreaId Área privada do aluno.
      * @param jobId Job persistido antes da geração.
-     * @param input Pedido inicial do aluno.
+     * @param leaseToken Token de fencing atribuído pelo runner.
      */
-    private async processQuizJob(
-        userId: string,
-        studyAreaId: string,
+    async processLeasedQuizJob(
         jobId: string,
-        input: CreateQuizJobDto,
+        leaseToken: string,
     ): Promise<void> {
         const query = {
             _id: this.parseObjectId(jobId),
-            userId: this.parseObjectId(userId),
-            studyAreaId: this.parseObjectId(studyAreaId),
+            status: "PROCESSING",
+            leaseToken,
         };
-        await this.jobModel.findOneAndUpdate(query, {
-            $set: { status: "PROCESSING" },
-            $unset: { errorMessage: "" },
-        });
+        const job = await this.jobModel.findOne(query).lean();
+        if (!job) return;
 
-        try {
-            const artifact = await this.studyToolsService.generateStudyTool(
-                userId,
-                studyAreaId,
-                { type: "QUIZ", topic: input.topic },
-            );
-            await this.jobModel.findOneAndUpdate(query, {
-                $set: {
-                    status: "DONE",
-                    artifactId: this.parseObjectId(artifact._id),
-                },
-                $unset: { errorMessage: "" },
-            });
-        } catch (error) {
-            this.logger.warn(
-                `Falha controlada ao gerar quiz em background para job ${jobId}.`,
-            );
-            // A mensagem pública evita expor prompts, fontes privadas ou detalhes do provider.
-            await this.jobModel.findOneAndUpdate(query, {
-                $set: {
-                    status: "FAILED",
-                    errorMessage: this.toPublicErrorMessage(error),
-                },
-            });
-        }
+        const artifact = await this.studyToolsService.generateStudyTool(
+            String(job.userId),
+            String(job.studyAreaId),
+            { type: "QUIZ", topic: job.topic },
+        );
+        await this.jobModel.findOneAndUpdate(query, {
+            $set: {
+                status: "DONE",
+                artifactId: this.parseObjectId(artifact._id),
+            },
+            $unset: { errorMessage: "", leaseToken: "", leaseUntil: "" },
+        });
     }
 
     /**
@@ -655,16 +649,17 @@ export class StudyToolsController {
         AiAreaProfileService,
         SummariesService,
         StudyToolsService,
-        // O service de jobs coordena a fila sem guardar estado em memória local do processo.
+        // O service de jobs coordena persistência; o runner detém leases e retries.
         QuizGenerationJobsService,
         AdaptiveLearningService,
+        GovernedAiExecutionService,
         { provide: AI_PROVIDER, useFactory: createAiProvider },
     ],
     exports: [
-        AI_PROVIDER,
         AiAreaProfileService,
         SummariesService,
         StudyToolsService,
+        GovernedAiExecutionService,
         // Exportar este service prepara MF7 para observar jobs sem duplicar a lógica de geração.
         QuizGenerationJobsService,
         AdaptiveLearningService,
@@ -716,9 +711,11 @@ export function createQuizGenerationJob(
 export function getQuizGenerationJob(
     studyAreaId: string,
     jobId: string,
+    signal?: AbortSignal,
 ): Promise<QuizGenerationJob> {
     return requestJson<QuizGenerationJob>(
         `/api/study-areas/${studyAreaId}/study-tools/quiz-jobs/${jobId}`,
+        { signal },
     );
 }
 ```
@@ -753,21 +750,47 @@ export function QuizGenerationPanel({
     useEffect(() => {
         if (!job || !["QUEUED", "PROCESSING"].includes(job.status)) return;
 
-        const timer = window.setInterval(async () => {
+        const abortController = new AbortController();
+        let timer: number | undefined;
+        let disposed = false;
+        const order = { QUEUED: 0, PROCESSING: 1, DONE: 2, FAILED: 2 } as const;
+
+        const pollOnce = async () => {
             try {
-                const nextJob = await getQuizGenerationJob(studyAreaId, job._id);
-                setJob(nextJob);
+                const nextJob = await getQuizGenerationJob(
+                    studyAreaId,
+                    job._id,
+                    abortController.signal,
+                );
+                if (disposed) return;
+                setJob((current) =>
+                    !current || order[nextJob.status] >= order[current.status]
+                        ? nextJob
+                        : current,
+                );
                 if (nextJob.status === "DONE" && nextJob.artifactId) {
                     onQuizReady?.(nextJob.artifactId);
                 }
-            } catch {
+                if (["QUEUED", "PROCESSING"].includes(nextJob.status)) {
+                    timer = window.setTimeout(() => {
+                        pollOnce().catch(() => undefined);
+                    }, 1500);
+                }
+            } catch (caughtError) {
+                if (abortController.signal.aborted) return;
                 // A UI não mostra detalhes técnicos que possam revelar fontes privadas.
                 setError("Não foi possível atualizar o estado do quiz.");
             }
-        }, 1500);
+        };
 
-        return () => window.clearInterval(timer);
-    }, [job, onQuizReady, studyAreaId]);
+        pollOnce().catch(() => undefined);
+
+        return () => {
+            disposed = true;
+            abortController.abort();
+            if (timer !== undefined) window.clearTimeout(timer);
+        };
+    }, [job?._id, onQuizReady, studyAreaId]);
 
     async function handleStartQuiz() {
         setIsStarting(true);

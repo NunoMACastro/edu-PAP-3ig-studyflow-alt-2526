@@ -6,14 +6,18 @@
 - `area`: `project`
 - `owner`: `Nuno`
 - `status`: `ativo`
-- `last_updated`: `2026-07-02`
+- `last_updated`: `2026-07-10`
 
 ## Regra de naming oficial
 - Formato obrigatorio: `BK-MF*-**-slug-semantico.md`.
 - IDs BK mantidos sem alteracao.
 
 ## Contrato de header obrigatorio
-- Campos obrigatorios: `bk_id`, `macro`, `owner`, `apoio`, `prioridade`, `estado`, `esforco`, `dependencias`, `rf_rnf`, `fase_documental`, `sprint`, `core_or_reforco`, `proximo_bk`, `guia_path`, `last_updated`.
+- Campos obrigatorios: `bk_id`, `macro`, `owner`, `apoio`, `prioridade`, `estado`,
+  `real_dev_status`, `esforco`, `dependencias`, `rf_rnf`, `fase_documental`, `sprint`,
+  `core_or_reforco`, `proximo_bk`, `guia_path`, `last_updated`.
+- `estado` é progresso dos alunos. `real_dev_status` pertence à referência, aceita apenas os
+  valores definidos no contrato e tem evidence em `../ESTADO-REFERENCIA-REAL_DEV.md`.
 
 ## Contrato semântico obrigatório
 - O `rf_rnf` do header deve estar refletido nos `Passos`, `Validacao` e `Cenarios negativos recomendados`.
@@ -22,8 +26,11 @@
 - Politica de negativos: `P0=>3`, `P1=>2`, `P2=>1`.
 
 ## Contratos herdados por MF futuras
-- `MF0` fecha a fundação comum: `SessionGuard`, `AuthenticatedUser`, `StudyAreasService`, `MaterialsService`, `AiModule` e `AI_PROVIDER`.
-- `BK-MF0-12` é o fecho técnico da fundação de IA: `AiModule` deve preservar `AiAreaProfileService`, `SummariesService`, `StudyToolsService` e exportar `AI_PROVIDER`.
+- `MF0` fecha a fundação comum: sessão Redis v2 `{ userId, sessionVersion }`, releitura Mongo,
+  `SessionGuard`, `StudyAreasService`, `MaterialsService` e `GovernedAiExecutionService`.
+- `BK-MF0-12` é o fecho técnico da fundação de IA: os fluxos preservam os serviços de domínio,
+  mas apenas `GovernedAiExecutionService` pode chegar ao provider. `ROOM_AI` começa desativada e
+  nunca recebe consentimento automático.
 - `MF1` deve acrescentar capacidades sobre estes contratos, não substituir módulos partilhados. `ai.module.ts` e `study-rooms.module.ts` são ficheiros acumulativos.
 - Decisão transversal ativa: [Herança da voz IA docente](DECISAO-ARQUITETURA-VOZ-IA-DOCENTE.md). A voz base pertence à turma; a disciplina tem override opcional; salas guiadas podem associar disciplina, mas não têm override próprio.
 - Decisão transversal ativa: [IA da sala adapta explicações ao ano escolar](DECISAO-IA-SALA-ADAPTACAO-ANO-ESCOLAR.md). A IA da sala usa `StudentProfile.year` do aluno que pergunta, nunca idade exata enviada pelo frontend.

@@ -6,10 +6,14 @@
 - `area`: `project`
 - `owner`: `Nuno`
 - `status`: `ativo`
-- `last_updated`: `2026-04-19`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Estabelecer baseline oficial de validacao para os gates S4, S8 e S12.
+
+Os estados desta tabela são pedagógicos. Não representam nem promovem `real_dev_status`; o
+gate local da implementação é `verify:local-release` e permanece `BLOQUEADO_OPERADOR` enquanto
+OP-001 ou OP-005 estiver pendente.
 
 ## Gates
 | gate | data_planeada | escopo_macro | criterios_minimos | estado |
@@ -24,4 +28,5 @@ Estabelecer baseline oficial de validacao para os gates S4, S8 e S12.
 - Lista de desvios e acoes corretivas (se existir).
 
 ## Changelog
+- `2026-07-10`: clarificada a separação entre gates pedagógicos e release local da referência.
 - `2026-04-19`: baseline de gates definido com campos nao ambiguos para execucao futura.

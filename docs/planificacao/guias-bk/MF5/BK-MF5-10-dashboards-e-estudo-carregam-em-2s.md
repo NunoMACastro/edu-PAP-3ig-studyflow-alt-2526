@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF08`
@@ -17,11 +18,13 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF5-11`
 - `guia_path`: `docs/planificacao/guias-bk/MF5/BK-MF5-10-dashboards-e-estudo-carregam-em-2s.md`
-- `last_updated`: `2026-06-20`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
 Neste BK vais implementar medição de performance para o dashboard de estudo individual e para a página de turmas do professor, garantindo que a interface mostra um aviso controlado quando o carregamento ultrapassa 2 segundos.
+
+A aceitação inclui code splitting por rota/papel: entrada pública até `90 KiB gzip` e entrada + primeira rota até `160 KiB gzip`. `socket.io-client` só pode aparecer no chunk lazy do chat e o build falha perante qualquer budget excedido.
 
 #### Importância
 

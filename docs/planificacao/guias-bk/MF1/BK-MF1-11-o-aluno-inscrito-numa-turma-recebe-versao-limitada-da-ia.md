@@ -8,6 +8,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `DONE`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF1-10`
 - `rf_rnf`: `RF23`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF1-12`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-11-o-aluno-inscrito-numa-turma-recebe-versao-limitada-da-ia.md`
-- `last_updated`: `2026-05-31`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Implementar `RF23`: permitir que um aluno inscrito numa turma use uma IA limitada aos materiais oficiais da disciplina.
@@ -61,7 +62,7 @@ Snippets antigos deste guia que chamem `findForSubject` devem ser tratados como 
 - `BK-MF1-08` com `SubjectsService.findSubjectForStudent`.
 - `BK-MF1-09` com `OfficialMaterialsService.findProcessedBySubject`.
 - `BK-MF1-10` com `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })`.
-- `AiModule` final da MF0 com `AI_PROVIDER` exportado e `AiAreaProfileService`, `SummariesService` e `StudyToolsService` preservados.
+- `AiModule` final da MF0 com `GovernedAiExecutionService` exportado e services de domínio preservados.
 
 ## Glossário
 - **IA limitada**: IA que responde apenas com fontes oficiais da disciplina.
@@ -83,7 +84,7 @@ Snippets antigos deste guia que chamem `findForSubject` devem ser tratados como 
 
 **Duas proteções.** A primeira proteção é programática: validar inscrição e fontes antes da IA. A segunda é textual: o prompt instrui a IA a responder apenas com as fontes fornecidas. Se uma das duas falhar, o risco de fuga ou invenção aumenta.
 
-**Contrato de IA herdado.** Este BK importa o `AiModule` final em vez de redefinir `AI_PROVIDER` ou `OpenAiProvider`. A cadeia docente usa o mesmo contrato de IA fechado na MF0/MF1: provider exportado uma vez, services específicos em módulos próprios e sem duplicação de lógica de chamada à IA.
+**Contrato de IA herdado.** Este BK importa o `AiModule` final e injeta `GovernedAiExecutionService`. A cadeia docente usa a mesma fachada fechada na MF0/MF1; o provider permanece privado e os services específicos não duplicam consentimento, policy, quota, guardrails ou audit.
 
 **Decorators do NestJS.** Decorators como `@Controller`, `@Post`, `@Get`, `@Put`, `@Module` e `@Injectable` dizem ao NestJS que papel cada classe tem. O controller recebe pedidos HTTP, o service contém regras de negócio e o módulo liga tudo.
 
@@ -123,7 +124,7 @@ O código abaixo deve ser tratado como código final previsto, não como exemplo
 - `BK-MF1-08` com `SubjectsService.findSubjectForStudent`.
 - `BK-MF1-09` com `OfficialMaterialsService.findProcessedBySubject`.
 - `BK-MF1-10` com `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })`.
-- `AiModule` final da MF0 com `AI_PROVIDER` exportado e services de IA da MF0 preservados.
+- `AiModule` final da MF0 com `GovernedAiExecutionService` exportado e services de IA da MF0 preservados.
 
 ### Passo 1 - Criar schema da interação
 
@@ -319,7 +320,7 @@ import {
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request";
-import { AI_PROVIDER, AiProvider } from "../ai/providers/ai-provider";
+import { GovernedAiExecutionService } from "../ai/governed-ai-execution.service";
 import { OfficialMaterialsService } from "../official-materials/official-materials.service";
 import { SubjectsService } from "../subjects/subjects.service";
 import { TeacherAiVoiceService } from "../teacher-ai/teacher-ai-voice.service";
@@ -338,8 +339,7 @@ export class ClassAiService {
         private readonly subjectsService: SubjectsService,
         private readonly officialMaterialsService: OfficialMaterialsService,
         private readonly teacherAiVoiceService: TeacherAiVoiceService,
-        @Inject(AI_PROVIDER)
-        private readonly aiProvider: AiProvider,
+        private readonly aiExecution: GovernedAiExecutionService,
     ) {}
 
     async answer(actor: AuthenticatedUser, subjectId: string, dto: AskClassAiDto) {
@@ -366,10 +366,25 @@ export class ClassAiService {
 
         let result: Record<string, unknown>;
         try {
-            result = await this.aiProvider.generateStudyTool({
-                prompt,
-                type: "EXPLANATION",
-            });
+            ({ result } = await this.aiExecution.execute({
+                userId: actor.id,
+                purpose: "CLASS_AI",
+                quota: { scope: "CLASS", targetId: subject.classId.toString() },
+                sources: materials,
+                guardrailText: dto.question,
+                buildPrompt: () => prompt,
+                invoke: ({ provider, prompt: governedPrompt, options }) =>
+                    provider.generateStudyTool({
+                        prompt: governedPrompt,
+                        type: "EXPLANATION",
+                        ...options,
+                    }),
+                validateResult: (value) => {
+                    if (!value || typeof value !== "object") {
+                        throw new TypeError("Resposta da IA da disciplina inválida.");
+                    }
+                },
+            }));
         } catch {
             throw new ServiceUnavailableException("A IA não está disponível neste momento.");
         }
@@ -429,7 +444,7 @@ export class ClassAiService {
 
 5. Explicação do código.
 
-    O service valida a cadeia docente inteira antes de chamar IA: `SubjectsService.findSubjectForStudent` confirma inscrição, `OfficialMaterialsService.findProcessedBySubject` limita fontes a materiais oficiais processados e `TeacherAiVoiceService.resolveTeacherVoice({ classId, subjectId })` aplica a voz efetiva do professor. A resposta do provider é runtime não confiável: `answer` tem de ser não vazio e `sourceMaterialIds` têm de pertencer aos materiais autorizados. Sem fontes há `422`; falha ou resposta inválida do provider devolve `503`.
+    O service valida inscrição, fontes oficiais e voz docente; depois chama a fachada com finalidade `CLASS_AI`. A fachada valida o output e o domínio confirma `answer`/`sourceMaterialIds` antes de persistir. Sem fontes há `422`; falhas governadas usam erros estáveis.
 
 6. Como validar este passo.
 
@@ -545,7 +560,7 @@ export class ClassAiModule {}
 
 5. Explicação do código.
 
-    Este passo pertence ao fluxo da IA limitada da turma: recebe sessão de aluno, `subjectId`, pergunta e fontes oficiais, devolve resposta com fontes autorizadas e grava a interação com `studentId`, `classId` e `subjectId`. As validações esperadas são inscrição via turma, `422` sem materiais processados e `503` para provider inválido. O resultado fecha a cadeia `BK-MF1-08` a `BK-MF1-11`. O import de `AiModule` é a fronteira correta: `ClassAiService` injeta `AI_PROVIDER`, mas o provider continua definido no módulo de IA, sem duplicação.
+    Este passo pertence ao fluxo da IA limitada da turma: recebe sessão de aluno, `subjectId`, pergunta e fontes oficiais, devolve resposta com fontes autorizadas e grava a interação. As validações esperadas são inscrição via turma, `422` sem materiais e erros estáveis da execução governada. `ClassAiService` injeta apenas `GovernedAiExecutionService`; o provider fica privado ao módulo de IA.
 
 6. Como validar este passo.
 

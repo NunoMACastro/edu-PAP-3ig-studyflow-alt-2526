@@ -9,6 +9,7 @@
 - `apoio`: `Natalia`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF01`
@@ -17,7 +18,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF5-04`
 - `guia_path`: `docs/planificacao/guias-bk/MF5/BK-MF5-03-interface-intuitiva-e-clara-para-alunos-e-professores.md`
-- `last_updated`: `2026-06-19`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
@@ -743,8 +744,7 @@ test.describe("MF5 - clareza da interface", () => {
         const password = process.env.STUDYFLOW_E2E_STUDENT_PASSWORD;
 
         if (!email || !password) {
-            test.skip(true, "Credenciais E2E do aluno são necessárias.");
-            return;
+            throw new Error("E2E_CONFIGURATION_REQUIRED: faltam credenciais do aluno.");
         }
 
         await login(page, email, password);
@@ -762,8 +762,7 @@ test.describe("MF5 - clareza da interface", () => {
         const password = process.env.STUDYFLOW_E2E_TEACHER_PASSWORD;
 
         if (!email || !password) {
-            test.skip(true, "Credenciais E2E do professor são necessárias.");
-            return;
+            throw new Error("E2E_CONFIGURATION_REQUIRED: faltam credenciais do professor.");
         }
 
         await login(page, email, password);
@@ -787,7 +786,7 @@ Este teste valida a navegação mínima da interface MF5. Ele usa login real com
 
 O teste existe porque `RNF01` precisa de evidence observável. Entram credenciais de ambiente; saem asserts Playwright. As credenciais não ficam no ficheiro, o que reduz risco de exposição. O teste prepara `BK-MF5-04` e `BK-MF5-06`, porque torna mais fácil detetar quebra de layout ou navegação.
 
-O aluno pode adaptar emails de teste através de variáveis de ambiente, mas não deve escrever passwords reais no código. Se o teste falhar por credenciais ausentes, fica skipped com mensagem explícita.
+O aluno pode adaptar emails de teste através de variáveis de ambiente, mas não deve escrever passwords reais no código. Credenciais ausentes fazem a suite falhar: os E2E de aceitação nunca ficam opcionais nem passam por `skip` silencioso.
 
 6. Validação do passo.
 

@@ -162,6 +162,59 @@ Nota RNF32/RNF33: a voz docente não pode atravessar para áreas privadas, salas
 
 ---
 
+## Anexo normativo - PAP local endurecida
+
+Este anexo concretiza os RNF existentes para o alvo `PAP_LOCAL_ENDURECIDA`. Não autoriza exposição pública nem uma declaração de prontidão para produção; qualquer passagem a multi-instância, host público ou operação off-site reabre a avaliação.
+
+A classificação explícita de requisitos futuros, evidence válida e condições de reabertura
+está na
+[matriz normativa da planificação](planificacao/README.md#matriz-de-requisitos-futuros-e-fronteira-pap-local).
+Esta regra derivada não altera os 45 IDs RNF.
+
+### Runtime e configuração
+
+-   Runtime fixo: Node.js `24.11.1`, npm `11.6.2`, `engines`, `.node-version`, `.nvmrc` e `packageManager` coerentes. API e scripts standalone usam o mesmo loader tipado.
+-   `STUDYFLOW_DEPLOYMENT_SCOPE=local-pap`; bind obrigatório a `127.0.0.1`, `trust proxy` desligado e origens loopback explícitas. Wildcards, host público ou proxy ativo fazem o arranque falhar.
+-   Seed/reset exigem flags e confirmação explícitas; reset só numa base local/teste e nunca numa URI de produção. Os dados atuais podem ser reiniciados, sem migração retrocompatível.
+-   Segredos têm permissões `0600`, rotação manual verificável e scanner que devolve apenas contagens/caminhos sanitizados. Evidence nunca contém chaves, cookies, URIs com credenciais, prompts, respostas IA ou dados pessoais.
+
+### Segurança, isolamento e abuso
+
+-   SSRF usa `ipaddr.js`, valida IPv4/IPv6/IPv4-mapped antes e depois da ligação, fixa DNS ao socket e repete validação em todos os redirects.
+-   Rate limits: registo 5/hora/IP, upload 20/hora/utilizador, password até 128 caracteres; parsing tem concorrência máxima 2.
+-   PDF/DOCX corre em `worker_threads`, com timeout que termina o worker, limites de memória/stack e concorrência 2.
+-   Playwright usa portas, base Mongo e namespace Redis únicos, `reuseExistingServer=false` por omissão e verificação de identidade da API/web.
+
+### Sessões, dados e consistência
+
+-   A sessão Redis v2 guarda só `{ userId, sessionVersion }`. MongoDB é relido em cada pedido e WebSocket; conta inativa, papel/versão divergente ou utilizador ausente devolve `SESSION_REVOKED`.
+-   Operações críticas usam transactions Mongo; um sentinel serializa alterações do conjunto de admins e índices parciais impedem duas versões/jobs ativos.
+-   Storage local fica fora do checkout, com raiz `0700`, ficheiros `0600`, UUID, SHA-256, staging, promoção atómica, compensação, `delete()`, outbox e reconciliação. Limites: 10 MiB/ficheiro e 250 MiB/utilizador.
+-   Jobs Mongo usam lease de 30 s, heartbeat, concorrência 2, três tentativas e backoff 1/5/30 s; recuperam leases expiradas no arranque, são idempotentes e há no máximo um job ativo por material.
+
+### Privacidade, IA e observabilidade
+
+-   `PersonalDataRegistry` torna obrigatória uma política por model. Export/delete são testados com pelo menos um documento de cada model; eliminação física, tombstones, remoção de memberships, anonimização e TTL de 90 dias fazem parte do aceite.
+-   `GovernedAiExecutionService` é a única classe que injeta o provider. Consentimento, policy, limites, guardrails, quota, timeout, validação e audit fazem parte da mesma execução; um teste arquitetural impede bypass.
+-   `/api/health/live` comprova processo; `/api/health/ready` e o alias `/api/health` falham com `503` se Mongo, Redis, storage ou runner não estiverem prontos.
+
+### Frontend, acessibilidade e qualidade
+
+-   Router lazy com `ProtectedLayout`, `RoleGuard`, 403, 404 e error boundary. `returnTo` aceita apenas paths internos e uma rota proibida não monta nem faz pedidos.
+-   Sessão frontend: `checking | authenticated | anonymous | unavailable`; rede/5xx não simula logout. O cliente HTTP unificado suporta `ApiError`, `AbortSignal`, JSON/texto/204 e invalida sessão apenas em 401.
+-   Chat usa ack e reconciliação; polling mantém um pedido em voo e estados monotónicos. Menu mobile funciona sem overflow a 320/360/375/390 px, com alvos de 44 px, Escape e devolução de foco.
+-   Labels, `aria-describedby`, `aria-invalid`, `fieldset/legend`, live regions, skip link e foco visível são obrigatórios; contraste mínimo 4,5:1 para texto e 3:1 para controlos. Axe não pode ter violações serious/critical.
+-   Code splitting por rota/papel: `socket.io-client` só no chunk de chat; entrada pública ≤90 KiB gzip e entrada + primeira rota ≤160 KiB gzip.
+
+### Operação e gate de release local
+
+-   Backup offline diário: gzip, AES-256-GCM com chave manual de 32 bytes, manifestos SHA-256 e permissões seguras. Restore apenas para base local/vazia com confirmação; RPO 24 h e RTO 60 min.
+-   `verify:local-release` agrega configuração/secrets, instalação limpa, builds, testes API/web, contracts, bundle, E2E/a11y, audits, 200 pedidos, crash/recovery, readiness negativa e restore real.
+-   Coverage frontend global ≥70% lines/60% branches; sessão/router/polling/validadores ≥90%/85%. Fecho exige três E2E isolados verdes, Chrome completo, smoke Firefox/WebKit, dependências sem vulnerabilidades conhecidas nas cadeias fixadas e reauditoria independente.
+-   O único resultado positivo permitido é `APTA_PARA_PAP_LOCAL_ENDURECIDA`; HSTS público, email/SSO, multi-instância e operação off-site continuam fora do âmbito.
+
+---
+
 <a id="licença"></a>
 ## Licença
 
@@ -173,3 +226,4 @@ Projeto académico orientado a fins educativos.
 ## Changelog
 
 -   **2024-06-15** - Versão inicial dos Requisitos Não Funcionais (RNF) e Stack Tecnológica Recomendada.
+-   **2026-07-10** - Adicionado anexo normativo do alvo `PAP_LOCAL_ENDURECIDA` e respetivos gates de segurança, fiabilidade, acessibilidade e release local.

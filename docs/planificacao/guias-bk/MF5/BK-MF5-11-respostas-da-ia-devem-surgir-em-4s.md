@@ -9,6 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
+- `real_dev_status`: `PARCIAL`
 - `esforco`: `S`
 - `dependencias`: `-`
 - `rf_rnf`: `RNF09`
@@ -17,11 +18,11 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF5-12`
 - `guia_path`: `docs/planificacao/guias-bk/MF5/BK-MF5-11-respostas-da-ia-devem-surgir-em-4s.md`
-- `last_updated`: `2026-06-20`
+- `last_updated`: `2026-07-10`
 
 #### Objetivo
 
-Neste BK vais implementar um budget backend de 4 segundos para respostas IA, sem contornar fontes, ownership, membership, consentimentos, políticas, quotas, validação do provider ou auditoria.
+Neste BK vais implementar um budget backend de 4 segundos através da `GovernedAiExecutionService`, única classe de produção autorizada a injetar o token externo.
 
 #### Importância
 
@@ -30,8 +31,7 @@ Neste BK vais implementar um budget backend de 4 segundos para respostas IA, sem
 #### Scope-in
 
 - Criar `apps/api/src/modules/ai/utils/with-ai-response-budget.ts`.
-- Aplicar o budget em `apps/api/src/modules/private-area-ai/private-area-ai.service.ts`.
-- Aplicar o budget em `apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts`.
+- Aplicar o budget na `GovernedAiExecutionService` e fazer os services de domínio delegarem nessa fachada.
 - Usar `GatewayTimeoutException` para preservar resposta HTTP adequada a timeout.
 - Manter a ordem obrigatória: autorização/fontes antes do provider.
 - Criar teste unitário para o helper de budget.
@@ -81,7 +81,7 @@ Neste BK vais implementar um budget backend de 4 segundos para respostas IA, sem
 
 - **Timeout não é resposta:** se a IA excede 4 segundos, o sistema não deve inventar conteúdo. Deve devolver erro controlado e permitir nova tentativa.
 - **Ordem de segurança:** primeiro valida-se sessão, role, ownership ou membership; depois fontes; depois consentimento; depois política; depois quota; só no fim se chama o provider.
-- **Provider isolado:** os services de domínio usam `AI_PROVIDER`, não o SDK diretamente. Isto permite trocar provider sem reescrever regras StudyFlow.
+- **Integração isolada:** apenas `GovernedAiExecutionService` injeta o token externo; services de domínio delegam na fachada e um teste arquitetural impede bypasses.
 - **`policy.timeoutMs`:** valor administrativo vindo de MF4. Este BK não o ignora; usa o menor valor entre a política e o limite `RNF09` de 4000 ms.
 - **`Promise.race`:** técnica para limitar a espera local. Ela devolve timeout ao service, mas não substitui o timeout nativo do provider. Por isso o provider também recebe `timeoutMs`.
 - **Fontes e alucinação:** respostas IA só são aceites depois de validar que usam fontes autorizadas. Timeout não pode saltar essa validação.
@@ -137,7 +137,7 @@ Não há código porque a decisão mais importante é a ordem: nunca chamas o pr
 
 6. Validação do passo.
 
-Confirma que `AI_PROVIDER` já aceita `options.timeoutMs` e que `OpenAiProvider` mapeia timeout externo para `GatewayTimeoutException`.
+Confirma que a fachada passa `options.timeoutMs` ao provider, mapeia timeout externo para `GatewayTimeoutException` e termina/cancela a operação quando o SDK o permitir.
 
 7. Cenário negativo/erro esperado.
 
@@ -248,7 +248,7 @@ Limitar a chamada ao provider na IA privada sem alterar ownership, fontes, conse
 
 3. Instruções do que fazer.
 
-Adiciona o import do helper e substitui a chamada direta ao provider por `withAiResponseBudget`. Mantém todo o código anterior de validação e auditoria.
+Adiciona o import do helper na fachada governada e substitui a chamada direta ao provider no service de domínio por `GovernedAiExecutionService.execute`. A reserva de quota e a auditoria segura pertencem à execução governada.
 
 4. Código completo, correto e integrado com a app final.
 
@@ -314,14 +314,13 @@ async ask(
     const budgetMs = resolveAiBudgetMs(policy.timeoutMs);
 
     try {
-        const result = await withAiResponseBudget(
-            this.aiProvider.generatePrivateAreaAnswer({
-                prompt,
-                // O provider também recebe o timeout para cortar a chamada externa no SDK.
-                options: { model: policy.model, timeoutMs: budgetMs },
-            }),
-            budgetMs,
-        );
+        const result = await this.governedAiExecutionService.execute({
+            actor,
+            purpose: "PRIVATE_AREA_AI",
+            prompt,
+            authorizedSourceIds: limitedSources.map((source) => source.materialId),
+            requestedTimeoutMs: budgetMs,
+        });
 
         this.validateResult(result, limitedSources.map((source) => source.materialId));
 
@@ -385,7 +384,7 @@ async ask(
         }
 
         throw new ServiceUnavailableException({
-            code: "AI_PROVIDER_UNAVAILABLE",
+            code: "AI_EXECUTION_UNAVAILABLE",
             message: "A IA está temporariamente indisponível.",
         });
     }
@@ -394,7 +393,7 @@ async ask(
 
 5. Explicação do código.
 
-O método mantém a ordem de segurança: role, ownership da área, fontes processáveis, consentimento, política, limite de prompt e quota acontecem antes do provider. `resolveAiBudgetMs(policy.timeoutMs)` garante que a política administrativa não é ignorada. `withAiResponseBudget` envolve apenas a chamada externa, e `options.timeoutMs` passa o mesmo limite ao provider. A auditoria regista `budgetMs`, `sourceCount` e modelo, mas não guarda prompt nem resposta completa. O `catch` preserva `GatewayTimeoutException`, evitando transformar o timeout em erro genérico.
+O método mantém role, ownership e seleção de fontes no domínio, mas delega consentimento, policy, limites, guardrails, reserva atómica de quota, provider, validação de output e audit seguro na fachada. O budget efetivo é o menor entre a policy e 4000 ms. A auditoria nunca guarda prompt nem resposta completa.
 
 6. Validação do passo.
 
@@ -418,17 +417,14 @@ Limitar a chamada IA que responde com citações, preservando bloqueio sem fonte
 
 3. Instruções do que fazer.
 
-Adiciona `GatewayTimeoutException` ao import existente de `@nestjs/common`, importa o helper e substitui o método privado `generateAnswer` pela versão abaixo.
+Adiciona `GatewayTimeoutException` ao import existente e substitui o acesso ao provider por uma chamada à fachada governada.
 
 4. Código completo, correto e integrado com a app final.
 
 ```ts
 // apps/api/src/modules/source-grounded-ai/source-grounded-ai.service.ts
 import { GatewayTimeoutException } from "@nestjs/common";
-import {
-    AI_RESPONSE_BUDGET_MS,
-    withAiResponseBudget,
-} from "../ai/utils/with-ai-response-budget.js";
+import { AI_RESPONSE_BUDGET_MS } from "../ai/utils/with-ai-response-budget.js";
 
 // Substitui o método generateAnswer completo por esta versão dentro de SourceGroundedAiService.
 private async generateAnswer(
@@ -453,22 +449,20 @@ private async generateAnswer(
     let providerResult: Record<string, unknown>;
 
     try {
-        providerResult = await withAiResponseBudget(
-            this.aiProvider.generateStudyTool({
-                prompt,
-                type: "EXPLANATION",
-                // O timeout também chega ao provider para alinhar RNF09 e SDK externo.
-                options: { timeoutMs: AI_RESPONSE_BUDGET_MS },
-            }),
-            AI_RESPONSE_BUDGET_MS,
-        );
+        providerResult = await this.governedAiExecutionService.execute({
+            actor,
+            purpose: "SOURCE_GROUNDED_AI",
+            prompt,
+            authorizedSourceIds: citations.map((citation) => citation.sourceJobId),
+            requestedTimeoutMs: AI_RESPONSE_BUDGET_MS,
+        });
     } catch (error) {
         if (error instanceof GatewayTimeoutException) {
             throw error;
         }
 
         throw new ServiceUnavailableException({
-            code: "AI_PROVIDER_UNAVAILABLE",
+            code: "AI_EXECUTION_UNAVAILABLE",
             message: "A IA está temporariamente indisponível.",
         });
     }
@@ -476,7 +470,7 @@ private async generateAnswer(
     const answer = providerResult.answer;
     if (typeof answer !== "string" || answer.trim().length === 0) {
         throw new ServiceUnavailableException({
-            code: "AI_PROVIDER_INVALID_RESPONSE",
+            code: "AI_INVALID_OUTPUT",
             message: "A IA devolveu uma resposta inválida.",
         });
     }
@@ -487,7 +481,7 @@ private async generateAnswer(
 
 5. Explicação do código.
 
-`SourceGroundedAiService.ask()` já valida jobs legíveis e bloqueia quando não há citações. O método `generateAnswer` só é chamado depois dessa validação, por isso o helper não contorna fontes. O provider recebe `timeoutMs: 4000` e a chamada também fica envolvida por `withAiResponseBudget`. Se o provider for lento, `GatewayTimeoutException` é preservada. Se o provider falhar por outro motivo, o service devolve indisponibilidade genérica. Se devolver JSON inválido ou sem `answer`, o service mantém `AI_PROVIDER_INVALID_RESPONSE`.
+`SourceGroundedAiService.ask()` valida jobs legíveis e bloqueia sem citações. A fachada recebe apenas IDs autorizados, aplica timeout na integração e valida o output.
 
 6. Validação do passo.
 

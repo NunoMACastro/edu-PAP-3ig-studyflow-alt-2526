@@ -8,6 +8,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P0`
 - `estado`: `TODO`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `M`
 - `dependencias`: `BK-MF1-07`
 - `rf_rnf`: `RF20`
@@ -16,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF1-09`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-08-criar-disciplinas-e-associa-las-as-turmas.md`
-- `last_updated`: `2026-05-30`
+- `last_updated`: `2026-07-10`
 
 ## Objetivo
 Implementar `RF20`: permitir que o professor crie disciplinas dentro de uma turma sua e liste as disciplinas dessa turma.
