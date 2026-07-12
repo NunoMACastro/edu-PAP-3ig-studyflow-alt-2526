@@ -35,7 +35,7 @@
 | ------ | ------------------------------------------------- | ------ | ---------- | ------------ |
 | RF01   | Registo do aluno (email/password ou SSO escolar). | Aluno  | Must       | -            |
 | RF02   | Login seguro com cookies HttpOnly.                | Aluno  | Must       | -            |
-| RF03   | Perfil editável (nome, ano, curso, turma).        | Aluno  | Should     | RF02         |
+| RF03   | Perfil editável (nome, ano e curso).              | Aluno  | Should     | RF02         |
 | RF04   | O aluno pode estudar sem turma.                   | Aluno  | Must       | RF03         |
 | RF05   | O aluno pode criar rotinas e objetivos de estudo. | Aluno  | Should     | RF03         |
 | RF06   | O aluno pode consultar histórico de estudo.       | Aluno  | Should     | RF03         |
@@ -60,7 +60,7 @@
 
 | Código | Requisito                                                           | Atores  | Prioridade | Dependências |
 | ------ | ------------------------------------------------------------------- | ------- | ---------- | ------------ |
-| RF14   | Criar salas de estudo com outros alunos (livres ou por disciplina). | Aluno   | Should     | RF03         |
+| RF14   | Criar salas de estudo com outros alunos, com etiqueta temática livre. | Aluno   | Should     | RF03         |
 | RF15   | Partilhar materiais e apontamentos na sala.                         | Aluno   | Should     | RF14         |
 | RF16   | IA partilhada da sala (mistura das áreas dos membros).              | Sistema | Could      | RF14         |
 
@@ -70,11 +70,11 @@
 
 | Código | Requisito                                                 | Atores    | Prioridade | Dependências |
 | ------ | --------------------------------------------------------- | --------- | ---------- | ------------ |
-| RF19   | Criar turmas.                                             | Professor | Must       | -            |
-| RF20   | Criar disciplinas e associá-las às turmas.                | Professor | Must       | RF19         |
-| RF21   | Submeter materiais da disciplina (versão oficial).        | Professor | Must       | RF20         |
+| RF19   | Criar, editar, arquivar e restaurar turmas.                | Professor | Must       | -            |
+| RF20   | Criar, editar, arquivar e restaurar disciplinas associadas às turmas. | Professor | Must       | RF19         |
+| RF21   | Submeter materiais oficiais TEXT, URL, PDF ou DOCX numa disciplina, com ficheiros protegidos e processamento explícito. | Professor | Must       | RF20         |
 | RF22   | Configurar voz da IA docente por turma, com override opcional por disciplina. | Professor | Should     | RF21         |
-| RF23   | O aluno inscrito numa turma recebe versão limitada da IA. | Sistema   | Must       | RF22         |
+| RF23   | O aluno inscrito numa turma recebe IA oficial limitada e sabe apenas se a voz docente foi aplicada. | Sistema   | Must       | RF22         |
 | RF24   | Professores podem enviar avisos e publicações.            | Professor | Should     | RF19         |
 | RF25   | Professores podem criar salas de estudo guiado, opcionalmente associadas a uma disciplina. | Professor | Could      | RF19         |
 
@@ -84,11 +84,11 @@
 
 | Código | Requisito                                                      | Atores    | Prioridade | Dep. |
 | ------ | -------------------------------------------------------------- | --------- | ---------- | ---- |
-| RF26   | Professores podem criar projetos para a turma.                 | Professor | Should     | RF19 |
+| RF26   | Professores podem criar, editar e publicar projetos para a turma, com disciplina oficial opcional. | Professor | Should     | RF19 |
 | RF27   | A IA deve ajudar o aluno a elaborar projetos de forma gradual. | IA, Aluno | Should     | RF26 |
 | RF28   | Criar testes/mini-testes oficiais.                             | Professor | Must       | RF20 |
 | RF29   | Rever e aprovar conteúdo gerado pela IA (resumos/quizzes).     | Professor | Should     | RF21 |
-| RF30   | Painel com progresso, dificuldades e métricas da turma.        | Professor | Should     | RF24 |
+| RF30   | Centro de Acompanhamento com atividade oficial, progresso e resultados por aluno e turma. | Professor | Should     | RF24 |
 
 ---
 
@@ -96,7 +96,7 @@
 
 | Código | Requisito                                               | Atores  | Prioridade | Dependências |
 | ------ | ------------------------------------------------------- | ------- | ---------- | ------------ |
-| RF31   | Indexação automática de PDFs, DOCX e URLs.              | Sistema | Must       | RF08, RF21   |
+| RF31   | Processar assincronamente PDFs, DOCX e URLs após pedido explícito do utilizador autorizado. | Sistema | Must       | RF08, RF21   |
 | RF32   | Extrair tópicos, secções, estrutura e referências.      | Sistema | Must       | RF31         |
 | RF33   | Manter versões dos materiais.                           | Sistema | Should     | RF31         |
 | RF34   | Separar materiais entre “aluno”, “professor” e “turma”. | Sistema | Must       | RF31         |
@@ -116,7 +116,15 @@
 
 ---
 
-Nota RF22/RF36: a voz docente é resolvida por herança: override da disciplina -> voz base da turma -> predefinição. Salas guiadas docentes podem referenciar uma disciplina para herdar esse contexto, mas não têm override próprio nesta fase.
+Nota RF14: as salas colaborativas criadas pelo aluno mantêm uma etiqueta textual e são
+independentes das disciplinas oficiais. Só as salas guiadas criadas pelo professor podem
+referenciar uma disciplina oficial e herdar o respetivo contexto.
+
+Nota RF19/RF20: o arquivo é reversível e preserva o histórico em modo de leitura. Arquivar uma
+turma ou disciplina fecha salas guiadas abertas e testes publicados dependentes; restaurar a
+entidade não reabre automaticamente esses recursos.
+
+Nota RF22/RF36: a voz docente é resolvida por herança: override da disciplina -> voz base da turma -> predefinição. Salas guiadas docentes podem referenciar uma disciplina para herdar esse contexto, mas não têm override próprio nesta fase. O DTO do aluno expõe apenas `teacherVoiceApplied`, nunca as regras docentes internas.
 
 ### 8. Comunidade - Grupos, Salas e Co-Estudo
 
@@ -126,6 +134,10 @@ Nota RF22/RF36: a voz docente é resolvida por herança: override da disciplina 
 | RF42   | Chat, partilha e notas coletivas.   | Aluno            | Should     | RF41 |
 | RF43   | Agendar sessões de estudo coletivo. | Aluno, Professor | Could      | RF41 |
 | RF44   | IA coletiva para sessões de grupo.  | Sistema          | Could      | RF41 |
+
+Nota RF42: este requisito corresponde exclusivamente às mensagens e notas coletivas assíncronas
+dos grupos de estudo, através de `GET/POST /api/study-groups/:groupId/messages`. Não inclui o
+canal WebSocket da disciplina nem conversas privadas.
 
 ---
 
@@ -142,11 +154,11 @@ Nota RF22/RF36: a voz docente é resolvida por herança: override da disciplina 
 
 | Código | Requisito                                                                  | Atores    | Prioridade | Dep. |
 | ------ | -------------------------------------------------------------------------- | --------- | ---------- | ---- |
-| RF47   | Configurar preferências de notificações (email, push, app) por contexto.   | Todos     | Should     | RF02 |
+| RF47   | Configurar preferências de notificações in-app por contexto.               | Todos     | Should     | RF02 |
 | RF48   | Alertar alunos sobre rotinas, objetivos e sessões de estudo agendadas.     | Sistema   | Should     | RF05 |
-| RF49   | Notificar grupos/turmas sobre novos materiais, feedback e tarefas.         | Sistema   | Should     | RF24 |
+| RF49   | Notificar in-app grupos/turmas sobre mudanças de disponibilidade e estado. | Sistema   | Should     | RF24 |
 | RF50   | Professores definem alertas de acompanhamento (ex.: aluno inativo X dias). | Professor | Should     | RF35 |
-| RF51   | Administradores configuram canais e quotas máximas de notificações.        | Admin     | Should     | RF50 |
+| RF51   | Administradores configuram políticas e quotas máximas de notificações in-app. | Admin     | Should     | RF50 |
 
 ---
 
@@ -207,14 +219,21 @@ Nota RF22/RF36: a voz docente é resolvida por herança: override da disciplina 
 ### E) Turmas e Disciplinas (RF19–RF25)
 
 -   Apenas alunos inscritos têm acesso ao conteúdo oficial.
+-   O aluno pode pertencer a várias turmas oficiais; o dashboard deriva as turmas do membership e não de texto livre no perfil.
+-   Entidades arquivadas preservam histórico em modo de leitura e deixam de aceitar novas ações de aprendizagem.
+-   Mutações descendentes e archive escrevem fences monotónicos na mesma transaction; uma corrida nunca deixa confirmar um novo recurso sob turma/disciplina arquivada.
+-   GETs próprios de IA, conteúdo aprovado, chat, materiais, testes e ranking podem consultar histórico; POST/PATCH/send continuam limitados a entidades ativas.
 -   A IA docente usa exclusivamente materiais aprovados.
 
 ### F) Materiais e Indexação (RF08, RF21, RF31–RF34)
 
--   Sistemas devem extrair texto, estrutura e tópicos do documento.
+-   O upload oficial aceita `TEXT`, `URL`, `PDF` e `DOCX`; os ficheiros ficam `PENDING_PROCESSING` e só entram na IA após um pedido explícito de indexação autorizado terminar com sucesso.
+-   Sistemas devem extrair texto, estrutura e tópicos do documento em worker recuperável, sem devolver texto extraído, `storageKey`, hashes ou paths ao browser.
 -   Versionamento deve permitir reversão.
--   Uploads ficam limitados a 10 MiB por ficheiro e 250 MiB por utilizador; título com 1–160 caracteres é validado antes de qualquer escrita.
--   O storage local usa staging, SHA-256, promoção atómica, outbox de eliminação e reconciliação de órfãos.
+-   Estruturas e versões derivadas revalidam role atual, ownership e lifecycle; um job antigo não conserva permissões após mudança de papel.
+-   Uploads ficam limitados a 10 MiB por ficheiro e 250 MiB partilhados entre ficheiros privados e oficiais do utilizador; o título oficial tem 2–160 caracteres e é validado antes de qualquer escrita.
+-   O storage local usa staging, SHA-256, promoção atómica, outbox de eliminação e reconciliação de órfãos nas duas coleções.
+-   PDF/DOCX podem ser abertos ou descarregados apenas pelo professor proprietário ou por aluno com inscrição atual/histórica compatível; respostas binárias usam MIME canónico, nome seguro e `Cache-Control: private, no-store`.
 -   URLs são validados por hop contra SSRF, incluindo IPv4-mapped IPv6, DNS rebinding, redes reservadas/link-local e endpoints de metadata.
 
 ### G) Autenticação, sessões e papéis (RF02, RF53, RF55)
@@ -239,17 +258,31 @@ Nota RF22/RF36: a voz docente é resolvida por herança: override da disciplina 
 ### J) Notificações (RF47–RF51)
 
 -   DTOs destinados ao utilizador nunca incluem `recipientIds` nem `suppressedRecipientIds`; vistas administrativas devolvem apenas contagens agregadas.
+-   A entrega suportada nesta fase é exclusivamente in-app. Email e push são rejeitados pelo contrato e não aparecem na UI.
+-   A inbox tem estado lido/arquivado, cursor e contador de não lidas; a entrega usa outbox persistente, lease, retry e backoff.
+-   Eventos automáticos limitam-se a alterações de disponibilidade/estado, como membership, arquivo/restauro, publicação, abertura/fecho e aprovação/retirada.
+-   O POST manual aceita apenas material, feedback e tarefa; tipos automáticos/lifecycle pertencem exclusivamente aos services de domínio e à outbox.
+-   Quotas anti-spam aplicam-se a envios manuais; eventos automáticos respeitam canal/preferência mas não são descartados pela quota.
+-   As memberships são revalidadas no delivery; a remoção só chega se o aluno continuar fora da turma e é descartada se entretanto ocorreu reinscrição.
+
+### J.1) Centro de Acompanhamento (RF30, RF50)
+
+-   A inatividade é calculada por turma a partir de atividade oficial nessa turma e da data de entrada do membership.
+-   Estudo privado e atividade autónoma fora da turma não contam para sinais docentes.
+-   O detalhe individual agrega factos, progresso de salas guiadas, melhor tentativa em testes e quizzes IA aprovados; não calcula score de risco nem expõe resultados de colegas.
 
 ### K) Privacidade e eliminação (RF52–RF56)
 
 -   Um `PersonalDataRegistry` classifica todos os models como `DELETE`, `PULL_MEMBERSHIP`, `ANONYMIZE_90D` ou `RETAIN_NONPERSONAL`; models sem política bloqueiam o release.
 -   A exportação cobre todas as categorias do titular, exclui hashes/secrets/dados de terceiros e é descarregada como attachment JSON.
+-   Regras, origem, tom e detalhe da voz docente são omitidos também do export do aluno; o contrato público conserva apenas o booleano factual de aplicação da voz.
 -   A eliminação revoga sessões, aplica políticas numa transaction e cria outbox para ficheiros. A referência retida é aleatória, não contém `userId` e expira em 90 dias; auditoria relacionada é anonimizada e sujeita ao mesmo TTL.
 
-### L) Navegação e comunicação em tempo real (RF03–RF06, RF14–RF16, RF41–RF45)
+### L) Navegação e comunicação em tempo real
 
 -   Rotas protegidas e por papel bloqueiam antes de montar componentes ou lançar pedidos; existem estados 403, 404 e error boundary.
--   Chat usa ack tipado em `join`/`send`, revalidação de sessão, deduplicação e só limpa o draft após confirmação positiva.
+-   RF42 usa REST assíncrono protegido por membership; não usa acknowledgements WebSocket.
+-   Como extensão transversal implementada fora da numeração canónica de RF/BK, o chat coletivo da disciplina usa acknowledgements tipados em `join`/`send`, revalidação de sessão, deduplicação por `_id` e só limpa o rascunho após confirmação positiva. O contrato pertence ao [plano técnico do chat aluno-professor](planificacao/features/PLANO-CHAT-WEBSOCKET-ALUNO-PROFESSOR.md).
 
 ## Sugestão de MVP organizado por fases e RF
 
@@ -281,3 +314,5 @@ Projeto académico destinado exclusivamente a fins educativos.
 -   **2024-04-27** - Reorganização do RF.md para o formato padrão com secções de MVP, créditos, licença e changelog.
 -   **2026-04-17** - Ajuste de escopo MVP StudyFlow com remoção de funcionalidades cortadas e simplificação da integração Drive.
 -   **2026-07-10** - Contratos de aceitação alinhados com a remediação integral para PAP local endurecida (sessões, IA, storage, testes, notificações, RGPD e frontend).
+-   **2026-07-11** - Paridade professor-aluno alinhada end-to-end: memberships oficiais múltiplos, lifecycle académico, centro por atividade oficial, IA transparente, projetos, materiais, testes e notificações in-app fiáveis.
+-   **2026-07-11** - RF21/RF31 clarificados para upload oficial PDF/DOCX, indexação assíncrona iniciada explicitamente, storage partilhado e leitura binária protegida.

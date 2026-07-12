@@ -17,7 +17,16 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF1-08`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-07-criar-turmas.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
+
+> **Contrato atual de implementação (2026-07-11).** `ClassMembership` é a fonte
+> canónica de inscrição e permite várias turmas por aluno. O array
+> `SchoolClass.studentIds` existe apenas para dual-write/migração temporária. Todos os
+> snippets deste guia que consultem, alterem ou exponham diretamente `studentIds` são
+> **legado histórico e não devem ser aplicados como código final**. A implementação deve
+> usar `ClassMembership.status`, `joinedAt` e os métodos atuais de `ClassesService`, de
+> acordo com a atualização de paridade no fim do guia. `profile.className` não representa
+> membership oficial e não pode ser usado para autorização nem para o dashboard.
 
 ## Objetivo
 Implementar `RF19`: permitir que um professor crie turmas oficiais e consulte apenas as suas turmas. Este BK também acrescenta, como decisão `DERIVADO`, o fluxo mínimo para associar alunos por email, porque `RF23`, `RF24` e os BKs seguintes dependem de existir um aluno inscrito numa turma.
@@ -1129,9 +1138,26 @@ Confirma também que `BK-MF1-08`, `BK-MF1-11` e `BK-MF1-12` conseguem depender d
 ## Handoff
 O próximo BK (`BK-MF1-08`) deve usar o professor de desenvolvimento para validar `SchoolClass.teacherId` e confirmar que a disciplina pertence ao professor autenticado. `BK-MF1-11` e `BK-MF1-12` devem usar o aluno de desenvolvimento inscrito em `studentIds` para proteger a leitura por alunos.
 
+## Atualização de paridade professor → aluno (2026-07-11)
+
+- `ClassMembership` é a fonte canónica de inscrição, com `joinedAt`, estado
+  `ACTIVE|REMOVED`, dual-write temporário e migração idempotente do array legacy.
+- Um aluno pode pertencer a várias turmas oficiais; o dashboard deixa de usar
+  `profile.className` e recebe um resumo minimizado sem IDs dos colegas.
+- Turmas suportam edição, arquivo e restauro. Arquivar encerra salas guiadas abertas e
+  mini-testes publicados; restaurar a turma não reabre esses recursos.
+- `lifecycleFenceVersion` é escrito dentro das transactions de recursos filhos e do archive,
+  impedindo a corrida check-then-create sob uma turma que acabou de ser arquivada.
+- Alterações de membership e lifecycle produzem eventos idempotentes na outbox e
+  notificações exclusivamente in-app.
+- A remoção confirma membership, array legacy e `CLASS_MEMBERSHIP_REMOVED` na mesma
+  transação. No delivery, os restantes eventos voltam a intersectar o snapshot com as
+  memberships ativas para não notificar um ex-aluno.
+
 ## Changelog
 - 2026-05-31: Acrescentado o passo original de MongoDB Atlas (substituído pelo perfil local).
 - 2026-07-10: removidos Atlas, userinfo e IP público; replica set local e flags fail-closed passam
   a ser o contrato copiável.
 - 2026-05-31: Acrescentada seed local segura para criar professor e aluno de desenvolvimento e desbloquear validação real da cadeia docente.
 - 2026-05-30: Guia reescrito para fechar módulo, endpoints, cliente frontend e fluxo derivado de inscrição de alunos.
+- 2026-07-11: documentados membership canónico, várias turmas, lifecycle, cascata e outbox.

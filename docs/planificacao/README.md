@@ -87,6 +87,16 @@ funcionalidade implementada.
 | Email/push externos e integrações bidirecionais | `PARCIAL`: notificações in-app/importação unidirecional | contratos RF atuais e mapa técnico | ativação de provider externo, OAuth ou sincronização bidirecional |
 | CI/CD e rollback de produção | `MITIGADO_POR_ESCOPO`: gate local ligado a manifesto; sem claim de deploy | `verify:local-release`, ledger e evidence sanitizada | pipeline remoto, ambiente público ou requisito de rollback operacional |
 
+### Extensão transversal implementada — chat da disciplina
+
+O chat coletivo entre alunos inscritos e professor responsável por disciplina existe na
+implementação de referência, mas não cria nem renumera RFs ou BKs pedagógicos. A sua autoridade
+técnica é o
+[`PLANO-CHAT-WEBSOCKET-ALUNO-PROFESSOR.md`](features/PLANO-CHAT-WEBSOCKET-ALUNO-PROFESSOR.md),
+validado contra `real_dev`. Esta extensão é distinta de RF42: RF42 continua a representar apenas
+as mensagens e notas assíncronas dos grupos de estudo. Nenhum dos dois sistemas implementa
+conversas privadas.
+
 ## Regra de atualizacao em cadeia
 1. Executar solver com constraints formais (`scripts/plan_constraints_studyflow.json` -> `scripts/solver_reassignments.json`).
 2. Atualizar matriz.

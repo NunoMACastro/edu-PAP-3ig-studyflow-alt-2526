@@ -4,6 +4,10 @@
 
 Este plano define o MVP de chat em tempo real entre alunos e professor no contexto de uma disciplina, preservando o chat aluno-aluno existente em grupos de estudo.
 
+Esta feature é uma extensão transversal da implementação de referência. Não cria nem renumera
+RFs ou BKs canónicos e não altera RF42, que continua limitado às mensagens e notas assíncronas
+dos grupos. Os dois sistemas são coletivos e não oferecem conversas privadas.
+
 A raiz operacional escolhida é `real_dev/`:
 
 - backend: `real_dev/api`
@@ -57,6 +61,8 @@ O cliente nunca envia `authorUserId`, `authorRole`, `classId` ou `teacherId`; es
 - `authorUserId`
 - `authorRole: "STUDENT" | "TEACHER"`
 - `text`
+- `clientMessageId` opcional para idempotência compatível
+- `tombstonedAt` opcional após eliminação da conta
 - timestamps
 
 Índices:
@@ -64,6 +70,7 @@ O cliente nunca envia `authorUserId`, `authorRole`, `classId` ou `teacherId`; es
 - `{ subjectId: 1 }` único em threads
 - `{ threadId: 1, createdAt: -1 }`
 - `{ threadId: 1, authorUserId: 1, createdAt: -1 }`
+- `{ threadId: 1, authorUserId: 1, clientMessageId: 1 }` único apenas quando a chave existe
 
 ## Segurança e privacidade
 
@@ -78,10 +85,12 @@ O cliente nunca envia `authorUserId`, `authorRole`, `classId` ou `teacherId`; es
 
 Contrato de acknowledgement:
 
-- sucesso de `join`: `{ ok: true, subjectId, joinedAt }`;
-- sucesso de `send`: `{ ok: true, clientMessageId, message }`;
-- erro: `{ ok: false, code, message, retryable }`;
-- `clientMessageId` é obrigatório e único por autor/thread; um retry devolve a mensagem persistida, sem duplicar o documento nem o broadcast.
+- sucesso de `join`: `{ ok: true, subjectId }`;
+- sucesso de `send`: `{ ok: true, message }`;
+- erro de `join` ou `send`: `{ ok: false, error: { code, message } }`;
+- o frontend atual envia sempre um `clientMessageId` UUID, enquanto gateway e service o aceitam como opcional para compatibilidade com clientes anteriores;
+- quando existe, `clientMessageId` é único por autor/thread e um retry devolve a mesma mensagem persistida, sem criar um segundo documento;
+- o gateway volta a emitir a mensagem devolvida pelo retry; o cliente atual evita duplicação visual ao fundir mensagens por `_id`.
 
 ## Impacto no frontend
 
@@ -94,9 +103,9 @@ O frontend adiciona:
 - links de chat nas listagens de disciplinas, com ícone `message` junto ao texto `Chat`;
 - proxy Vite `/socket.io` com `ws: true`.
 
-O cliente regista handlers antes de ligar, espera acknowledgement positivo de `join` antes de ativar o envio e mantém um único listener por evento. O envio cria um `clientMessageId`, mantém o draft até acknowledgement positivo e reconcilia a resposta com o broadcast recebido. A lista deduplica por `message.id` e, enquanto esse ID não existir, por `clientMessageId`; reconnect e retry nunca criam duas mensagens visuais.
+O cliente regista handlers antes de ligar, espera acknowledgement positivo de `join` antes de ativar o envio e mantém um único listener por evento. O envio cria um `clientMessageId`, mantém o draft até acknowledgement positivo e reconcilia a resposta com o broadcast recebido. A lista funde histórico, acknowledgement e broadcast por `_id` e ordena por `createdAt`; não existe optimistic UI antes da confirmação do servidor.
 
-Falha de rede, timeout ou acknowledgement negativo preservam o draft e apresentam erro recuperável. Apenas `401`/`SESSION_REVOKED` invalidam a sessão; `403` mantém a sessão e mostra acesso proibido, e `5xx`/offline colocam a UI em estado `unavailable`.
+Falha de ligação, timeout ou acknowledgement negativo preservam o draft e apresentam a mensagem pública recebida ou um erro genérico controlado. A UI distingue Online/Offline, mas não implementa atualmente uma máquina de estados própria para `403`, `5xx` e `SESSION_REVOKED`; a socket é desligada pelo backend nas falhas de sessão aplicáveis.
 
 ## Estado de implementação em `real_dev`
 
@@ -118,7 +127,7 @@ Implementado em `real_dev/web`:
 - proxy Vite `/socket.io` com `ws: true`;
 - transporte Socket.IO limitado a `websocket`, sem fallback para long-polling.
 
-O estado acima é histórico e não constitui aceitação do hardening. A feature só fica concluída quando `sessionVersion`/`accountStatus`, revalidação por evento e broadcast, acknowledgements tipados, idempotência, reconciliação e deduplicação estiverem implementados e cobertos por testes.
+O hardening atual inclui `sessionVersion`/`accountStatus`, revalidação por evento e antes de broadcast, acknowledgements tipados, idempotência persistente, reconciliação pós-join e deduplicação visual. Continuam fora do MVP paginação, estados de leitura, nomes dos participantes, conversas privadas, moderação e suporte multi-instância.
 
 Validação local registada:
 
@@ -140,7 +149,7 @@ Backend:
 - `join` sem autorização responde com acknowledgement de erro e não entra na room;
 - `send` persiste uma vez, responde com acknowledgement e só depois emite para a room correta;
 - sessão revogada após o handshake falha no próximo `join`/`send` e antes de um broadcast passivo;
-- retry com o mesmo `clientMessageId` devolve a mesma mensagem sem duplicação;
+- retry com o mesmo `clientMessageId` devolve a mesma mensagem sem duplicar o documento e a UI funde novo evento por `_id`;
 - dois sockets da mesma sessão são ambos revogados depois de `sessionVersion` mudar.
 
 Frontend/build:
@@ -153,7 +162,7 @@ Frontend/component/E2E:
 
 - handlers são instalados antes de `connect()` e removidos no cleanup;
 - o draft só é limpo após acknowledgement positivo;
-- timeout, offline, `403`, `5xx` e `SESSION_REVOKED` têm estados distintos;
+- timeout, falha de ligação e acknowledgements negativos preservam o rascunho e mostram erro controlado;
 - reconnect/retry/broadcast fora de ordem são reconciliados e deduplicados;
 - a rota do chat é lazy e `socket.io-client` não aparece no chunk público nem na primeira rota não-chat;
 - axe não reporta violações `serious` ou `critical` e o fluxo funciona apenas por teclado.

@@ -17,7 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF2-02`
 - `guia_path`: `docs/planificacao/guias-bk/MF2/BK-MF2-01-professores-podem-criar-salas-de-estudo-guiado.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
 
 ## Objetivo do BK
 
@@ -668,7 +668,29 @@ bash scripts/validate-planificacao.sh
 
 BK-MF2-02; `BK-MF2-12` pode usar a disciplina associada à sala para explicar herança de voz, sem criar override próprio da sala.
 
+## Atualização de paridade professor → aluno (2026-07-11)
+
+O contrato operativo inclui criação, edição, fecho/reabertura, detalhe, progresso,
+participação, IA supervisionada e histórico paginado. Depois da primeira participação,
+o conteúdo pedagógico fica bloqueado. O detalhe do aluno inclui `myParticipation`, mesmo
+em histórico, e existe um agregador paginado de todas as turmas. Criar ou reabrir uma sala
+com mini-teste escreve um fence transacional no teste; por isso nunca pode confirmar uma
+sala aberta ligada a um teste fechado. O aluno vê apenas `teacherVoiceApplied`, enquanto o
+snapshot completo da voz permanece reservado à supervisão docente.
+
+## Atualização de fontes oficiais processadas (2026-07-11)
+
+Na criação e edição de uma sala, `apps/web` apresenta apenas materiais oficiais
+`PROCESSED`, com texto disponível e pertencentes à disciplina, turma e professor da sala.
+O backend repete obrigatoriamente esta validação e rejeita IDs pendentes, falhados,
+`REFERENCE_ONLY` ou fora do contexto. A IA da sala recebe somente os IDs selecionados pelo
+professor; nenhuma fonte oficial é acrescentada implicitamente e nenhuma fonte é copiada
+para a área privada do aluno. O detalhe pode abrir PDF ou descarregar PDF/DOCX através dos
+endpoints protegidos, sem revelar texto extraído ou identificadores internos de storage.
+
 ## Changelog
 
 - `2026-06-08`: guia corrigido para contrato executável da MF2, com integração acumulativa, autorização explícita e validação do handoff.
 - `2026-06-30`: documentada disciplina opcional em sala guiada e herança de voz sem override próprio.
+- `2026-07-11`: documentados lifecycle integral, participação reidratada, paginação, voz minimizada e invariant transacional sala/teste.
+- `2026-07-11`: seleção de fontes limitada a materiais processados, autorização repetida no backend e isolamento integral da área privada.

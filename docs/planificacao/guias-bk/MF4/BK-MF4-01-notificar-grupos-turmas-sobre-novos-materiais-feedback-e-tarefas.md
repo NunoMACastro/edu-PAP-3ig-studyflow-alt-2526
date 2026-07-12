@@ -18,7 +18,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF4-02`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-01-notificar-grupos-turmas-sobre-novos-materiais-feedback-e-tarefas.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
 
 #### Objetivo
 
@@ -674,6 +674,22 @@ Sem código neste passo.
 
 BK-MF4-02 pode usar `ContextNotificationsService.create` para avisos de acompanhamento docente. BK-MF4-03 deve impor quotas/canais antes da criação de notificações em massa.
 
+### Atualização de entrega professor → aluno (2026-07-11)
+
+As mutações de disponibilidade/estado publicam eventos idempotentes numa outbox com
+lease, retry exponencial e falha auditada. A matriz automática inclui membership, arquivo
+de turma/disciplina, publicações, materiais, projetos, testes, conteúdos IA aprovados e
+salas guiadas. Edições textuais comuns não geram ruído. Cada destinatário tem linha própria
+de entrega/leitura; eventos legacy são migrados como lidos para evitar um badge artificial.
+
+`POST /api/context-notifications` é uma superfície manual limitada a `NEW_MATERIAL`,
+`FEEDBACK` e `TASK`; os restantes tipos não podem ser forjados pelo cliente. A criação manual
+respeita quota anti-spam. A outbox automática não é descartada pela quota, mas continua a
+respeitar canal/preferência e revalida a membership no momento da entrega. O evento de remoção
+é entregue apenas se o aluno ainda estiver fora da turma, evitando uma notificação obsoleta
+quando existe remoção seguida de readmissão.
+
 #### Changelog
 
 - `2026-06-16`: guia corrigido com DTO/schema/service/controller/frontend/testes específicos de RF49.
+- `2026-07-11`: documentadas matriz automática, allowlist manual, quota, revalidação, outbox/retry e estado individual da inbox.

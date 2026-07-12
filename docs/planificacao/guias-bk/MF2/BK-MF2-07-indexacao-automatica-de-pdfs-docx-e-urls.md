@@ -17,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF2-08`
 - `guia_path`: `docs/planificacao/guias-bk/MF2/BK-MF2-07-indexacao-automatica-de-pdfs-docx-e-urls.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
 
 ## Objetivo do BK
 
@@ -37,7 +37,7 @@ Este BK é um ponto de passagem obrigatório da MF2. Sem uma indexação clara, 
 
 ## Scope-out
 
-- Processamento assíncrono real em fila externa.
+- Broker externo dedicado; a fila recuperável permanece persistida em MongoDB.
 - OCR de imagens dentro de PDFs.
 - Crawling recursivo de URLs externas.
 - RAG, embeddings, chunking semântico ou motor de pesquisa vetorial.
@@ -48,7 +48,7 @@ Este BK é um ponto de passagem obrigatório da MF2. Sem uma indexação clara, 
 
 ## Estado depois
 
-Existe `MaterialIndexModule` com jobs, estados e chunks com origem. A decisão de MVP é fazer extração textual básica e síncrona no pedido, deixando `QUEUED`/`PROCESSING` no modelo para a evolução assíncrona prevista em `RNF11`.
+Existe `MaterialIndexModule` com jobs, estados e chunks com origem. O pedido autorizado devolve `202 QUEUED`; a extração corre assincronamente num worker recuperável com leases, heartbeat, fencing, retry e concorrência limitada.
 
 ## Pré-requisitos
 
@@ -913,7 +913,25 @@ bash scripts/validate-planificacao.sh
 
 BK-MF2-08
 
+## Atualização da fila explícita e dos ficheiros oficiais (2026-07-11)
+
+A mesma fila MongoDB suporta os scopes `PRIVATE_AREA` e `OFFICIAL_SUBJECT`. O endpoint
+`POST /api/teacher/official-materials/:materialId/index-jobs` é iniciado explicitamente
+pelo professor autorizado, devolve `202` com job `QUEUED` e reutiliza o job ativo através
+de uma `activeKey` única. Depois de estado terminal, uma nova tentativa é permitida. O
+frontend reidrata o último job por material com
+`GET /api/teacher/subjects/:subjectId/material-index-jobs?latestByMaterial=true` e faz
+polling do endpoint comum sem receber chunks oficiais.
+
+Antes de ler PDF/DOCX, o worker relê o utilizador, exige papel `TEACHER`, revalida ownership
+e lifecycle da disciplina, recupera o ficheiro apenas pela API interna de storage e volta a
+validar tamanho, MIME e metadados. O sucesso marca job e material como concluídos; a falha
+mantém o material submetido e deixa o job `FAILED` para retry. Audit logs registam submissão,
+pedido, conclusão ou falha sem conteúdo, buffer ou path. A área privada continua a aceitar
+exclusivamente fontes privadas.
+
 ## Changelog
 
+- `2026-07-11`: documentada fila MongoDB assíncrona explícita para scopes privado/oficial, retry, revalidação e projeção pública sem chunks.
 - `2026-06-08`: guia corrigido para contrato executável da MF2, com integração acumulativa, autorização explícita e validação do handoff.
 - `2026-06-08`: validação reforçada de URLs, tipo frontend de chunks alinhado com o backend e changelog limpo para uso pelos alunos.

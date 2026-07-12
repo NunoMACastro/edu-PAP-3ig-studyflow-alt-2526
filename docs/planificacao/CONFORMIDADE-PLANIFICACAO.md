@@ -6,8 +6,8 @@
 - `area`: `project`
 - `owner`: `Nuno`
 - `status`: `ativo`
-- `last_updated`: `2026-07-10`
-- `implementation_manifest_sha256`: `799990e7a86c9595c786069889ce2a4e893cf5c9077d23a67e9df6194a84e538`
+- `last_updated`: `2026-07-11`
+- `implementation_manifest_sha256`: `2f6ad3f7bae3d3316be8b4156012bd06192933e8f90396b32a5af2bff29ed55c`
 
 ## Limite da declaração
 

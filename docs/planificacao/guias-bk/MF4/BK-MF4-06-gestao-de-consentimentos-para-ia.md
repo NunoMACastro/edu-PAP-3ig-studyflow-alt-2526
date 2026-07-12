@@ -18,7 +18,16 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF4-07`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-06-gestao-de-consentimentos-para-ia.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
+
+> **Contrato atual de versões e UI (2026-07-11).** A versão exigida é resolvida
+> pelo backend por finalidade através de `CURRENT_AI_POLICY_VERSIONS`; não existe uma
+> constante global de consentimento no browser. `CLASS_AI` exige `2026-07-11` e as
+> restantes finalidades usam atualmente `2026-07-09`. A UI consulta
+> `GET /api/ai-consents/capabilities` e trata `CURRENT`, `OUTDATED`, `MISSING` e
+> `REVOKED`. Todos os snippets abaixo que usem `CURRENT_AI_CONSENT_VERSION`, assumam
+> que qualquer `GRANTED` continua válido ou comparem versões hard-coded no frontend são
+> **legado e devem ser substituídos** pelo contrato desta secção.
 
 #### Objetivo
 
@@ -33,9 +42,11 @@ RF54 protege privacidade e confiança. Sem consentimento explícito, funcionalid
 - Criar DTO e schema `AiConsent`.
 - Guardar finalidade, versão, estado, datas e actor.
 - Expor endpoints para listar, conceder e revogar.
+- Expor capabilities com versão exigida, estado efetivo e `canUse` por finalidade.
 - Criar método `assertGranted`.
 - Integrar o método nos services de IA já existentes.
 - Criar frontend de gestão de consentimentos.
+- Reutilizar um consent gate que permita aceitar ou renovar inline.
 - Testar bloqueio sem consentimento.
 
 #### Scope-out
@@ -59,7 +70,8 @@ Fica um módulo `ai-consents` com histórico versionado e método de enforcement
 
 - `CANONICO`: RF54 pertence a todos os utilizadores.
 - `CANONICO`: revogar consentimento bloqueia chamadas futuras de IA.
-- `DERIVADO`: `policyVersion` começa em `2026-06-16` para tornar consentimentos comparáveis.
+- `DERIVADO`: `policyVersion` é resolvida por finalidade no backend; `CLASS_AI` exige
+  `2026-07-11` e as restantes finalidades usam a versão base `2026-07-09`.
 - `DERIVADO`: cada finalidade é separada para não transformar um consentimento amplo numa permissão global.
 
 #### Pre-requisitos
@@ -74,6 +86,8 @@ Fica um módulo `ai-consents` com histórico versionado e método de enforcement
 - Finalidade: motivo específico para tratamento IA.
 - Versão de política: identificador textual do texto de consentimento aceite.
 - Consentimento activo: último registo da finalidade com estado `GRANTED`.
+- Consentimento atual: último registo `GRANTED` cuja `policyVersion` coincide com
+  `requiredVersion`; um grant antigo é `OUTDATED` e não autoriza IA.
 - Enforcement: bloqueio integral em `GovernedAiExecutionService` antes da invocação externa.
 
 #### Conceitos teóricos essenciais
@@ -82,7 +96,11 @@ Consentimento não é uma flag global. No StudyFlow, cada funcionalidade de IA t
 
 Finalidade é o motivo técnico e funcional do tratamento. `PRIVATE_AREA_AI`, `GROUP_AI`, `CLASS_AI`, `PROJECT_AI` e `ROOM_AI` são barreiras de privacidade separadas. Um aluno pode aceitar uma finalidade e recusar outra; consentimento amplo nunca vale como permissão global.
 
-Consentimento activo é a última decisão guardada para uma finalidade. Se o último registo for `GRANTED`, a funcionalidade pode continuar o fluxo. Se for `REVOKED`, ou se não existir decisão, o backend deve bloquear com `AI_CONSENT_REQUIRED`. A revogação não apaga o histórico, porque a app precisa de rastreabilidade para defesa técnica e privacidade.
+Consentimento ativo é a última decisão guardada para uma finalidade. Só um registo
+`GRANTED` na versão atualmente exigida permite continuar. Ausência ou revogação bloqueia
+com `AI_CONSENT_REQUIRED`; uma versão anterior bloqueia com
+`AI_CONSENT_POLICY_OUTDATED`. A revogação não apaga o histórico, porque a app precisa de
+rastreabilidade para defesa técnica e privacidade.
 
 O backend é o ponto de enforcement. O frontend mostra botões para conceder e revogar, mas não decide se a IA pode correr. Os services de domínio chamam exclusivamente `GovernedAiExecutionService.execute`; só essa fachada pode injetar o provider. A ordem obrigatória é autorização, consentimento, policy, limites, guardrails, reserva atómica de quota, provider, validação de output e audit seguro. Isto evita confiar no browser e protege mesmo que alguém tente chamar a API manualmente.
 
@@ -92,13 +110,18 @@ DTO, schema, service, controller e módulo têm papéis diferentes. O DTO valida
 
 Privacidade e RGPD aparecem aqui como minimização e finalidade. A app só deve tratar com IA os dados necessários para a finalidade consentida. Também não deve registar prompts privados, respostas completas ou materiais sensíveis em logs. O que fica guardado no consentimento é a decisão, a finalidade, a versão da política e a data.
 
-No frontend, estado local, loading e erro servem para o utilizador perceber o que aconteceu. Como conceder ou revogar consentimento altera uma decisão sensível, a interface deve impedir cliques duplicados e mostrar falhas de API em `role="alert"`.
+No frontend, `AiConsentGate` consulta capabilities antes de montar a ação IA. O estado
+`OUTDATED` apresenta “Rever e renovar consentimento”; `MISSING`/`REVOKED` apresenta a
+concessão inicial. O browser não decide nem fixa a versão: `PUT` pode enviar body vazio e o
+backend grava a versão exigida. A interface impede cliques duplicados e mostra falhas de
+API em `role="alert"`.
 
 Nos testes, o cenário mais importante é o default seguro: sem consentimento activo, a IA não corre. Também é obrigatório provar que uma concessão permite a finalidade e que uma revogação posterior volta a bloquear. Estes testes protegem BK-MF4-09 e BK-MF4-10, que dependem da mesma finalidade para modelos e quotas.
 
 #### Arquitetura do BK
 
-- Endpoint: `GET /api/ai-consents`, `PUT /api/ai-consents/:purpose`, `DELETE /api/ai-consents/:purpose`.
+- Endpoint: `GET /api/ai-consents`, `GET /api/ai-consents/capabilities`,
+  `PUT /api/ai-consents/:purpose`, `DELETE /api/ai-consents/:purpose`.
 - Modelo/schema: `AiConsent`.
 - Service: `AiConsentsService`.
 - Controller: `AiConsentsController`.
@@ -136,7 +159,7 @@ Nos testes, o cenário mais importante é o default seguro: sem consentimento ac
 
 ```ts
 // apps/api/src/modules/ai-consents/dto/upsert-ai-consent.dto.ts
-import { IsEnum, IsString, MaxLength, MinLength } from "class-validator";
+import { IsOptional, IsString, MaxLength } from "class-validator";
 
 /**
  * Finalidades de IA que podem ser consentidas separadamente.
@@ -154,20 +177,29 @@ export enum AiConsentPurpose {
     ROOM_AI = "ROOM_AI",
 }
 
-export const CURRENT_AI_CONSENT_VERSION = "2026-06-16";
+export const CURRENT_AI_POLICY_VERSION = "2026-07-09";
+export const CURRENT_AI_POLICY_VERSIONS: Record<AiConsentPurpose, string> = {
+    PRIVATE_AREA_AI: CURRENT_AI_POLICY_VERSION,
+    GROUP_AI: CURRENT_AI_POLICY_VERSION,
+    CLASS_AI: "2026-07-11",
+    PROJECT_AI: CURRENT_AI_POLICY_VERSION,
+    SOURCE_GROUNDED_AI: CURRENT_AI_POLICY_VERSION,
+    EXTERNAL_KNOWLEDGE_AI: CURRENT_AI_POLICY_VERSION,
+    ADAPTIVE_EXPLANATION: CURRENT_AI_POLICY_VERSION,
+    SUMMARY: CURRENT_AI_POLICY_VERSION,
+    STUDY_TOOL: CURRENT_AI_POLICY_VERSION,
+    ROOM_AI: CURRENT_AI_POLICY_VERSION,
+};
 
 /**
  * Entrada para conceder consentimento IA numa finalidade.
  */
 export class UpsertAiConsentDto {
-    @IsEnum(AiConsentPurpose)
-    purpose!: AiConsentPurpose;
-
-    /** Versão aceite pelo utilizador, registada para auditoria futura. */
+    /** O backend aceita omissão e resolve a versão exigida para a finalidade da rota. */
+    @IsOptional()
     @IsString()
-    @MinLength(10)
     @MaxLength(40)
-    policyVersion!: string;
+    policyVersion?: string;
 }
 ```
 
@@ -212,13 +244,19 @@ AiConsentSchema.index({ userId: 1, purpose: 1, decidedAt: -1 });
 ```
 
 5. Explicação do código.
-   O DTO define o contrato de entrada para conceder consentimento: a finalidade tem de existir no enum e a versão da política tem tamanho controlado para não aceitar texto arbitrário. O schema guarda cada decisão como um novo registo, em vez de actualizar uma única flag. Isto preserva histórico, permite provar quando o utilizador concedeu ou revogou e torna possível descobrir o estado activo ordenando por `decidedAt`.
+   O enum define as finalidades válidas da rota. O DTO aceita omitir `policyVersion`, porque
+   o backend resolve a versão exigida; se o cliente a enviar, limita o tamanho e o service
+   rejeita divergências. O schema guarda cada decisão como um novo registo, em vez de
+   atualizar uma única flag. Isto preserva histórico e permite descobrir o estado efetivo.
 
    `userId` fica no schema porque cada consentimento pertence a um utilizador autenticado. Esse valor não deve vir do frontend; o service vai obtê-lo de `AuthenticatedUser`. `purpose` separa as finalidades para impedir permissões globais. `status` permite revogar sem apagar histórico. `policyVersion` liga a decisão ao texto de consentimento apresentado ao utilizador. O índice por `userId`, `purpose` e `decidedAt` acelera a consulta do último consentimento de cada finalidade.
 6. Validação do passo.
-   Criar um DTO com finalidade fora de `AiConsentPurpose` deve falhar na validação. Criar um documento com `purpose` válido, `status` válido e `policyVersion` preenchida deve guardar uma decisão rastreável.
+   Uma rota com finalidade fora de `AiConsentPurpose` deve falhar no `ParseEnumPipe`. Um
+   `PUT` com body vazio deve persistir a versão exigida para essa finalidade.
 7. Cenário negativo/erro esperado.
-   Consentimento sem `policyVersion` deve ser rejeitado. Uma finalidade inventada, como `"ALL_AI"`, também deve ser rejeitada porque transformaria consentimento específico numa permissão global.
+   Uma `policyVersion` enviada pelo browser que diverja de `CURRENT_AI_POLICY_VERSIONS[purpose]`
+   deve devolver `AI_CONSENT_POLICY_VERSION_INVALID`. Uma finalidade inventada, como
+   `"ALL_AI"`, também deve ser rejeitada.
 
 ### Passo 2 - Implementar service com enforcement
 
@@ -232,12 +270,13 @@ AiConsentSchema.index({ userId: 1, purpose: 1, decidedAt: -1 });
 
 ```ts
 // apps/api/src/modules/ai-consents/ai-consents.service.ts
-import { ForbiddenException, Injectable } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import {
     AiConsentPurpose,
+    CURRENT_AI_POLICY_VERSIONS,
     UpsertAiConsentDto,
 } from "./dto/upsert-ai-consent.dto.js";
 import { AiConsent, AiConsentDocument } from "./schemas/ai-consent.schema.js";
@@ -247,6 +286,13 @@ export type AiConsentView = {
     policyVersion: string;
     status: string;
     decidedAt: Date;
+};
+export type AiConsentCapabilityView = {
+    purpose: AiConsentPurpose;
+    requiredVersion: string;
+    state: "CURRENT" | "OUTDATED" | "MISSING" | "REVOKED";
+    canUse: boolean;
+    lastDecision?: AiConsentView;
 };
 
 /**
@@ -274,22 +320,63 @@ export class AiConsentsService {
         return rows.map((row) => this.toView(row));
     }
 
+    async listCapabilities(
+        actor: AuthenticatedUser,
+    ): Promise<AiConsentCapabilityView[]> {
+        const rows = await this.consentModel
+            .find({ userId: new Types.ObjectId(actor.id) })
+            .sort({ decidedAt: -1 })
+            .lean();
+        const latest = new Map<AiConsentPurpose, (typeof rows)[number]>();
+        for (const row of rows) {
+            if (!latest.has(row.purpose)) latest.set(row.purpose, row);
+        }
+        return (Object.keys(CURRENT_AI_POLICY_VERSIONS) as AiConsentPurpose[])
+            .map((purpose) => {
+                const requiredVersion = CURRENT_AI_POLICY_VERSIONS[purpose];
+                const decision = latest.get(purpose);
+                const state = !decision
+                    ? "MISSING"
+                    : decision.status === "REVOKED"
+                      ? "REVOKED"
+                      : decision.policyVersion === requiredVersion
+                        ? "CURRENT"
+                        : "OUTDATED";
+                return {
+                    purpose,
+                    requiredVersion,
+                    state,
+                    canUse: state === "CURRENT",
+                    ...(decision ? { lastDecision: this.toView(decision) } : {}),
+                };
+            });
+    }
+
     /**
      * Regista uma nova concessão de consentimento IA.
      *
      * @param actor Utilizador autenticado que concede a finalidade.
-     * @param input Finalidade e versão de política aceites pelo utilizador.
+     * @param purpose Finalidade indicada na rota e validada pelo backend.
+     * @param input Versão opcional; nunca pode divergir da versão exigida.
      * @returns Decisão criada em formato público.
      */
     async grant(
         actor: AuthenticatedUser,
+        purpose: AiConsentPurpose,
         input: UpsertAiConsentDto,
     ): Promise<AiConsentView> {
+        const requiredVersion = CURRENT_AI_POLICY_VERSIONS[purpose];
+        if (input.policyVersion && input.policyVersion !== requiredVersion) {
+            throw new BadRequestException({
+                code: "AI_CONSENT_POLICY_VERSION_INVALID",
+                message: "Atualiza a informação de consentimento antes de continuar.",
+            });
+        }
         // Cada decisão é append-only para preservar histórico e permitir auditoria posterior.
         const row = await this.consentModel.create({
             userId: new Types.ObjectId(actor.id),
-            purpose: input.purpose,
-            policyVersion: input.policyVersion,
+            purpose,
+            policyVersion: requiredVersion,
             status: "GRANTED",
             decidedAt: new Date(),
         });
@@ -311,7 +398,7 @@ export class AiConsentsService {
         const row = await this.consentModel.create({
             userId: new Types.ObjectId(actor.id),
             purpose,
-            policyVersion: "revoked",
+            policyVersion: CURRENT_AI_POLICY_VERSIONS[purpose],
             status: "REVOKED",
             decidedAt: new Date(),
         });
@@ -335,6 +422,12 @@ export class AiConsentsService {
                 code: "AI_CONSENT_REQUIRED",
                 message:
                     "É necessário consentimento activo para usar esta funcionalidade de IA.",
+            });
+        }
+        if (latest.policyVersion !== CURRENT_AI_POLICY_VERSIONS[purpose]) {
+            throw new ForbiddenException({
+                code: "AI_CONSENT_POLICY_OUTDATED",
+                message: "O consentimento deve ser renovado para a política atual.",
             });
         }
     }
@@ -366,7 +459,9 @@ export class AiConsentsService {
 
    Os services de domínio não consultam consentimentos diretamente. Chamam a fachada, que usa `assertGranted` antes de preparar prompt ou contactar o provider privado. Isto mantém a regra de privacidade num único ponto; `toView` não expõe detalhes internos.
 6. Validação do passo.
-   Com um último registo `GRANTED`, `assertGranted` deve resolver sem erro. Com ausência de registo ou último registo `REVOKED`, deve lançar `ForbiddenException` com `code: "AI_CONSENT_REQUIRED"`.
+   Com um último registo `GRANTED` na versão exigida, `assertGranted` resolve. Com
+   ausência ou `REVOKED`, devolve `AI_CONSENT_REQUIRED`; com versão anterior devolve
+   `AI_CONSENT_POLICY_OUTDATED`.
 7. Cenário negativo/erro esperado.
    Sem qualquer consentimento, `assertGranted` devolve `AI_CONSENT_REQUIRED`. Se o service aceitasse ausência de registo, a app trataria dados com IA sem decisão explícita do utilizador.
 
@@ -420,6 +515,11 @@ export class AiConsentsController {
         return this.consentsService.listMine(request.user!);
     }
 
+    @Get("capabilities")
+    capabilities(@Req() request: AuthenticatedRequest) {
+        return this.consentsService.listCapabilities(request.user!);
+    }
+
     /**
      * Concede consentimento para a finalidade indicada no URL.
      */
@@ -430,8 +530,7 @@ export class AiConsentsController {
         purpose: AiConsentPurpose,
         @Body() input: UpsertAiConsentDto,
     ) {
-        // O purpose do URL prevalece para evitar divergência entre URL e body.
-        return this.consentsService.grant(request.user!, { ...input, purpose });
+        return this.consentsService.grant(request.user!, purpose, input);
     }
 
     /**
@@ -545,11 +644,17 @@ export class AppModule {}
 5. Explicação do código.
    O controller cria a fronteira HTTP do módulo de consentimentos. Todas as rotas estão protegidas por `SessionGuard`, por isso a identidade vem de `request.user` e nunca de um `userId` enviado pelo frontend. Isto é essencial: consentimento é uma decisão pessoal e não pode ser alterado escolhendo outro utilizador no payload.
 
-   `GET /api/ai-consents` devolve o histórico do actor autenticado. `PUT /api/ai-consents/:purpose` cria uma decisão `GRANTED` para a finalidade indicada no URL. `DELETE /api/ai-consents/:purpose` cria uma decisão `REVOKED` para a mesma finalidade. `ParseEnumPipe` valida o parâmetro `purpose` antes de chegar ao service, evitando finalidades inventadas como `"ALL_AI"`. O body continua a transportar `policyVersion`, mas o `purpose` efectivo vem do URL para não haver conflito entre rota e payload.
+   `GET /api/ai-consents` devolve o histórico do actor autenticado e
+   `GET /api/ai-consents/capabilities` devolve a versão exigida e o estado efetivo por
+   finalidade. `PUT /api/ai-consents/:purpose` cria uma decisão `GRANTED` na versão
+   exigida pelo backend; uma versão opcional divergente no body é rejeitada.
+   `DELETE /api/ai-consents/:purpose` cria uma decisão `REVOKED` para a mesma finalidade.
 
    `AiConsentsModule` regista o schema Mongoose, controller e service. O `exports: [AiConsentsService]` é indispensável porque os módulos de IA precisam de injetar `AiConsentsService`. No `AppModule`, o novo módulo fica junto dos restantes módulos de domínio da API para tornar as rotas disponíveis na aplicação principal.
 6. Validação do passo.
-   `GET /api/ai-consents` deve listar só decisões do actor autenticado. `PUT /api/ai-consents/PRIVATE_AREA_AI` deve criar uma decisão concedida com a versão enviada no body. `DELETE /api/ai-consents/PRIVATE_AREA_AI` deve criar uma decisão revogada. Um `purpose` inválido no URL deve ser rejeitado antes de criar documento.
+   `GET /api/ai-consents` lista só decisões do actor; `/capabilities` classifica cada
+   finalidade. `PUT /api/ai-consents/PRIVATE_AREA_AI` com body vazio cria a versão atual.
+   `DELETE` revoga. Um `purpose` inválido ou versão divergente é rejeitado.
 7. Cenário negativo/erro esperado.
    Pedido sem sessão deve falhar antes de tocar na base de dados. Pedido com `purpose` fora de `AiConsentPurpose` deve falhar na validação de rota, porque aceitar finalidades livres quebraria o contrato usado por modelos, quotas e services IA.
 
@@ -914,7 +1019,13 @@ export type AiConsent = {
     decidedAt: string;
 };
 
-export const CURRENT_AI_CONSENT_VERSION = "2026-06-16";
+export type AiConsentCapability = {
+    purpose: AiConsentPurpose;
+    requiredVersion: string;
+    state: "CURRENT" | "OUTDATED" | "MISSING" | "REVOKED";
+    canUse: boolean;
+    lastDecision?: AiConsent;
+};
 
 /**
  * Carrega o histórico de consentimentos do utilizador autenticado.
@@ -923,16 +1034,18 @@ export function loadAiConsents(): Promise<AiConsent[]> {
     return requestMf3Json<AiConsent[]>("/api/ai-consents");
 }
 
+export function loadAiConsentCapabilities(): Promise<AiConsentCapability[]> {
+    return requestMf3Json<AiConsentCapability[]>("/api/ai-consents/capabilities");
+}
+
 /**
  * Concede consentimento para uma finalidade IA.
  */
 export function grantAiConsent(purpose: AiConsentPurpose): Promise<AiConsent> {
     return requestMf3Json<AiConsent>(`/api/ai-consents/${purpose}`, {
         method: "PUT",
-        body: JSON.stringify({
-            purpose,
-            policyVersion: CURRENT_AI_CONSENT_VERSION,
-        }),
+        // O backend resolve a versão exigida para esta finalidade.
+        body: JSON.stringify({}),
     });
 }
 
@@ -951,10 +1064,13 @@ export function revokeAiConsent(purpose: AiConsentPurpose): Promise<AiConsent> {
 import { useEffect, useState } from "react";
 import {
     grantAiConsent,
-    loadAiConsents,
+    loadAiConsentCapabilities,
     revokeAiConsent,
 } from "./ai-consents-client.js";
-import type { AiConsent, AiConsentPurpose } from "./ai-consents-client.js";
+import type {
+    AiConsentCapability,
+    AiConsentPurpose,
+} from "./ai-consents-client.js";
 
 const PURPOSES: AiConsentPurpose[] = [
     "PRIVATE_AREA_AI",
@@ -986,15 +1102,15 @@ const PURPOSE_LABELS: Record<AiConsentPurpose, string> = {
  * Painel de consentimentos IA por finalidade.
  */
 export function AiConsentsPanel() {
-    const [items, setItems] = useState<AiConsent[]>([]);
+    const [capabilities, setCapabilities] = useState<AiConsentCapability[]>([]);
     const [loading, setLoading] = useState(true);
     const [pendingPurpose, setPendingPurpose] =
         useState<AiConsentPurpose | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        loadAiConsents()
-            .then(setItems)
+        loadAiConsentCapabilities()
+            .then(setCapabilities)
             .catch((caught: unknown) =>
                 setError(
                     caught instanceof Error
@@ -1010,16 +1126,16 @@ export function AiConsentsPanel() {
      */
     async function toggle(
         purpose: AiConsentPurpose,
-        granted: boolean,
+        canUse: boolean,
     ): Promise<void> {
         setError(null);
         setPendingPurpose(purpose);
         try {
-            const saved = granted
+            canUse
                 ? await revokeAiConsent(purpose)
                 : await grantAiConsent(purpose);
-            // Mantém o histórico visível colocando a decisão mais recente no topo.
-            setItems((current) => [saved, ...current]);
+            // Recarrega a classificação calculada pelo backend, incluindo a versão exigida.
+            setCapabilities(await loadAiConsentCapabilities());
         } catch (caught) {
             setError(
                 caught instanceof Error
@@ -1037,18 +1153,22 @@ export function AiConsentsPanel() {
             {error ? <p role="alert">{error}</p> : null}
             {loading ? <p>A carregar consentimentos...</p> : null}
             {PURPOSES.map((purpose) => {
-                const latest = items.find((item) => item.purpose === purpose);
-                const granted = latest?.status === "GRANTED";
+                const capability = capabilities.find((item) => item.purpose === purpose);
                 const pending = pendingPurpose === purpose;
+                const action = capability?.state === "CURRENT"
+                    ? "revogar"
+                    : capability?.state === "OUTDATED"
+                      ? "renovar"
+                      : "conceder";
                 return (
                     <button
                         key={purpose}
                         type="button"
-                        disabled={pending}
-                        onClick={() => toggle(purpose, granted)}
+                        disabled={pending || !capability}
+                        onClick={() => toggle(purpose, capability?.canUse ?? false)}
                     >
                         {PURPOSE_LABELS[purpose]}:{" "}
-                        {pending ? "a guardar" : granted ? "revogar" : "conceder"}
+                        {pending ? "a guardar" : action}
                     </button>
                 );
             })}
@@ -1060,9 +1180,17 @@ export function AiConsentsPanel() {
 5. Explicação do código.
    O cliente frontend concentra as chamadas HTTP para a API de consentimentos e reutiliza `requestMf3Json`, mantendo cookies HttpOnly, CSRF e tratamento de erro alinhados com os BKs anteriores. O painel não guarda permissões em storage do browser; usa sempre a API para carregar e alterar decisões.
 
-   `items` mantém o histórico recebido, `loading` mostra o carregamento inicial, `pendingPurpose` bloqueia cliques duplicados na finalidade que está a ser guardada e `error` mostra falhas em `role="alert"`. A decisão apresentada em cada botão vem do registo mais recente encontrado para aquela finalidade. Quando o utilizador concede ou revoga, a decisão devolvida pela API é colocada no topo para que a UI reflita imediatamente o novo estado.
+   `capabilities` contém o estado efetivo calculado pelo backend para cada finalidade;
+   `loading` mostra o carregamento inicial, `pendingPurpose` bloqueia cliques duplicados e
+   `error` mostra falhas em `role="alert"`. A UI nunca decide validade comparando strings de
+   versão: `CURRENT` permite revogar, `OUTDATED` oferece renovar e `MISSING`/`REVOKED`
+   oferecem conceder. Depois de cada decisão, o painel volta a pedir capabilities.
 6. Validação do passo.
-   Ao abrir o painel, deve existir uma chamada `GET /api/ai-consents`. Ao conceder `PRIVATE_AREA_AI`, deve existir `PUT /api/ai-consents/PRIVATE_AREA_AI` com `policyVersion`. Ao revogar a mesma finalidade, deve existir `DELETE /api/ai-consents/PRIVATE_AREA_AI`. Em ambos os casos, o botão deve ficar temporariamente desativado e a decisão mais recente deve aparecer como estado efectivo.
+   Ao abrir o painel ou um `AiConsentGate`, deve existir uma chamada a
+   `GET /api/ai-consents/capabilities`. Ao conceder ou renovar `PRIVATE_AREA_AI`, deve
+   existir `PUT /api/ai-consents/PRIVATE_AREA_AI` sem versão hard-coded no browser. Ao
+   revogar, deve existir `DELETE` no mesmo path. O botão fica temporariamente desativado e
+   `OUTDATED` apresenta linguagem explícita de renovação.
 7. Cenário negativo/erro esperado.
    Falha da API ao carregar, conceder ou revogar deve aparecer em `role="alert"`. Se o `try/catch` for removido do `toggle`, a rejeição da chamada pode ficar sem feedback visível e o aluno pode pensar que a decisão foi guardada quando não foi.
 
@@ -1103,10 +1231,10 @@ describe("AiConsentsService", () => {
         ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
-    it("permite IA quando o último consentimento está concedido", async () => {
+    it("permite IA quando o último consentimento está concedido na versão exigida", async () => {
         const { service } = makeService({
             purpose: AiConsentPurpose.PRIVATE_AREA_AI,
-            policyVersion: "2026-06-16",
+            policyVersion: "2026-07-09",
             status: "GRANTED",
             decidedAt: new Date("2026-06-16T10:00:00.000Z"),
         });
@@ -1119,10 +1247,30 @@ describe("AiConsentsService", () => {
         ).resolves.toBeUndefined();
     });
 
+    it("exige renovação quando o grant pertence a uma versão anterior", async () => {
+        const { service } = makeService({
+            purpose: AiConsentPurpose.PRIVATE_AREA_AI,
+            policyVersion: "2026-07-08",
+            status: "GRANTED",
+            decidedAt: new Date("2026-07-08T10:00:00.000Z"),
+        });
+
+        await expect(
+            service.assertGranted(
+                actor.id,
+                AiConsentPurpose.PRIVATE_AREA_AI,
+            ),
+        ).rejects.toMatchObject({
+            response: expect.objectContaining({
+                code: "AI_CONSENT_POLICY_OUTDATED",
+            }),
+        });
+    });
+
     it("bloqueia IA quando o último consentimento está revogado", async () => {
         const { service } = makeService({
             purpose: AiConsentPurpose.PRIVATE_AREA_AI,
-            policyVersion: "revoked",
+            policyVersion: "2026-07-09",
             status: "REVOKED",
             decidedAt: new Date("2026-06-17T10:00:00.000Z"),
         });
@@ -1142,7 +1290,7 @@ describe("AiConsentsService", () => {
             {
                 toObject: () => ({
                     purpose: AiConsentPurpose.PROJECT_AI,
-                    policyVersion: "2026-06-16",
+                    policyVersion: "2026-07-09",
                     status: "GRANTED",
                     decidedAt: new Date("2026-06-16T10:00:00.000Z"),
                 }),
@@ -1150,7 +1298,7 @@ describe("AiConsentsService", () => {
             {
                 toObject: () => ({
                     purpose: AiConsentPurpose.PROJECT_AI,
-                    policyVersion: "revoked",
+                    policyVersion: "2026-07-09",
                     status: "REVOKED",
                     decidedAt: new Date("2026-06-17T10:00:00.000Z"),
                 }),
@@ -1162,10 +1310,7 @@ describe("AiConsentsService", () => {
             .mockResolvedValueOnce(createdRows[1]);
 
         await expect(
-            service.grant(actor, {
-                purpose: AiConsentPurpose.PROJECT_AI,
-                policyVersion: "2026-06-16",
-            }),
+            service.grant(actor, AiConsentPurpose.PROJECT_AI, {}),
         ).resolves.toMatchObject({ status: "GRANTED" });
 
         await expect(
@@ -1198,13 +1343,21 @@ function makeService(latestConsent: unknown) {
 ```
 
 5. Explicação do código.
-   O teste cobre o default seguro e os dois estados relevantes depois da primeira decisão. Sem documento, `assertGranted` bloqueia. Com último documento `GRANTED`, a Promise resolve e o service IA pode continuar. Com último documento `REVOKED`, o erro volta a ser `AI_CONSENT_REQUIRED`. O último teste confirma que conceder e revogar criam decisões novas, em vez de apagar ou sobrescrever o histórico.
+   O teste cobre o default seguro e os estados relevantes depois da primeira decisão. Sem
+   documento, `assertGranted` bloqueia. Só um `GRANTED` na versão exigida permite continuar;
+   um grant antigo devolve `AI_CONSENT_POLICY_OUTDATED` para a UI apresentar renovação.
+   Com último documento `REVOKED`, o erro volta a ser `AI_CONSENT_REQUIRED`. O último teste
+   confirma que conceder e revogar criam decisões novas, em vez de apagar o histórico.
 
    O dobro de teste de Mongoose implementa apenas os métodos usados pelo service: `findOne`, `sort`, `lean` e `create`. Isto mantém o teste focado na regra de negócio, sem abrir ligação real a MongoDB. A conversão para `Model<AiConsentDocument>` fica isolada no helper `makeService`, deixando os cenários legíveis.
 6. Validação do passo.
-   `npm run test:unit -- ai-consents` deve mostrar os quatro cenários a passar: ausência bloqueia, concessão permite, revogação bloqueia e histórico append-only é preservado.
+   `npm run test:unit -- ai-consents` deve mostrar os cinco cenários a passar: ausência
+   bloqueia, concessão atual permite, versão anterior exige renovação, revogação bloqueia e
+   histórico append-only é preservado.
 7. Cenário negativo/erro esperado.
-   Se `assertGranted` aceitar ausência de registo ou último estado `REVOKED`, o teste falha. Se `grant` ou `revoke` deixarem de criar documentos novos, o teste de histórico falha e evita perder rastreabilidade.
+   Se `assertGranted` aceitar ausência, último estado `REVOKED` ou um `GRANTED` desatualizado,
+   o teste falha. Se `grant` ou `revoke` deixarem de criar documentos novos, o teste de
+   histórico falha e evita perder rastreabilidade.
 
 ### Passo 7 - Validar contrato final
 
@@ -1228,10 +1381,13 @@ Sem código neste passo.
 #### Critérios de aceite
 
 - Consentimentos são por finalidade e versão.
+- `/capabilities` devolve `requiredVersion`, estado e `canUse` por finalidade.
+- Um grant antigo fica `OUTDATED`, bloqueia a IA e pode ser renovado inline.
 - Revogação bloqueia chamadas futuras.
 - Nenhum endpoint recebe `targetUserId`.
 - Services IA chamam `assertGranted`.
 - Frontend mostra loading e erro em `role="alert"` sem guardar decisão em storage.
+- Frontend não contém uma versão global hard-coded de consentimento.
 - Teste cobre ausência, concessão e revogação.
 
 #### Validação final
@@ -1257,3 +1413,4 @@ BK-MF4-07 continua a administração de utilizadores; BK-MF4-09 deve configurar 
 
 - `2026-06-18`: guia reforçado com teoria, controller validado por enum, frontend com loading/erro, testes de concessão/revogação e estrutura canónica do Passo 4 corrigida.
 - `2026-06-16`: guia corrigido com consentimento IA versionado e enforcement nos services IA.
+- `2026-07-11`: versões passam a ser resolvidas por finalidade; capabilities e renovação inline tornam-se contrato canónico.

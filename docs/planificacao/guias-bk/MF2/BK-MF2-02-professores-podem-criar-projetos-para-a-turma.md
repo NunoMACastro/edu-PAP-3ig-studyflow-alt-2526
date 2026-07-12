@@ -17,7 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF2-03`
 - `guia_path`: `docs/planificacao/guias-bk/MF2/BK-MF2-02-professores-podem-criar-projetos-para-a-turma.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
 
 ## Objetivo do BK
 
@@ -630,6 +630,15 @@ bash scripts/validate-planificacao.sh
 
 BK-MF2-03
 
+## Atualização de paridade professor → aluno (2026-07-11)
+
+Projetos são sempre criados em `DRAFT`, podem ser editados nesse estado e têm uma
+transição idempotente para `PUBLISHED`. Podem referir uma disciplina oficial opcional e
+guardar `subjectNameSnapshot`, prazo e data de publicação. O aluno recebe um contrato sem
+`teacherId`; em turma arquivada o projeto é histórico read-only. A publicação cria uma
+notificação in-app e o plano IA herda a voz da disciplina/turma.
+
 ## Changelog
 
 - `2026-06-08`: guia corrigido para contrato executável da MF2, com integração acumulativa, autorização explícita e validação do handoff.
+- `2026-07-11`: acrescentados draft/publish, disciplina oficial opcional, prazo, histórico e voz herdada.

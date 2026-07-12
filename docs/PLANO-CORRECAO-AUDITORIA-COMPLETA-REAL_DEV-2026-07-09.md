@@ -12,8 +12,8 @@ ranking_policy: BEST_ATTEMPT
 privacy_retention: ANONYMIZED_90_DAYS
 status: BLOQUEADO_OPERADOR
 created_at: 2026-07-09T20:26:24+01:00
-updated_at: 2026-07-10T17:32:46+01:00
-implementation_manifest_sha256: 799990e7a86c9595c786069889ce2a4e893cf5c9077d23a67e9df6194a84e538
+updated_at: 2026-07-11T11:55:00+01:00
+implementation_manifest_sha256: 3e2a162b59e2d23c5276df21a10b439519df71c3b9cee67d04c709ec818dfd5c
 ```
 
 ## 1. Autoridade e âmbito
@@ -175,6 +175,7 @@ estado da implementação de referência é registado separadamente em `real_dev
 | 2026-07-10T16:57:58+01:00 | SF-AUD-029 | REABERTO→PRONTO_VALIDAR | Codex/root | `799990e7…4e538` | manifesto, mapas gerados, audit/conformity, gate documental | 0 | SHA estável em 720 ficheiros; reauditoria independente final pendente. |
 | 2026-07-10T17:26:50+01:00 | SF-DOC-001,010,SF-AUD-029 | VALIDADO/PRONTO_VALIDAR→REABERTO→VALIDADO/PRONTO_VALIDAR | solver_check_diagnosis + Codex/root | `799990e7…4e538` | solver self-test/check; output canónico; `docs:verify` | 0 | 107 BK/164u; três repairs; 9 owner/17 sprint changes; zero violations; output determinístico. |
 | 2026-07-10T17:32:46+01:00 | SF-DOC-001..010,SF-AUD-029 | VALIDADO/PRONTO_VALIDAR→FECHADO | final_docs_reaudit | `799990e7…4e538` | reauditoria fresh read-only; manifesto/solver/docs gate/apps/blockers | 0 | PASS sem finding documental aberto; caches removidas; blockers manuais preservados. |
+| 2026-07-11T11:31:28+01:00 | SF-DOC-002,008..010,SF-AUD-029 | FECHADO→REABERTO→VALIDADO→FECHADO | Codex/root | `2f6ad3f7…9ed55c` | correção dos dois chats; mapa/inventário write/check; manifesto repetido; `docs:verify` | 0 | PASS: contratos atuais, extensão transversal sem novo RF/BK, 734 ficheiros, score 100 e blockers manuais preservados. |
 
 ## 6. Observações baixas
 
@@ -822,12 +823,14 @@ evidence de §8.3 fecha o ciclo documental e a revalidação no manifesto corren
 
 ### 8.3 Evidence autoritativa do ciclo documental
 
-Nenhum comando abaixo guardou credenciais, cookies, URIs autenticadas ou dados pessoais. Os
-resultados estão associados ao manifesto completo
-`799990e7a86c9595c786069889ce2a4e893cf5c9077d23a67e9df6194a84e538`.
+Nenhum comando abaixo guardou credenciais, cookies, URIs autenticadas ou dados pessoais. O
+ledger corrente está ligado ao manifesto
+`3e2a162b59e2d23c5276df21a10b439519df71c3b9cee67d04c709ec818dfd5c`; cada linha histórica
+mantém explicitamente o manifesto do ciclo em que a respetiva evidence foi recolhida.
 
 | Evidence ID | Finding | Tipo | Manifesto | Comando/procedimento | Exit/result sanitizado | Data | Reviewer |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| EV-DOC-CHAT-20260711 | SF-DOC-002,008..010,SF-AUD-029 | CHAT DOCS/GENERATED SOURCES | 2f6ad3f7…9ed55c | teste focado do mapa; regeneração/check de mapa e inventário; `docs:verify` | PASS: 734 ficheiros; 9/9 testes do gerador; dois chats separados; 57 RF/45 RNF/107 BK; score 100; zero drift/issues/secrets | 2026-07-11 | Codex/root |
 | EV-DOC-MANIFEST-001 | TODOS | MANIFEST | 799990e7…4e538 | `npm --prefix real_dev/api run manifest:hash` antes/depois da validação | PASS: 720 ficheiros; SHA-256 reproduzido | 2026-07-10 | Codex/root |
 | EV-DOC-001 | SF-DOC-001 | AUTHORITY/STATUS | 799990e7…4e538 | `sync_real_dev_status.py --manifest … --check`; auditoria canónica | PASS: 107/107 BK; `estado=TODO|DONE`; referência/hash coerentes | 2026-07-10 | Codex/root |
 | EV-DOC-002 | SF-DOC-002 | SEMANTIC CONTRACT | 799990e7…4e538 | scanner semântico sobre 107 guias e planos transversais | PASS: sessão v2/atomicidade/chat presentes; zero padrão legado | 2026-07-10 | Codex/root |

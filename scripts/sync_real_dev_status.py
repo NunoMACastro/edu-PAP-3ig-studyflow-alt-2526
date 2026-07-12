@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import re
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 
@@ -29,7 +30,6 @@ ALLOWED_STATUSES = {
 # from the student's progress field.
 STATUS_OVERRIDES = {
     "BK-MF0-01": "PARCIAL",  # email/password exists; email verification/SSO do not.
-    "BK-MF3-11": "PARCIAL",  # preferences/in-app exist; email/push delivery do not.
     "BK-MF5-11": "PARCIAL",  # local timeout/bulkheads do not guarantee provider latency.
     "BK-MF5-12": "PARCIAL",  # 200 requests with one authenticated session, not 200 users.
     "BK-MF6-03": "MITIGADO_POR_ESCOPO",  # single-instance local PAP.
@@ -126,13 +126,9 @@ def update_guide_header(text: str, status: str) -> str:
             count=1,
             flags=re.MULTILINE,
         )
-    return re.sub(
-        r"^- `last_updated`: `[^`]+`$",
-        "- `last_updated`: `2026-07-10`",
-        updated,
-        count=1,
-        flags=re.MULTILINE,
-    )
+    # `last_updated` pertence ao conteúdo pedagógico do guia. Sincronizar o
+    # estado de real_dev não deve reescrever nem fazer regredir essa data.
+    return updated
 
 
 def evidence_for(row: BkRow, manifest: str) -> str:
@@ -182,7 +178,7 @@ def reopen_condition(row: BkRow) -> str:
     return "Reabre quando o código mudar ou a evidence deixar de corresponder ao manifesto."
 
 
-def render_reference(rows: list[BkRow], manifest: str) -> str:
+def render_reference(rows: list[BkRow], manifest: str, updated_at: str) -> str:
     table_rows = [
         join_table_row(
             [
@@ -204,7 +200,7 @@ implementation_manifest_sha256: {manifest}
 authority: docs/PLANO-CORRECAO-AUDITORIA-COMPLETA-REAL_DEV-2026-07-09.md
 target: PAP_LOCAL_ENDURECIDA
 global_status: BLOQUEADO_OPERADOR
-updated_at: 2026-07-10
+updated_at: {updated_at}
 ```
 
 ## Regras
@@ -255,6 +251,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True, help="Current 64-character implementation SHA-256.")
     parser.add_argument("--check", action="store_true", help="Fail if generated files differ.")
+    parser.add_argument(
+        "--updated-at",
+        help="Data ISO da referência numa escrita explícita; em check preserva a data existente.",
+    )
     args = parser.parse_args()
     if not re.fullmatch(r"[a-f0-9]{64}", args.manifest):
         raise SystemExit("--manifest deve ser um SHA-256 hexadecimal com 64 caracteres")
@@ -264,6 +264,17 @@ def main() -> None:
     backlog_path = root / "docs/planificacao/backlogs/BACKLOG-MVP.md"
     views_path = root / "docs/planificacao/backlogs/MF-VIEWS.md"
     reference_path = root / "docs/planificacao/ESTADO-REFERENCIA-REAL_DEV.md"
+    existing_reference = reference_path.read_text(encoding="utf-8")
+    existing_date_match = re.search(
+        r"^updated_at: (\d{4}-\d{2}-\d{2})$",
+        existing_reference,
+        flags=re.MULTILINE,
+    )
+    updated_at = args.updated_at or (
+        existing_date_match.group(1) if existing_date_match else date.today().isoformat()
+    )
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", updated_at):
+        raise SystemExit("--updated-at deve usar YYYY-MM-DD")
 
     matrix_text, rows = add_status_column(matrix_path.read_text(encoding="utf-8"), path_column="guia_path")
     backlog_text, backlog_rows = add_status_column(backlog_path.read_text(encoding="utf-8"), path_column="guia")
@@ -276,7 +287,7 @@ def main() -> None:
         matrix_path: matrix_text,
         backlog_path: backlog_text,
         views_path: replace_generated_block(views_path.read_text(encoding="utf-8"), render_mf_views_block(rows)),
-        reference_path: render_reference(rows, args.manifest),
+        reference_path: render_reference(rows, args.manifest, updated_at),
     }
     for row in rows:
         guide_path = root / row.guide_path

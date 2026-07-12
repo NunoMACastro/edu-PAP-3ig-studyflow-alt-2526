@@ -1,4 +1,4 @@
-# BK-MF3-11 - Configurar preferências de notificações (email, push, app) por contexto.
+# BK-MF3-11 - Configurar preferências de notificações in-app por contexto
 
 ## Header
 
@@ -9,7 +9,7 @@
 - `apoio`: `Guilherme`
 - `prioridade`: `P1`
 - `estado`: `TODO`
-- `real_dev_status`: `PARCIAL`
+- `real_dev_status`: `IMPLEMENTADO_NAO_VALIDADO`
 - `esforco`: `S`
 - `dependencias`: `BK-MF0-02`
 - `rf_rnf`: `RF47`
@@ -18,11 +18,13 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF3-12`
 - `guia_path`: `docs/planificacao/guias-bk/MF3/BK-MF3-11-configurar-preferencias-de-notificacoes-email-push-app-por-contexto.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
 
 #### Objetivo
 
-Neste BK vais implementar preferências de notificações por contexto. O guia parte dos contratos canónicos de RF47, da sequência MF0-MF2 e dos BKs que desbloqueiam este requisito.
+Neste BK vais implementar preferências de notificações in-app por contexto. O nome histórico
+do ficheiro mantém `email-push-app` para não quebrar links canónicos, mas email e push estão
+fora do contrato executável desta fase.
 
 #### Importância
 
@@ -77,8 +79,9 @@ Este BK transforma o requisito RF47 numa entrega copiável e testável. A funcio
 
 ##### Conceitos de domínio StudyFlow
 
-- Preferência de notificação define canais permitidos por contexto.
-- Email, push e app são canais; app corresponde a aviso dentro da StudyFlow.
+- A preferência define se a entrega in-app está ativa em cada contexto.
+- Email e push são campos legados de compatibilidade, permanecem sempre `false` e um pedido que
+  tente ativá-los devolve `422 NOTIFICATION_CHANNEL_NOT_AVAILABLE`.
 - A preferência pertence ao utilizador autenticado e não pode ser alterada para outro aluno.
 - O BK seguinte consulta estas preferências antes de mostrar alertas.
 
@@ -140,12 +143,17 @@ Este BK transforma o requisito RF47 numa entrega copiável e testável. A funcio
 
 ```ts
 // apps/api/src/modules/notification-preferences/dto/update-notification-preferences.dto.ts
-import { IsBoolean, IsEnum } from "class-validator";
+import { IsBoolean, IsEnum, IsOptional } from "class-validator";
 
 export enum NotificationContext {
     STUDY_ROUTINE = "STUDY_ROUTINE",
     STUDY_GOAL = "STUDY_GOAL",
     GROUP_SESSION = "GROUP_SESSION",
+    GUIDED_ROOM = "GUIDED_ROOM",
+    FOLLOW_UP = "FOLLOW_UP",
+    CLASS_UPDATES = "CLASS_UPDATES",
+    LEARNING_CONTENT = "LEARNING_CONTENT",
+    ASSESSMENT = "ASSESSMENT",
 }
 
 /**
@@ -159,16 +167,18 @@ export class UpdateNotificationPreferencesDto {
     context!: NotificationContext;
 
     /**
-     * Permissão para email. A integração real não existe nesta fase.
+     * Campo legado aceite apenas como `false`.
      */
+    @IsOptional()
     @IsBoolean()
-    email!: boolean;
+    email?: boolean;
 
     /**
-     * Permissão para push. A integração real não existe nesta fase.
+     * Campo legado aceite apenas como `false`.
      */
+    @IsOptional()
     @IsBoolean()
-    push!: boolean;
+    push?: boolean;
 
     /**
      * Permissão para alerta dentro da app.
@@ -179,11 +189,14 @@ export class UpdateNotificationPreferencesDto {
 ```
 
 5. Explicação do código.
-   O DTO define o contrato de entrada. Cada campo tem JSDoc para explicar de onde vem e que erro evita. As validações devolvem `400 Bad Request` antes de qualquer leitura de dados.
+   O DTO define o contrato de entrada. `inApp` é o único canal funcional. Os campos legados
+   opcionais permitem rejeitar explicitamente tentativas de ativação com `422`, em vez de as
+   ignorar silenciosamente. Tipos inválidos continuam a devolver `400 Bad Request`.
 6. Validação do passo.
    Envia para `PUT /api/notification-preferences` um body vazio e confirma que a validação devolve `400`.
 7. Cenário negativo/erro esperado.
-   Não aceites IDs de aluno no body. O utilizador vem da sessão autenticada.
+   Não aceites IDs de aluno no body. O utilizador vem da sessão autenticada. `email: true` ou
+   `push: true` têm de devolver `422 NOTIFICATION_CHANNEL_NOT_AVAILABLE`.
 
 ### Passo 2 - Criar o schema de persistência
 
@@ -235,7 +248,9 @@ NotificationPreferenceSchema.index({ userId: 1, context: 1 }, { unique: true });
 ```
 
 5. Explicação do código.
-   O schema evita respostas soltas: a app guarda quem executou o fluxo, que dados foram usados e que resultado foi devolvido. Isto permite testes e continuidade.
+   O schema mantém `email` e `push` a `false` apenas para compatibilidade de dados. A única
+   preferência funcional é `inApp`; o service nunca persiste os canais indisponíveis como
+   ativos. O índice impede duas preferências para o mesmo utilizador/contexto.
 6. Validação do passo.
    Arranca a API depois do módulo e confirma que o schema é registado pelo NestJS.
 7. Cenário negativo/erro esperado.
@@ -254,7 +269,7 @@ NotificationPreferenceSchema.index({ userId: 1, context: 1 }, { unique: true });
 
 ```ts
 // apps/api/src/modules/notification-preferences/notification-preferences.service.ts
-import { Injectable } from "@nestjs/common";
+import { Injectable, UnprocessableEntityException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import {
@@ -323,6 +338,12 @@ export class NotificationPreferencesService {
         userId: string,
         input: UpdateNotificationPreferencesDto,
     ): Promise<NotificationPreferenceView> {
+        if (input.email || input.push) {
+            throw new UnprocessableEntityException({
+                code: "NOTIFICATION_CHANNEL_NOT_AVAILABLE",
+                message: "Nesta versão, apenas as notificações dentro da aplicação estão disponíveis.",
+            });
+        }
         const preference = await this.preferenceModel
             .findOneAndUpdate(
                 {
@@ -331,8 +352,8 @@ export class NotificationPreferencesService {
                 },
                 {
                     $set: {
-                        email: input.email,
-                        push: input.push,
+                        email: false,
+                        push: false,
                         inApp: input.inApp,
                     },
                     $setOnInsert: {
@@ -390,11 +411,14 @@ export class NotificationPreferencesService {
 ```
 
 5. Explicação do código.
-   O service recebe o actor autenticado, valida o contexto com services de BKs anteriores e só depois lê, grava ou chama IA. Isto impede que a UI contorne regras de segurança.
+   O service deriva o utilizador da sessão e falha explicitamente quando o cliente tenta ativar
+   email/push. A escrita força os campos legados a `false`; assim, um payload antigo nunca ativa
+   silenciosamente uma integração inexistente.
 6. Validação do passo.
    Cria testes unitários para sessão válida, contexto proibido e dados insuficientes.
 7. Cenário negativo/erro esperado.
-   Não faças consultas diretas por ID sem validar owner ou membership.
+   Não faças consultas diretas por ID sem validar o utilizador da sessão. Testa também
+   `email: true` e `push: true`, ambos com resposta `422` estável.
 
 ### Passo 4 - Expor o endpoint no controller
 
@@ -529,7 +553,12 @@ import { requestMf3Json } from "../mf3/request-mf3-json.js";
 export type NotificationContext =
     | "STUDY_ROUTINE"
     | "STUDY_GOAL"
-    | "GROUP_SESSION";
+    | "GROUP_SESSION"
+    | "GUIDED_ROOM"
+    | "FOLLOW_UP"
+    | "CLASS_UPDATES"
+    | "LEARNING_CONTENT"
+    | "ASSESSMENT";
 
 export type NotificationPreference = {
     _id?: string;
@@ -560,13 +589,19 @@ export function updateNotificationPreferences(
 ): Promise<NotificationPreference> {
     return requestMf3Json<NotificationPreference>("/api/notification-preferences", {
         method: "PUT",
-        body: JSON.stringify(input),
+        body: JSON.stringify({
+            context: input.context,
+            inApp: input.inApp,
+            email: false,
+            push: false,
+        }),
     });
 }
 ```
 
 5. Explicação do código.
-   `credentials: 'include'` envia o cookie de sessão sem guardar tokens no `localStorage`. `updateNotificationPreferences` cobre a gravação de um contexto e `loadNotificationPreferences` cobre a leitura usada pela UI e pelo handoff para `BK-MF3-12`.
+   `credentials: 'include'` envia o cookie de sessão sem guardar tokens no `localStorage`.
+   O cliente envia os campos legados sempre a `false`; a UI só altera `inApp`.
 6. Validação do passo.
    Força a API a devolver erro e confirma que o componente recebe uma exceção.
 7. Cenário negativo/erro esperado.
@@ -596,6 +631,11 @@ const contextLabels: Record<NotificationPreference["context"], string> = {
     STUDY_ROUTINE: "Rotinas",
     STUDY_GOAL: "Objetivos",
     GROUP_SESSION: "Sessões",
+    GUIDED_ROOM: "Salas guiadas",
+    FOLLOW_UP: "Acompanhamento docente",
+    CLASS_UPDATES: "Atualizações das turmas",
+    LEARNING_CONTENT: "Conteúdos de aprendizagem",
+    ASSESSMENT: "Avaliações",
 };
 
 /**
@@ -622,13 +662,12 @@ export function NotificationPreferencesPanel() {
 
     async function toggle(
         preference: NotificationPreference,
-        field: "email" | "push" | "inApp",
     ): Promise<void> {
         setError(null);
         try {
             const updated = await updateNotificationPreferences({
                 ...preference,
-                [field]: !preference[field],
+                inApp: !preference.inApp,
             });
             setPreferences((current) =>
                 current.map((item) =>
@@ -642,25 +681,22 @@ export function NotificationPreferencesPanel() {
 
     return (
         <section className="sf-panel space-y-4">
-            <h2 className="text-lg font-semibold">Notificações</h2>
+            <h2 className="text-lg font-semibold">Notificações in-app</h2>
+            <p className="text-sm">Email e push não estão disponíveis nesta fase.</p>
             {error ? <p className="sf-error">{error}</p> : null}
             {loading ? <p className="text-sm text-slate-600">A carregar preferências...</p> : null}
             <div className="grid gap-3">
                 {preferences.map((preference) => (
                     <article className="rounded-md border border-slate-200 p-3" key={preference.context}>
                         <h3 className="font-medium">{contextLabels[preference.context]}</h3>
-                        <div className="mt-2 flex flex-wrap gap-3 text-sm">
-                            {(["email", "push", "inApp"] as const).map((field) => (
-                                <label className="flex items-center gap-2" key={field}>
-                                    <input
-                                        type="checkbox"
-                                        checked={preference[field]}
-                                        onChange={() => void toggle(preference, field)}
-                                    />
-                                    {field === "inApp" ? "app" : field}
-                                </label>
-                            ))}
-                        </div>
+                        <label className="mt-2 flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={preference.inApp}
+                                onChange={() => void toggle(preference)}
+                            />
+                            na aplicação
+                        </label>
                     </article>
                 ))}
             </div>
@@ -670,7 +706,9 @@ export function NotificationPreferencesPanel() {
 ```
 
 5. Explicação do código.
-   O componente valida o fluxo real de escrita e leitura. `handleSubmit` testa `PUT /api/notification-preferences`; `handleLoadPreferences` testa `GET /api/notification-preferences`. Ambos usam o cliente tipado, mostram loading, erro e sucesso, e não guardam tokens no browser.
+   O componente mostra um único switch por contexto, alinhado com o canal realmente suportado.
+   A leitura e a escrita usam o cliente tipado, mostram loading/erro e não guardam tokens no
+   browser.
 6. Validação do passo.
    Preenche o formulário, submete e confirma que o resultado aparece sem reload da página.
 7. Cenário negativo/erro esperado.
@@ -723,13 +761,14 @@ Sem código neste passo. Este passo é de validação: usa os testes Jest existe
 ```bash
 curl -i -X PUT http://localhost:3000/api/notification-preferences \
   -H 'Content-Type: application/json' \
-  -d '{ "context": "STUDY_ROUTINE", "email": true, "push": false, "inApp": true }'
+  -d '{ "context": "STUDY_ROUTINE", "email": false, "push": false, "inApp": true }'
 ```
 
 ##### Negativos obrigatórios
 
 - Sem cookie de sessão: `401 Unauthorized`.
 - Campo obrigatório em falta: `400 Bad Request`.
+- `email: true` ou `push: true`: `422 NOTIFICATION_CHANNEL_NOT_AVAILABLE`.
 - Recurso de outro aluno, grupo ou turma: `403 Forbidden` ou `404 Not Found`.
 - Fonte inexistente ou não processável: `422 Unprocessable Entity` nos fluxos que usam fontes.
 
@@ -748,7 +787,23 @@ curl -i -X PUT http://localhost:3000/api/notification-preferences \
 - A equipa deve partir dos nomes exactos deste guia para evitar drift de imports.
 - Se algum service herdado tiver assinatura diferente na implementação real, ajusta a chamada no PR e regista a diferença no relatório técnico.
 
+### Atualização de escopo implementado (2026-07-11)
+
+Esta versão implementa apenas entrega `IN_APP`. A UI não apresenta email/push e a API
+recusa esses canais com `422 NOTIFICATION_CHANNEL_NOT_AVAILABLE`. Os contextos são
+`FOLLOW_UP`, `CLASS_UPDATES`, `LEARNING_CONTENT`, `ASSESSMENT`, `GUIDED_ROOM` e os
+contextos privados/grupo já existentes. A inbox tem estado por destinatário, paginação,
+`readAt`, read-all, arquivo e atualização periódica numa única store.
+
+O endpoint manual de notificações só aceita `NEW_MATERIAL`, `FEEDBACK` e `TASK` em contexto
+de turma autorizado. `FOLLOW_UP` é criado exclusivamente pelo Centro de Acompanhamento;
+eventos de lifecycle e publicação são emitidos apenas pelos serviços de domínio. As quotas
+anti-spam aplicam-se ao envio manual, enquanto a outbox automática respeita canal e preferência
+sem perder eventos académicos. No momento da entrega, o worker revalida ownership/membership;
+uma remoção atrasada é descartada se o aluno entretanto tiver sido readicionado.
+
 #### Changelog
 
 - `2026-06-16`: contratos de autenticação, rotas, imports e caminhos alinhados com `real_dev`.
 - `2026-06-13`: versão pedagógica inicial com tutorial linear e código integrado por passo.
+- `2026-07-11`: escopo fechado em in-app, nova taxonomia, lifecycle da inbox, allowlist manual e revalidação na entrega documentados.

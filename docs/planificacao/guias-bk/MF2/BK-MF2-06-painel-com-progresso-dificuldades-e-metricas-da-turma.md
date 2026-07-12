@@ -17,7 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF2-07`
 - `guia_path`: `docs/planificacao/guias-bk/MF2/BK-MF2-06-painel-com-progresso-dificuldades-e-metricas-da-turma.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
 
 ## Objetivo do BK
 
@@ -46,7 +46,9 @@ Este BK transforma actividades e conteúdos em sinais pedagógicos accionáveis.
 
 ## Estado depois
 
-Existe `ClassProgressModule` com endpoint docente e página de painel. Os dados são agregados por turma validada e não expõem dados de outras turmas.
+Existe `ClassProgressModule` com endpoint docente e uma página intitulada **Resumo da turma**. A rota histórica `/app/professor/turmas/:classId/progresso` mantém-se por compatibilidade, mas a UI apresenta apenas contexto factual e notas append-only; não transforma publicações, notas ou conteúdos numa percentagem de aprendizagem.
+
+O resumo mostra número de alunos, disciplinas, mini-testes publicados, publicações e notas. O registo docente apresenta título, observação, etiquetas e data, da nota mais recente para a mais antiga. Estados de loading, erro, vazio e sucesso são explícitos, e um erro ao criar uma nota fica limitado ao painel lateral.
 
 ## Pré-requisitos
 
@@ -58,7 +60,8 @@ Existe `ClassProgressModule` com endpoint docente e página de painel. Os dados 
 
 - Métrica da turma: valor agregado visível ao professor.
 - Dificuldade: tópico ou área em que a turma apresenta menor desempenho.
-- Progresso: percentagem ou contagem de avanço pedagógico.
+- Progresso: avanço pedagógico suportado por dados de aprendizagem; não pode ser inferido a partir da quantidade de conteúdos ou notas criadas.
+- Resumo da turma: factos existentes e registo docente, sem médias, risco ou percentagens sintéticas.
 
 ## Conceitos teóricos
 
@@ -78,7 +81,7 @@ Existe `ClassProgressModule` com endpoint docente e página de painel. Os dados 
 
 ## Arquitetura do BK
 
-`ClassProgressService` valida a turma via `ClassesService`, monta um resumo e devolve um DTO de leitura. `ClassProgressController` expõe a rota docente; o frontend apresenta cartões e listas de dificuldade.
+`ClassProgressService` valida a turma via `ClassesService`, monta um resumo factual e devolve as notas ordenadas. `ClassProgressController` mantém a rota docente; o frontend apresenta contexto, atalhos e o registo docente. O contrato não inclui `learningProgressPercent`, `activityCoveragePercent`, `metricsBasis` ou mensagens técnicas sobre macrofases.
 
 ## Ficheiros previstos
 
@@ -386,7 +389,18 @@ export class Mf2Module {}
 
 ~~~ts
 // apps/web/src/lib/api/class-progress.ts
-export type ClassProgressDashboard = { classId: string; noteCount: number; postCount: number; difficultyTags: string[]; notes: { id: string; title: string; note: string; difficultyTags: string[] }[] };
+export type TeacherClassSummary = {
+    classId: string;
+    className: string;
+    studentsCount: number;
+    subjectsCount: number;
+    publishedTestsCount: number;
+    approvedAiContentCount: number;
+    postCount: number;
+    noteCount: number;
+    difficultyTags: string[];
+    notes: { id: string; title: string; note: string; difficultyTags: string[]; createdAt?: string }[];
+};
 export type CreateClassProgressNoteInput = { title: string; note: string; difficultyTags?: string[] };
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(path, {
@@ -401,11 +415,11 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
     return response.json() as Promise<T>;
 }
-export function getClassProgressDashboard(classId: string) {
-    return requestJson<ClassProgressDashboard>("/api/teacher/classes/" + classId + "/progress-dashboard");
+export function getTeacherClassSummary(classId: string) {
+    return requestJson<TeacherClassSummary>("/api/teacher/classes/" + classId + "/progress");
 }
 export function createClassProgressNote(classId: string, input: CreateClassProgressNoteInput) {
-    return requestJson<ClassProgressDashboard["notes"][number]>("/api/teacher/classes/" + classId + "/progress-dashboard/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+    return requestJson<TeacherClassSummary["notes"][number]>("/api/teacher/classes/" + classId + "/progress/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
 }
 ~~~
 
@@ -439,29 +453,36 @@ export function createClassProgressNote(classId: string, input: CreateClassProgr
 ~~~tsx
 // apps/web/src/pages/mf2/ClassProgressDashboardPage.tsx
 import { useEffect, useState } from "react";
-import { getClassProgressDashboard, ClassProgressDashboard } from "../../lib/api/class-progress";
+import { getTeacherClassSummary, TeacherClassSummary } from "../../lib/api/class-progress";
 
-export function ClassProgressDashboardPage() {
-    const [classId, setClassId] = useState("");
-    const [dashboard, setDashboard] = useState<ClassProgressDashboard | null>(null);
+export function ClassProgressDashboardPage({ classId }: { classId: string }) {
+    const [summary, setSummary] = useState<TeacherClassSummary | null>(null);
     const [error, setError] = useState("");
     useEffect(() => {
-        if (!classId.trim()) return;
-
-        getClassProgressDashboard(classId.trim())
-            .then(setDashboard)
-            .catch((err) => setError(err instanceof Error ? err.message : "Erro ao carregar painel."));
+        getTeacherClassSummary(classId)
+            .then(setSummary)
+            .catch((err) => setError(err instanceof Error ? err.message : "Erro ao carregar resumo."));
     }, [classId]);
     return (
         <main>
-            <h1>Painel da turma</h1>
-            <input value={classId} onChange={(event) => setClassId(event.target.value)} placeholder="ID da turma" />
+            <h1>Resumo da turma</h1>
             {error && <p role="alert">{error}</p>}
-            {dashboard && (
+            {!summary && !error && <p>A carregar resumo da turma...</p>}
+            {summary && (
                 <section>
-                    <p>Publicações: {dashboard.postCount}</p>
-                    <p>Notas: {dashboard.noteCount}</p>
-                    <p>Dificuldades: {dashboard.difficultyTags.join(", ") || "Sem dados"}</p>
+                    <h2>Contexto da turma</h2>
+                    <p>Alunos: {summary.studentsCount}</p>
+                    <p>Disciplinas: {summary.subjectsCount}</p>
+                    <p>Mini-testes publicados: {summary.publishedTestsCount}</p>
+                    <p>Publicações: {summary.postCount}</p>
+                    <h2>Registo docente</h2>
+                    {summary.notes.length === 0 ? <p>Ainda não existem notas.</p> : summary.notes.map((item) => (
+                        <article key={item.id}>
+                            <h3>{item.title}</h3>
+                            <p>{item.note}</p>
+                            <p>{item.createdAt ?? "Data não disponível"}</p>
+                        </article>
+                    ))}
                 </section>
             )}
         </main>
@@ -518,8 +539,9 @@ bash scripts/validate-planificacao.sh
 
 ## Expected results
 
-- Professor consulta painel de turma sua.
-- Resposta inclui progresso, dificuldades e métricas agregadas.
+- Professor consulta o resumo factual de uma turma sua.
+- Resposta inclui contexto existente e notas append-only ordenadas por data.
+- A UI não apresenta percentagens sintéticas, classificações de risco ou mensagens técnicas sobre macrofases.
 - Professor não consulta turma de outro professor.
 - Aluno não acede ao painel docente.
 
@@ -530,11 +552,13 @@ bash scripts/validate-planificacao.sh
 - O controller só declara parâmetros reais das rotas.
 - O service valida ownership ou membership antes de consultar dados.
 - A página usa cliente API tipado e cookies HttpOnly.
+- A página mostra loading, erro, vazio, sucesso e fallback para notas sem `createdAt`.
 
 ## Validação final
 
-- Confirmar que `ClassesService.findOwnedClass` é chamado antes de montar métricas.
+- Confirmar que `ClassesService.findOwnedClass` é chamado antes de montar o resumo.
 - Confirmar que não há IDs de aluno expostos desnecessariamente.
+- Confirmar que criar uma nota não produz nem altera qualquer percentagem de aprendizagem.
 - Executar caso positivo e dois cenários negativos.
 
 ## Evidence para PR/defesa
@@ -548,6 +572,19 @@ bash scripts/validate-planificacao.sh
 
 BK-MF2-07
 
+## Atualização de paridade professor → aluno (2026-07-11)
+
+O Centro usa `ClassLearningActivity` e `StudentClassActivityState`, estritamente
+delimitados a `classId`; eventos de estudo privado nunca contam para inatividade. O
+baseline é `ClassMembership.joinedAt`, evitando sinalizar um aluno recém-inscrito. O
+endpoint `GET /api/follow-up-centre/classes/:classId/students/:studentId` consolida
+atividade temporal, salas guiadas, política `BEST_ATTEMPT` dos testes e quizzes IA
+aprovados. Devolve sinais factuais explicados, sem score de risco nem diagnóstico oculto.
+Evento e projeção de atividade confirmam na mesma transação. O progresso de salas usa o
+`joinedAt`: salas encerradas antes da adesão não entram no denominador do novo aluno.
+
 ## Changelog
 
+- `2026-07-11`: UI real alinhada como `Resumo da turma`, contrato reduzido a factos existentes e notas append-only com data; removidas percentagens sintéticas e mensagens técnicas da experiência docente.
 - `2026-06-08`: guia corrigido para contrato executável da MF2, com integração acumulativa, autorização explícita e validação do handoff.
+- `2026-07-11`: acrescentados fonte canónica por turma, baseline de membership e detalhe factual consolidado por aluno.

@@ -17,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF2-05`
 - `guia_path`: `docs/planificacao/guias-bk/MF2/BK-MF2-04-criar-testes-mini-testes-oficiais.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
 
 ## Objetivo do BK
 
@@ -707,6 +707,15 @@ bash scripts/validate-planificacao.sh
 
 BK-MF2-05
 
+## Atualização de paridade professor → aluno (2026-07-11)
+
+O fecho é recusado com `409 OFFICIAL_TEST_REQUIRED_BY_OPEN_GUIDED_ROOM` enquanto
+uma sala guiada aberta exigir o teste. Submissão, fecho e criação/reabertura da dependência
+partilham o documento-fence numa transação. A listagem discente agrega tentativas sem N+1
+e devolve `latestAttempt`, `canSubmit`, `blockedReason` e `attemptsRemaining` coerentes.
+Publicação e fecho produzem notificações in-app idempotentes.
+
 ## Changelog
 
 - `2026-06-08`: guia corrigido para contrato executável da MF2, com integração acumulativa, autorização explícita e validação do handoff.
+- `2026-07-11`: acrescentados invariant sala/teste, fence concorrente, contrato discente agregado e notificações.

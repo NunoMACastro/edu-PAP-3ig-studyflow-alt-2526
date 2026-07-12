@@ -17,7 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF2-06`
 - `guia_path`: `docs/planificacao/guias-bk/MF2/BK-MF2-05-rever-e-aprovar-conteudo-gerado-pela-ia-resumos-quizzes.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
 
 ## Objetivo do BK
 
@@ -32,6 +32,8 @@ Este BK introduz curadoria docente. A IA pode apoiar a produção, mas o profess
 - Criar registos de revisão por material oficial.
 - Guardar tipo de conteúdo, estado, decisão e comentário do professor.
 - Aprovar ou rejeitar conteúdo gerado.
+- Disponibilizar aos alunos inscritos apenas conteúdo aprovado.
+- Corrigir e persistir tentativas de quizzes aprovados, com histórico próprio minimizado.
 - Garantir que só o professor da disciplina consegue rever.
 
 ## Scope-out
@@ -39,6 +41,7 @@ Este BK introduz curadoria docente. A IA pode apoiar a produção, mas o profess
 - Gerar o conteúdo por IA dentro deste BK.
 - Publicar automaticamente conteúdos rejeitados.
 - Gestão de workflows multi-aprovador.
+- Rankings competitivos ou KPIs sintéticos para quizzes aprovados.
 
 ## Estado antes
 
@@ -46,7 +49,7 @@ Este BK introduz curadoria docente. A IA pode apoiar a produção, mas o profess
 
 ## Estado depois
 
-Existe `AiContentReviewsModule`, ligado a materiais oficiais e disciplinas. O professor pode aprovar ou rejeitar conteúdos e deixar comentário auditável para uso posterior.
+Existe `AiContentReviewsModule`, ligado a materiais oficiais processados e disciplinas. O professor trabalha numa fila por material, pode aprovar ou rejeitar com comentário e pode rever uma decisão. Cada transição fica no audit log. O aluno inscrito vê apenas conteúdos atualmente aprovados; quizzes estruturados são corrigidos e cada tentativa fica persistida em `ApprovedAiQuizAttempt`, sem duplicar a chave de soluções.
 
 ## Pré-requisitos
 
@@ -58,7 +61,8 @@ Existe `AiContentReviewsModule`, ligado a materiais oficiais e disciplinas. O pr
 
 - Conteúdo gerado: resumo, quiz ou texto produzido por IA.
 - Revisão docente: decisão explícita do professor.
-- Aprovado: conteúdo que pode ser reutilizado em contexto oficial.
+- Aprovado: conteúdo imediatamente visível aos alunos inscritos na disciplina.
+- Quiz aprovado: questionário cuja solução só é devolvida depois da submissão completa.
 
 ## Conceitos teóricos
 
@@ -78,7 +82,7 @@ Existe `AiContentReviewsModule`, ligado a materiais oficiais e disciplinas. O pr
 
 ## Arquitetura do BK
 
-`AiContentReviewsService` valida o material oficial, cria revisões e altera estados. O controller expõe criação, listagem e decisão. O frontend mostra uma fila de revisão por disciplina/material.
+`AiContentReviewsService` valida o material processado, normaliza resumos/quizzes, cria revisões, audita decisões e limita o consumo do aluno a `APPROVED`. O controller preserva criação, listagem e decisão docentes e acrescenta leitura/correção para alunos. `POST /api/student/subjects/:subjectId/approved-ai-content/:reviewId/quiz-attempts` persiste uma tentativa; o `GET` no mesmo path devolve apenas o histórico do próprio aluno, sem soluções. O frontend mostra uma fila por disciplina/material e uma página de conteúdos aprovados.
 
 ## Ficheiros previstos
 
@@ -130,45 +134,43 @@ export class AiContentReview {
     teacherId!: Types.ObjectId;
 
     @Prop({ required: true, enum: ["SUMMARY", "QUIZ"] })
-    kind!: "SUMMARY" | "QUIZ";
+    contentType!: "SUMMARY" | "QUIZ";
 
-    @Prop({ required: true, trim: true, minlength: 20, maxlength: 20000 })
-    generatedContent!: string;
+    @Prop({ type: Object, required: true })
+    contentJson!: Record<string, unknown>;
 
     @Prop({ required: true, enum: ["PENDING", "APPROVED", "REJECTED"], default: "PENDING" })
     status!: AiContentReviewStatus;
 
-    @Prop({ trim: true, maxlength: 2000 })
-    rejectionReason?: string;
+    @Prop({ trim: true, maxlength: 1000 })
+    teacherComment?: string;
 }
 
 export const AiContentReviewSchema = SchemaFactory.createForClass(AiContentReview);
 AiContentReviewSchema.index({ subjectId: 1, status: 1, createdAt: -1 });
 
 // apps/api/src/modules/ai-content-reviews/dto/ai-content-review.dto.ts
-import { IsEnum, IsMongoId, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+import { IsIn, IsObject, IsOptional, IsString, MaxLength } from "class-validator";
 
 export class CreateAiContentReviewDto {
-    @IsMongoId()
+    @IsString()
     materialId!: string;
 
-    @IsEnum(["SUMMARY", "QUIZ"])
-    kind!: "SUMMARY" | "QUIZ";
+    @IsIn(["SUMMARY", "QUIZ"])
+    contentType!: "SUMMARY" | "QUIZ";
 
-    @IsString()
-    @MinLength(20)
-    @MaxLength(20000)
-    generatedContent!: string;
+    @IsObject()
+    contentJson!: Record<string, unknown>;
 }
 
 export class DecideAiContentReviewDto {
-    @IsEnum(["APPROVED", "REJECTED"])
+    @IsIn(["APPROVED", "REJECTED"])
     status!: "APPROVED" | "REJECTED";
 
     @IsOptional()
     @IsString()
-    @MaxLength(2000)
-    rejectionReason?: string;
+    @MaxLength(1000)
+    teacherComment?: string;
 }
 ~~~
 
@@ -201,7 +203,7 @@ export class DecideAiContentReviewDto {
 
 ~~~ts
 // apps/api/src/modules/ai-content-reviews/ai-content-reviews.service.ts
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request";
@@ -222,12 +224,11 @@ export class AiContentReviewsService {
     async create(actor: AuthenticatedUser, subjectId: string, dto: CreateAiContentReviewDto) {
         this.assertTeacher(actor);
         const subject = await this.subjectsService.findOwnedSubject(actor.id, subjectId);
-        const materials = await this.officialMaterialsService.findProcessedBySubject(subject);
-        const material = materials.find((item) => item._id.toString() === dto.materialId);
-        if (!material) {
+        const material = await this.officialMaterialsService.findOwnedMaterial(actor.id, dto.materialId);
+        if (material.subjectId !== subject._id || material.status !== "PROCESSED") {
             throw new NotFoundException("Material oficial processado não encontrado nesta disciplina.");
         }
-        const review = await this.reviews.create({ subjectId: subject._id, materialId: material._id, teacherId: new Types.ObjectId(actor.id), kind: dto.kind, generatedContent: dto.generatedContent.trim(), status: "PENDING" });
+        const review = await this.reviews.create({ subjectId: subject._id, materialId: material._id, teacherId: new Types.ObjectId(actor.id), contentType: dto.contentType, contentJson: dto.contentJson, status: "PENDING" });
         return this.toView(review);
     }
 
@@ -238,10 +239,12 @@ export class AiContentReviewsService {
         return reviews.map((review) => this.toView(review));
     }
 
-    async decide(actor: AuthenticatedUser, subjectId: string, reviewId: string, dto: DecideAiContentReviewDto) {
+    async decide(actor: AuthenticatedUser, reviewId: string, dto: DecideAiContentReviewDto) {
         this.assertTeacher(actor);
-        const subject = await this.subjectsService.findOwnedSubject(actor.id, subjectId);
-        const review = await this.reviews.findOneAndUpdate({ _id: reviewId, subjectId: subject._id, teacherId: new Types.ObjectId(actor.id) }, { status: dto.status, rejectionReason: dto.rejectionReason?.trim() }, { new: true });
+        if (dto.status === "REJECTED" && (dto.teacherComment?.trim().length ?? 0) < 5) {
+            throw new BadRequestException("A rejeição exige um motivo.");
+        }
+        const review = await this.reviews.findOneAndUpdate({ _id: reviewId, teacherId: new Types.ObjectId(actor.id) }, { status: dto.status, teacherComment: dto.teacherComment?.trim() }, { new: true });
         if (!review) {
             throw new NotFoundException("Revisão não encontrada nesta disciplina.");
         }
@@ -254,7 +257,7 @@ export class AiContentReviewsService {
         }
     }
     private toView(review: AiContentReview) {
-        return { id: review._id.toString(), kind: review.kind, status: review.status, generatedContent: review.generatedContent, rejectionReason: review.rejectionReason ?? null };
+        return { id: review._id.toString(), contentType: review.contentType, status: review.status, contentJson: review.contentJson, teacherComment: review.teacherComment ?? null };
     }
 }
 ~~~
@@ -297,23 +300,28 @@ import { AiContentReviewsService } from "./ai-content-reviews.service";
 import { CreateAiContentReviewDto, DecideAiContentReviewDto } from "./dto/ai-content-review.dto";
 
 @UseGuards(SessionGuard)
-@Controller("api/teacher/subjects/:subjectId/ai-content-reviews")
+@Controller("api")
 export class AiContentReviewsController {
     constructor(private readonly reviewsService: AiContentReviewsService) {}
 
-    @Post()
+    @Post("teacher/subjects/:subjectId/ai-content-reviews")
     create(@CurrentUser() actor: AuthenticatedUser, @Param("subjectId") subjectId: string, @Body() dto: CreateAiContentReviewDto) {
         return this.reviewsService.create(actor, subjectId, dto);
     }
 
-    @Get()
+    @Get("teacher/subjects/:subjectId/ai-content-reviews")
     list(@CurrentUser() actor: AuthenticatedUser, @Param("subjectId") subjectId: string) {
         return this.reviewsService.list(actor, subjectId);
     }
 
-    @Patch(":reviewId/decision")
-    decide(@CurrentUser() actor: AuthenticatedUser, @Param("subjectId") subjectId: string, @Param("reviewId") reviewId: string, @Body() dto: DecideAiContentReviewDto) {
-        return this.reviewsService.decide(actor, subjectId, reviewId, dto);
+    @Patch("teacher/ai-content-reviews/:reviewId")
+    decide(@CurrentUser() actor: AuthenticatedUser, @Param("reviewId") reviewId: string, @Body() dto: DecideAiContentReviewDto) {
+        return this.reviewsService.decide(actor, reviewId, dto);
+    }
+
+    @Get("student/subjects/:subjectId/approved-ai-content")
+    listApproved(@CurrentUser() actor: AuthenticatedUser, @Param("subjectId") subjectId: string) {
+        return this.reviewsService.listApprovedForStudent(actor, subjectId);
     }
 }
 
@@ -414,8 +422,8 @@ export class Mf2Module {}
 
 ~~~ts
 // apps/web/src/lib/api/ai-content-reviews.ts
-export type AiContentReviewView = { id: string; kind: "SUMMARY" | "QUIZ"; status: "PENDING" | "APPROVED" | "REJECTED"; generatedContent: string; rejectionReason: string | null };
-export type CreateAiContentReviewInput = { materialId: string; kind: "SUMMARY" | "QUIZ"; generatedContent: string };
+export type AiContentReviewView = { id: string; materialId: string; materialTitle: string; contentType: "SUMMARY" | "QUIZ"; contentJson: Record<string, unknown>; status: "PENDING" | "APPROVED" | "REJECTED"; teacherComment?: string; createdAt?: string; decidedAt: string | null };
+export type CreateAiContentReviewInput = { materialId: string; contentType: "SUMMARY" | "QUIZ"; contentJson: Record<string, unknown> };
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(path, {
         ...init,
@@ -435,8 +443,11 @@ export function listAiContentReviews(subjectId: string) {
 export function createAiContentReview(subjectId: string, input: CreateAiContentReviewInput) {
     return requestJson<AiContentReviewView>("/api/teacher/subjects/" + subjectId + "/ai-content-reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
 }
-export function decideAiContentReview(subjectId: string, reviewId: string, status: "APPROVED" | "REJECTED", rejectionReason?: string) {
-    return requestJson<AiContentReviewView>("/api/teacher/subjects/" + subjectId + "/ai-content-reviews/" + reviewId + "/decision", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, rejectionReason }) });
+export function decideAiContentReview(reviewId: string, status: "APPROVED" | "REJECTED", teacherComment?: string) {
+    return requestJson<AiContentReviewView>("/api/teacher/ai-content-reviews/" + reviewId, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, teacherComment }) });
+}
+export function listApprovedAiContent(subjectId: string) {
+    return requestJson("/api/student/subjects/" + subjectId + "/approved-ai-content");
 }
 ~~~
 
@@ -472,15 +483,12 @@ export function decideAiContentReview(subjectId: string, reviewId: string, statu
 import { useEffect, useState } from "react";
 import { decideAiContentReview, listAiContentReviews, AiContentReviewView } from "../../lib/api/ai-content-reviews";
 
-export function AiContentReviewsPage() {
-    const [subjectId, setSubjectId] = useState("");
+export function AiContentReviewsPage({ subjectId }: { subjectId: string }) {
     const [reviews, setReviews] = useState<AiContentReviewView[]>([]);
     const [error, setError] = useState("");
     async function load() {
-        if (!subjectId.trim()) return;
-
         try {
-            setReviews(await listAiContentReviews(subjectId.trim()));
+            setReviews(await listAiContentReviews(subjectId));
             setError("");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Erro ao carregar revisões.");
@@ -492,16 +500,15 @@ export function AiContentReviewsPage() {
     return (
         <main>
             <h1>Revisão de conteúdo IA</h1>
-            <input value={subjectId} onChange={(event) => setSubjectId(event.target.value)} placeholder="ID da disciplina" />
             {error && <p role="alert">{error}</p>}
             <ul>
                 {reviews.map((review) => (
                     <li key={review.id}>
-                        {review.kind} - {review.status}
-                        <button type="button" onClick={() => decideAiContentReview(subjectId, review.id, "APPROVED").then(load)}>
+                        {review.materialTitle} · {review.contentType} · {review.status}
+                        <button type="button" onClick={() => decideAiContentReview(review.id, "APPROVED").then(load)}>
                             Aprovar
                         </button>
-                        <button type="button" onClick={() => decideAiContentReview(subjectId, review.id, "REJECTED", "Rever conteúdo").then(load)}>
+                        <button type="button" onClick={() => decideAiContentReview(review.id, "REJECTED", "Rever conteúdo").then(load)}>
                             Rejeitar
                         </button>
                     </li>
@@ -562,8 +569,9 @@ bash scripts/validate-planificacao.sh
 ## Expected results
 
 - Professor cria revisão ligada a material oficial processado.
-- Professor aprova ou rejeita conteúdo com comentário.
-- Conteúdo rejeitado não fica marcado como aprovado.
+- Professor aprova, rejeita ou revê a decisão; a rejeição exige comentário.
+- Só conteúdos atualmente aprovados ficam visíveis aos alunos inscritos.
+- O aluno responde a quizzes aprovados, recebe correção e pode consultar o histórico persistido das próprias tentativas.
 - Professor de outra disciplina não consegue rever o material.
 
 ## Critérios de aceite
@@ -573,11 +581,18 @@ bash scripts/validate-planificacao.sh
 - O controller só declara parâmetros reais das rotas.
 - O service valida ownership ou membership antes de consultar dados.
 - A página usa cliente API tipado e cookies HttpOnly.
+- A fila mostra títulos de materiais, datas e estados sem IDs ou JSON.
+- A listagem do aluno não contém soluções, comentário docente ou identificação do professor.
+- A correção só devolve respostas certas e explicações depois da submissão completa.
+- A persistência guarda respostas selecionadas e pontuação, mas não duplica soluções nem explicações.
+- O histórico `GET` nunca devolve respostas certas, explicações, comentário docente ou dados de colegas.
+- Existem estados controlados de loading, error, empty e success.
 
 ## Validação final
 
 - Confirmar que a revisão valida material oficial antes de gravar decisão.
-- Confirmar que estados de aprovação são explícitos.
+- Confirmar que estados de aprovação são explícitos, reversíveis e auditados.
+- Confirmar que `PENDING` e `REJECTED` nunca aparecem no endpoint do aluno.
 - Executar caminho aprovado, caminho rejeitado e dois cenários negativos.
 
 ## Evidence para PR/defesa
@@ -591,6 +606,15 @@ bash scripts/validate-planificacao.sh
 
 BK-MF2-06
 
+## Atualização de paridade professor → aluno (2026-07-11)
+
+As tentativas de quizzes aprovados são persistidas em `ApprovedAiQuizAttempt`, sem
+duplicar a chave de soluções, e ficam disponíveis no histórico próprio e nas métricas
+factuais do Centro de Acompanhamento. Aprovar ou retirar conteúdo visível cria uma
+notificação in-app. O registo de atividade guarda apenas tipo, turma, aluno, instante e
+chave técnica, nunca respostas ou texto pedagógico.
+
 ## Changelog
 
 - `2026-06-08`: guia corrigido para contrato executável da MF2, com integração acumulativa, autorização explícita e validação do handoff.
+- `2026-07-11`: documentadas persistência de tentativas, minimização, atividade oficial e notificações de visibilidade.

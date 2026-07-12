@@ -279,12 +279,12 @@ O audit log regista sucesso ou falha da operação sem guardar prompts completos
 
 ## Chat Aluno-Professor Por Disciplina
 
-O chat aluno-professor é contextual a uma disciplina. Não é um botão flutuante global: aparece como ação `Chat`, com ícone de mensagem, nas listagens de disciplinas do aluno e do professor. Ao clicar, o utilizador entra numa página própria:
+O chat aluno-professor é um canal coletivo contextual a uma disciplina, não uma conversa privada entre duas pessoas. Não é um botão flutuante global: aparece como ação `Chat`, com ícone de mensagem, nas listagens de disciplinas do aluno e do professor. Ao clicar, o utilizador entra numa página própria:
 
 - aluno: `/app/disciplinas/:subjectId/chat`;
 - professor: `/app/professor/disciplinas/:subjectId/chat`.
 
-Esta decisão mantém a conversa ligada ao contexto correto. Uma disciplina tem um canal onde alunos inscritos e o professor responsável podem trocar mensagens, sem misturar com o chat aluno-aluno dos grupos de estudo.
+Esta decisão mantém a conversa ligada ao contexto correto. Uma disciplina tem um único canal onde todos os alunos inscritos e o professor responsável podem trocar mensagens. A implementação atual não oferece mensagens privadas aluno-professor nem mistura este canal com o chat aluno-aluno dos grupos de estudo.
 
 Tecnicamente, o chat combina duas peças:
 
@@ -293,7 +293,7 @@ Tecnicamente, o chat combina duas peças:
   - `GET /api/teacher/subjects/:subjectId/chat/messages`;
 - WebSocket no namespace `/subject-chat` para `subject-chat:join`, `subject-chat:send`, `subject-chat:message` e `subject-chat:error`.
 
-O histórico fica em MongoDB, nos modelos `TeacherStudentChatThread` e `TeacherStudentChatMessage`. O WebSocket serve apenas para entrada e entrega em tempo real.
+O histórico fica em MongoDB, nos modelos `TeacherStudentChatThread` e `TeacherStudentChatMessage`. O WebSocket serve apenas para entrada e entrega em tempo real; os endpoints REST devolvem as 100 mensagens mais recentes.
 
 Antes de o utilizador entrar ou enviar mensagem, o backend valida:
 
@@ -304,7 +304,9 @@ Antes de o utilizador entrar ou enviar mensagem, o backend valida:
 - texto não vazio e dentro do limite permitido;
 - rate limit básico por utilizador e thread.
 
-O frontend não envia `authorUserId`, `authorRole`, `classId` nem `teacherId`. Esses valores são derivados da sessão e da disciplina no backend. A resposta pública da mensagem não inclui emails, password hash, cookies, metadados de sessão ou dados de outros alunos.
+O frontend não envia `authorUserId`, `authorRole`, `classId` nem `teacherId`. Esses valores são derivados da sessão e da disciplina no backend. A resposta pública inclui o identificador técnico `authorUserId`, necessário para representar o autor, mas não inclui email, password hash, cookie ou metadados de sessão. A interface atual apresenta apenas “Aluno” ou “Professor”, sem mostrar o nome concreto do participante.
+
+Este MVP não inclui paginação para além das 100 mensagens mais recentes, estado de leitura, contadores de não lidas, anexos, edição, remoção manual, presença, moderação avançada ou conversas privadas.
 
 ## Salas De Estudo, Partilhas E IA Da Sala
 
@@ -343,7 +345,7 @@ Um grupo pode ter:
 - sessões de estudo;
 - IA coletiva.
 
-As mensagens e notas coletivas permitem colaboração assíncrona. Apenas membros podem listar ou criar mensagens.
+As mensagens e notas coletivas constituem o chat aluno-aluno atual. É um mural REST assíncrono dentro do grupo, não uma conversa privada nem um canal WebSocket. Apenas membros podem listar ou criar mensagens; a UI não recebe automaticamente novas mensagens publicadas por outros alunos e não mostra autor ou data.
 
 As sessões de estudo permitem agendar momentos coletivos. Cada sessão tem título, data de início, duração e objetivo opcional. O backend valida que a sessão é futura e que o utilizador pertence ao grupo.
 
@@ -357,7 +359,7 @@ A IA de projetos ajuda o aluno a dividir um projeto em passos graduais. O objeti
 
 As salas guiadas são criadas por professores dentro de uma turma. Podem ter disciplina opcional, mas essa disciplina tem de pertencer à mesma turma e ao mesmo professor. O aluno vê apenas salas abertas das turmas onde está inscrito.
 
-O acompanhamento docente inclui progresso da turma e alertas. O painel de progresso agrega sinais como testes publicados, conteúdos IA aprovados, publicações, notas e tags de dificuldade. Quando ainda não existe contrato para métricas completas de aprendizagem, o sistema deve indicar essa limitação em vez de inventar dados.
+O acompanhamento docente separa dois contextos. O Centro de Acompanhamento reúne alunos, regras de inatividade, resultados oficiais existentes e notificações. O **Resumo da turma** apresenta apenas factos já registados — alunos, disciplinas, mini-testes publicados, publicações e notas — e funciona como registo docente append-only. A aplicação não converte a quantidade de conteúdos, publicações ou notas numa percentagem de aprendizagem e não mostra mensagens técnicas sobre fases de implementação ao professor.
 
 Os alertas de acompanhamento permitem criar regras, por exemplo para alunos inativos. O sistema consulta eventos de estudo e pode gerar notificações contextualizadas.
 
@@ -377,7 +379,7 @@ Cada aluno dispõe de, no máximo, três tentativas numeradas de forma atómica.
 
 O ranking dos mini-testes usa a política `BEST_ATTEMPT`: devolve uma única linha por aluno, com `attemptCount`, `bestPercentage` e `bestAnsweredAt`. Ganha a melhor percentagem; empates usam a melhor tentativa mais antiga e depois um ID estável. O professor só consulta rankings de testes da sua disciplina e a resposta não expõe emails nem respostas completas.
 
-A revisão docente de conteúdos IA permite ao professor aprovar, rejeitar e comentar conteúdos gerados por IA. Isto reforça a ideia de curadoria humana: a IA ajuda, mas o professor mantém controlo pedagógico.
+A revisão docente de conteúdos IA funciona como uma fila por material oficial processado. O professor revê resumos ou quizzes estruturados, aprova ou rejeita, justifica obrigatoriamente uma rejeição e pode rever a decisão; cada transição fica auditada. Apenas conteúdos atualmente `APPROVED` ficam disponíveis aos alunos inscritos. Nos quizzes, a listagem não expõe soluções: o backend só devolve respostas certas e explicações depois de o aluno submeter todas as respostas. Essa correção é transitória e não cria histórico, ranking ou KPI. A página não gera conteúdo por IA; aplica curadoria humana ao conteúdo recebido.
 
 ## Pesquisa, Navegação Curricular E Descoberta
 

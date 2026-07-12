@@ -17,7 +17,7 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF2-10`
 - `guia_path`: `docs/planificacao/guias-bk/MF2/BK-MF2-09-manter-versoes-dos-materiais.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
 
 ## Objetivo do BK
 
@@ -558,6 +558,15 @@ bash scripts/validate-planificacao.sh
 
 BK-MF2-10
 
+## Atualização de paridade professor → aluno (2026-07-11)
+
+Para materiais oficiais, criar ou restaurar uma versão atualiza na mesma transação a
+versão ativa e a projeção `OfficialMaterial.textContent`, `activeVersionId` e
+`contentRevision`. O catálogo do aluno é paginado e remove `teacherId`; a IA e as salas
+consomem a mesma projeção ativa. A migração reconstrói esta relação a partir das versões
+`OFFICIAL_SUBJECT` existentes.
+
 ## Changelog
 
 - `2026-06-08`: guia corrigido para contrato executável da MF2, com integração acumulativa, autorização explícita e validação do handoff.
+- `2026-07-11`: documentadas projeção atómica, catálogo discente minimizado e migração da versão ativa.

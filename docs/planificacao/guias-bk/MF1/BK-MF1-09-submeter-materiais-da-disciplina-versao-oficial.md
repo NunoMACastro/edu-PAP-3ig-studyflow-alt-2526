@@ -17,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF1-10`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-09-submeter-materiais-da-disciplina-versao-oficial.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
 
 ## Objetivo
 Implementar `RF21`: permitir que professores submetam materiais oficiais de uma disciplina. Estes materiais são a fonte autorizada para a IA limitada de `BK-MF1-11`.
@@ -27,13 +27,14 @@ Materiais oficiais são diferentes dos materiais privados do aluno. A IA docente
 
 ## Scope-in
 - Criar `OfficialMaterial`.
-- Submeter material `TEXT` ou `URL`.
+- Submeter material `TEXT`, `URL`, `PDF` ou `DOCX`.
 - Marcar `TEXT` como `PROCESSED`.
 - Marcar `URL` como `REFERENCE_ONLY`.
+- Guardar PDF/DOCX como `PENDING_PROCESSING` através de upload multipart seguro de 10 MiB, staging e promoção atómica.
+- Permitir leitura protegida do ficheiro ao professor proprietário e ao aluno com inscrição atual ou histórica compatível.
 - Listar materiais oficiais de uma disciplina do professor.
 
 ## Scope-out
-- Upload de ficheiros pesados.
 - Extração automática de PDF/DOCX.
 - Versionamento e reversão de materiais.
 - Aprovação por coordenação escolar.
@@ -48,6 +49,7 @@ Materiais oficiais são diferentes dos materiais privados do aluno. A IA docente
 - Professor submete URL como referência.
 - IA limitada só pode usar materiais `PROCESSED`.
 - Materiais ficam ligados a `subjectId`, `classId` e `teacherId`.
+- Ficheiros oficiais ficam disponíveis para leitura autorizada, mas só alimentam IA depois de indexação concluída.
 
 ## Pré-requisitos
 - `SubjectsModule` exporta `SubjectsService`.
@@ -60,6 +62,7 @@ Materiais oficiais são diferentes dos materiais privados do aluno. A IA docente
 - **Material oficial**: conteúdo fornecido pelo professor para uma disciplina.
 - **PROCESSED**: texto pronto para ser usado por IA.
 - **REFERENCE_ONLY**: referência guardada, mas sem texto suficiente para resposta factual.
+- **PENDING_PROCESSING**: ficheiro submetido e preservado, ainda indisponível para IA.
 
 ## Conceitos teóricos
 **Material oficial.** É conteúdo fornecido pelo professor para uma disciplina. O aluno pode confiar que este material representa a versão oficial usada pela turma.
@@ -97,7 +100,10 @@ Materiais oficiais são diferentes dos materiais privados do aluno. A IA docente
 
 Endpoints:
 - `POST /api/teacher/subjects/:subjectId/materials`
+- `POST /api/teacher/subjects/:subjectId/materials/file`
 - `GET /api/teacher/subjects/:subjectId/materials`
+- `GET /api/official-materials/:materialId/content`
+- `GET /api/official-materials/:materialId/download`
 
 ## Guia linear de implementação
 
@@ -758,6 +764,22 @@ Confirma que um material `URL` não alimenta a IA como texto processado.
 ## Handoff
 `BK-MF1-10` associa voz docente à mesma disciplina criada pelo professor de desenvolvimento. `BK-MF1-11` consulta `OfficialMaterialsService.findProcessedBySubject`.
 
+## Atualização PDF/DOCX e leitura protegida (2026-07-11)
+
+A implementação acumulativa mantém `TEXT` e `URL` compatíveis e acrescenta `PDF` e
+`DOCX`. O frontend envia `title` e `file` por `multipart/form-data`; nunca envia
+`teacherId`, `classId`, `storageKey` ou estado. Em `apps/api`, o controller aplica sessão,
+papel, rate limit e o validador canónico de 10 MiB. O service deriva ownership da sessão e
+`classId` da disciplina, usa staging, quota partilhada, outbox e promoção atómica, e cria o
+material como `PENDING_PROCESSING`.
+
+As projeções públicas incluem apenas metadados seguros. PDF/DOCX nunca expõem texto
+extraído, hash ou chave de storage. `content` abre PDF inline e força DOCX a download;
+`download` força attachment nos dois formatos. Ambos revalidam professor proprietário ou
+membership atual/histórica do aluno e devolvem `404` fora do âmbito. Os caminhos continuam
+a ser apresentados como `apps/...`; `real_dev/` é apenas a raiz privada de implementação.
+
 ## Changelog
+- 2026-07-11: Acrescentados upload PDF/DOCX compensável, metadados públicos mínimos e leitura binária protegida.
 - 2026-05-31: Pré-requisitos e validação alinhados com a seed local de professor criada no BK-MF1-07.
 - 2026-05-30: Guia reescrito com schema sem campo duplicado, módulo exportado e estados de fonte explícitos.

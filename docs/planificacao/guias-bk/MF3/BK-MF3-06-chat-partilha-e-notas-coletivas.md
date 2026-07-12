@@ -22,7 +22,7 @@
 
 #### Objetivo
 
-Neste BK vais implementar mensagens e notas coletivas de grupo. O guia parte dos contratos canónicos de RF42, da sequência MF0-MF2 e dos BKs que desbloqueiam este requisito.
+Neste BK vais implementar mensagens e notas coletivas assíncronas dentro de um grupo. Este é o chat aluno-aluno de RF42: usa REST, exige membership e não implementa conversas privadas nem WebSocket. O guia parte dos contratos canónicos de RF42, da sequência MF0-MF2 e dos BKs que desbloqueiam este requisito.
 
 #### Importância
 
@@ -33,6 +33,7 @@ Este BK transforma o requisito RF42 numa entrega copiável e testável. A funcio
 - Criar mensagens e notas.
 - Listar histórico do grupo.
 - Validar membership em todas as operações.
+- Recarregar o histórico ao selecionar um grupo e depois de criar conteúdo.
 
 #### Scope-out
 
@@ -49,14 +50,14 @@ Este BK transforma o requisito RF42 numa entrega copiável e testável. A funcio
 
 ##### Estado depois
 
-- O BK apresenta endpoint `POST /api/study-groups/:groupId/messages e GET /api/study-groups/:groupId/messages`, DTO, backend, frontend, validações e handoff para `BK-MF3-07`.
-- O código apresentado valida sessão, ownership ou membership antes de ler ou gravar dados.
+- O BK apresenta os endpoints `POST /api/study-groups/:groupId/messages` e `GET /api/study-groups/:groupId/messages`, DTO, backend, frontend, validações e handoff para `BK-MF3-07`.
+- O código apresentado valida sessão e membership antes de ler ou gravar dados.
 
 ##### Decisões de escopo
 
 - Prioridade, owner, dependências, sprint e RF são CANONICO porque vêm de `MATRIZ-CANONICA-BK.md`, `BACKLOG-MVP.md` e `CONTRATO-CAMPOS-BK.md`.
-- O endpoint `POST /api/study-groups/:groupId/messages e GET /api/study-groups/:groupId/messages` é DERIVADO como contrato técnico mínimo para cumprir RF42 sem contrariar os documentos canónicos.
-- Usar `SessionGuard` e `AuthenticatedUser` é DERIVADO dos BKs anteriores e obrigatório para manter ownership e membership no backend.
+- Os endpoints `POST /api/study-groups/:groupId/messages` e `GET /api/study-groups/:groupId/messages` são DERIVADOS como contrato técnico mínimo para cumprir RF42 sem contrariar os documentos canónicos.
+- Usar `SessionGuard` e `AuthenticatedUser` é DERIVADO dos BKs anteriores e obrigatório para manter membership no backend.
 - A resposta do frontend usa `credentials: 'include'` porque a sessão vem de cookie HttpOnly.
 
 #### Pre-requisitos
@@ -68,7 +69,7 @@ Este BK transforma o requisito RF42 numa entrega copiável e testável. A funcio
 
 - **Actor autenticado**: utilizador obtido da sessão segura, nunca do body.
 - **DTO**: classe que valida dados de entrada antes de chegarem ao service.
-- **Service**: camada que aplica regras de domínio, ownership e membership.
+- **Service**: camada que aplica regras de domínio e membership.
 - **Controller**: camada que expõe o endpoint HTTP e delega no service.
 - **Schema Mongoose**: contrato de persistência em MongoDB para dados novos do BK.
 - **Frontend client**: função tipada que chama a API com cookie de sessão.
@@ -85,25 +86,25 @@ Este BK transforma o requisito RF42 numa entrega copiável e testável. A funcio
 ##### Conceitos backend
 
 - O controller recebe HTTP, mas não decide permissões.
-- O service valida sessão, ownership ou membership antes de tocar em dados sensíveis.
+- O service valida membership antes de tocar em dados sensíveis; a sessão é validada pelo guard do controller.
 - O DTO protege o service contra campos vazios, tipos errados e payloads demasiado grandes.
 - O módulo NestJS liga controller, service, schemas e módulos herdados.
 
 ##### Conceitos frontend
 
-- O componente React separa input, loading, erro, sucesso e vazio.
+- O componente React separa input, erro e vazio, desativa o envio enquanto o POST decorre e recarrega a lista após sucesso.
 - O cliente API é tipado para alinhar payload e resposta.
 - `credentials: 'include'` envia o cookie HttpOnly sem guardar tokens no browser.
 
 ##### Conceitos de segurança
 
 - O frontend nunca envia `userId` como fonte de verdade.
-- O backend valida membership ou ownership com services herdados.
-- Erros negativos são controlados com `400`, `401`, `403`, `404`, `422` ou `503`, conforme a causa.
+- O backend valida membership com `StudyGroupsService.ensureMember`.
+- Erros negativos relevantes são `400` para payload inválido, `401` sem sessão e `403` sem membership.
 
 #### Arquitetura do BK
 
-- Endpoint: `POST /api/study-groups/:groupId/messages e GET /api/study-groups/:groupId/messages`.
+- Endpoints: `POST /api/study-groups/:groupId/messages` e `GET /api/study-groups/:groupId/messages`.
 - Backend: `apps/api/src/modules/study-group-messages`.
 - Frontend: `apps/web/src/features/study-group-messages`.
 - DTO principal: `CreateStudyGroupMessageDto`.
@@ -224,7 +225,7 @@ export const StudyGroupMessageSchema =
 ### Passo 3 - Implementar o service de aplicação
 
 1. Objetivo funcional do passo no contexto da app.
-   Concentrar regras de negócio, ownership, membership, erros e efeitos de persistência num ponto testável.
+   Concentrar regras de negócio, membership, erros e efeitos de persistência num ponto testável.
 2. Ficheiros envolvidos:
    - CRIAR: `apps/api/src/modules/study-group-messages/study-group-messages.service.ts`
    - LOCALIZAÇÃO: `classe completa do service`
@@ -338,16 +339,16 @@ export class StudyGroupMessagesService {
 ```
 
 5. Explicação do código.
-   O service recebe o actor autenticado, valida o contexto com services de BKs anteriores e só depois lê, grava ou chama IA. Isto impede que a UI contorne regras de segurança.
+   O service recebe o actor autenticado, confirma membership com `StudyGroupsService.ensureMember` e só depois lê ou grava mensagens. Este fluxo não chama IA.
 6. Validação do passo.
-   Cria testes unitários para sessão válida, contexto proibido e dados insuficientes.
+   Cria testes unitários para membro válido, grupo proibido e normalização do texto.
 7. Cenário negativo/erro esperado.
-   Não faças consultas diretas por ID sem validar owner ou membership.
+   Não faças consultas diretas por ID sem validar membership.
 
 ### Passo 4 - Expor o endpoint no controller
 
 1. Objetivo funcional do passo no contexto da app.
-   Ligar `POST /api/study-groups/:groupId/messages e GET /api/study-groups/:groupId/messages` ao service sem colocar regras sensíveis no controller.
+   Ligar `POST /api/study-groups/:groupId/messages` e `GET /api/study-groups/:groupId/messages` ao service sem colocar regras sensíveis no controller.
 2. Ficheiros envolvidos:
    - CRIAR: `apps/api/src/modules/study-group-messages/study-group-messages.controller.ts`
    - LOCALIZAÇÃO: `classe completa do controller`
@@ -535,7 +536,7 @@ export function createStudyGroupMessage(
    - CRIAR: `apps/web/src/features/study-group-messages/study-group-messages-panel.tsx`
    - LOCALIZAÇÃO: `componente completo`
 3. Instruções do que fazer.
-   Cria o componente com formulário, loading, erro, vazio e sucesso.
+   Cria o componente com formulário, botão bloqueado durante o envio, erro, vazio e histórico recarregado após sucesso.
 4. Código completo, correto e integrado com a app final.
 
 ```tsx
@@ -663,16 +664,16 @@ Sem código neste passo. Este passo é de validação: usa os testes Jest existe
 - Pedido válido para `POST /api/study-groups/:groupId/messages` devolve `201 Created`; pedido válido para `GET /api/study-groups/:groupId/messages` devolve `200 OK`.
 - Pedido sem sessão devolve `401 Unauthorized`.
 - Pedido com dados inválidos devolve `400 Bad Request`.
-- Pedido sem ownership, membership ou fonte autorizada devolve `403 Forbidden`, `404 Not Found` ou `422 Unprocessable Entity`.
-- O frontend mostra loading, erro, vazio e sucesso sem guardar tokens.
+- Pedido de um utilizador que não pertence ao grupo devolve `403 Forbidden`.
+- O frontend mostra erro e vazio, bloqueia o botão durante o envio e atualiza o histórico após sucesso, sem guardar tokens.
 
 ##### Critérios de aceite mensuráveis
 
 - O guia usa linguagem pedagógica final e evita referências a processos internos de revisão.
 - Todos os passos têm os pontos 1 a 7 e localização concreta.
-- O endpoint `POST /api/study-groups/:groupId/messages e GET /api/study-groups/:groupId/messages` está alinhado entre controller e cliente frontend.
+- Os endpoints `POST /api/study-groups/:groupId/messages` e `GET /api/study-groups/:groupId/messages` estão alinhados entre controller e cliente frontend.
 - O backend valida sessão antes de usar dados do actor.
-- O service valida ownership ou membership com services herdados.
+- O service valida membership com `StudyGroupsService.ensureMember`.
 - O código TypeScript/TSX tem JSDoc nas declarações relevantes.
 - O handoff para `BK-MF3-07` fica claro.
 
@@ -681,17 +682,46 @@ Sem código neste passo. Este passo é de validação: usa os testes Jest existe
 ##### Smoke test
 
 ```bash
-curl -i -X POST http://localhost:3000/api/study-groups/:groupId/messages \
+API_BASE='http://localhost:3000'
+SESSION_ID='<SESSION_ID>'
+GROUP_ID='<GROUP_ID_DO_MEMBRO>'
+
+curl -i "$API_BASE/api/study-groups/$GROUP_ID/messages" \
+  -H "Cookie: sf_sid=$SESSION_ID"
+
+curl -i -X POST "$API_BASE/api/study-groups/$GROUP_ID/messages" \
+  -H "Cookie: sf_sid=$SESSION_ID" \
+  -H 'x-studyflow-csrf: 1' \
   -H 'Content-Type: application/json' \
   -d '{ "kind": "NOTE", "text": "Rever exercício 4 antes da sessão." }'
 ```
 
+O GET autenticado deve devolver `200 OK`; o POST autenticado e com marcador CSRF deve devolver
+`201 Created`. O placeholder `SESSION_ID` representa uma sessão local de teste e nunca deve ser
+substituído por uma credencial real em evidence ou documentação versionada.
+
 ##### Negativos obrigatórios
 
+```bash
+# 401: sem cookie de sessão
+curl -i "$API_BASE/api/study-groups/$GROUP_ID/messages"
+
+# 400: payload autenticado inválido
+curl -i -X POST "$API_BASE/api/study-groups/$GROUP_ID/messages" \
+  -H "Cookie: sf_sid=$SESSION_ID" \
+  -H 'x-studyflow-csrf: 1' \
+  -H 'Content-Type: application/json' \
+  -d '{ "kind": "MESSAGE", "text": "" }'
+
+# 403: sessão válida, mas sem membership no grupo alvo
+OTHER_GROUP_ID='<GROUP_ID_SEM_MEMBERSHIP>'
+curl -i "$API_BASE/api/study-groups/$OTHER_GROUP_ID/messages" \
+  -H "Cookie: sf_sid=$SESSION_ID"
+```
+
 - Sem cookie de sessão: `401 Unauthorized`.
-- Campo obrigatório em falta: `400 Bad Request`.
-- Recurso de outro aluno, grupo ou turma: `403 Forbidden` ou `404 Not Found`.
-- Fonte inexistente ou não processável: `422 Unprocessable Entity` nos fluxos que usam fontes.
+- Texto vazio autenticado: `400 Bad Request`.
+- Grupo no qual o aluno autenticado não é membro: `403 Forbidden`.
 
 #### Evidence para PR/defesa
 

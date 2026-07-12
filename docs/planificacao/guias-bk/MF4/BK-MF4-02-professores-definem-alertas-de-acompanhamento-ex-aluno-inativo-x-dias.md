@@ -18,11 +18,21 @@
 - `core_or_reforco`: `Core`
 - `proximo_bk`: `BK-MF4-03`
 - `guia_path`: `docs/planificacao/guias-bk/MF4/BK-MF4-02-professores-definem-alertas-de-acompanhamento-ex-aluno-inativo-x-dias.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
 
 #### Objetivo
 
-Criar regras de acompanhamento docente para detectar alunos inativos numa turma. O professor define a turma, a janela de dias e a mensagem; o backend valida a turma, calcula actividade recente e prepara notificações internas para alunos elegíveis.
+Criar regras de acompanhamento docente para detetar alunos inativos numa turma. O
+professor define a turma, a janela de dias e a mensagem; o backend valida uma turma ativa,
+calcula exclusivamente atividade pedagógica oficial dessa turma e prepara notificações
+in-app para alunos elegíveis.
+
+> **Contrato canónico de atividade:** `StudyEvent` representa estudo privado e não pode
+> ser usado neste BK. A fonte é `ClassLearningActivity`, com projeção
+> `StudentClassActivityState`, sempre delimitada por `classId`. Só memberships
+> `ClassMembership.status=ACTIVE` entram no cálculo e `joinedAt` é o baseline quando ainda
+> não existe atividade. Salas autónomas/colaborativas, áreas privadas, rotinas e objetivos
+> pessoais nunca contam para inatividade docente.
 
 #### Importância
 
@@ -31,8 +41,9 @@ RF50 dá ao professor um mecanismo objectivo para intervir antes de o aluno se p
 #### Scope-in
 
 - Criar `FollowUpAlertRule` com turma, janela de inatividade e mensagem.
-- Validar ownership docente por `ClassesService.findOwnedClass`.
-- Ler actividade por `StudyEvent` existente.
+- Validar ownership e lifecycle por `ClassesService.findOwnedActiveClass`.
+- Ler atividade por `ClassLearningActivityService`, sempre com `classId`.
+- Usar `ClassMembership.joinedAt` como baseline e apenas memberships ativas.
 - Criar preview de alunos inativos.
 - Integrar com `ContextNotificationsService` de BK-MF4-01.
 - Criar painel React com loading, erro, lista e formulário pequeno.
@@ -42,50 +53,61 @@ RF50 dá ao professor um mecanismo objectivo para intervir antes de o aluno se p
 - Agendamento automático recorrente.
 - Email/push.
 - Métricas avançadas de aprendizagem.
-- Alterar o modelo de `StudyEvent`.
+- Atividade privada, salas autónomas e eventos sem contexto oficial de turma.
 
 #### Estado antes e depois
 
 ##### Estado antes
 
-MF0 guarda eventos de estudo por aluno e MF1/MF2 entregam turmas e actividade colaborativa. Não existe regra docente persistida para acompanhar inatividade.
+MF0 guarda estudo privado por aluno e MF1/MF2 entregam turmas e atividades oficiais.
+Esses dois contextos não podem ser misturados num sinal docente.
 
 ##### Estado depois
 
-Fica um módulo `follow-up-alerts` com regras por turma, preview de alunos inativos e ligação a notificações internas.
+Fica um módulo `follow-up-alerts` com regras por turma ativa, preview factual de alunos
+inativos e ligação a notificações internas. O Centro pode consultar a mesma fonte canónica
+sem score de risco ou diagnóstico oculto.
 
 ##### Decisões de escopo
 
 - `CANONICO`: RF50 depende de professor autenticado.
 - `CANONICO`: a turma pertence ao professor antes de qualquer leitura agregada.
-- `DERIVADO`: inatividade é calculada com `StudyEvent.occurredAt`, porque é a fonte já existente no `apps`.
+- `CANONICO`: inatividade usa apenas eventos oficiais cujo `classId` corresponde à turma.
+- `CANONICO`: `ClassMembership.joinedAt` evita classificar recém-inscritos como inativos.
+- `CANONICO`: estudo privado e salas autónomas não produzem atividade visível ao professor.
 
 #### Pre-requisitos
 
 - BK-MF2-11 como base de acompanhamento docente.
 - BK-MF4-01 para enviar a notificação interna final.
-- `ClassesService.findOwnedClass`.
-- `StudyEvent` e `StudyEventSchema`.
+- `ClassesService.findOwnedActiveClass` e `ClassMembership`.
+- `ClassLearningActivityModule`, `ClassLearningActivity` e `StudentClassActivityState`.
 - `requestMf3Json` no frontend.
 
 #### Glossário
 
 - Regra de acompanhamento: configuração criada pelo professor para uma turma.
-- Aluno inativo: aluno sem `StudyEvent` dentro da janela configurada.
+- Aluno inativo: membro ativo cujo `max(joinedAt, lastActivityAt)` da mesma turma é
+  anterior à janela configurada.
 - Preview: simulação calculada antes de disparar notificações.
 - Janela de inatividade: número de dias usado para comparar com o último evento.
 
 #### Conceitos teóricos essenciais
 
-Uma métrica de acompanhamento só é útil se vier de dados consistentes. Por isso, o backend calcula a última actividade com `StudyEvent`, valida primeiro a turma e devolve apenas IDs de alunos da turma do professor.
+Uma métrica de acompanhamento só é útil se vier de dados consistentes. Por isso, o
+backend valida primeiro a turma, resolve memberships ativas e calcula a última atividade
+apenas no par `classId/studentId`. Um evento privado do mesmo aluno não altera esse estado.
 
 #### Arquitetura do BK
 
-- Endpoint: `GET /api/follow-up-alerts`, `POST /api/follow-up-alerts`, `POST /api/follow-up-alerts/:id/run`.
+- Endpoint: `GET /api/follow-up-alerts/summary`, `GET/POST /api/follow-up-alerts`,
+  `POST /api/follow-up-alerts/:id/run` e detalhe factual em
+  `GET /api/follow-up-centre/classes/:classId/students/:studentId`.
 - Modelo/schema: `FollowUpAlertRule`.
 - Service: `FollowUpAlertsService`.
 - Controller: `FollowUpAlertsController`.
-- Dependências: `ClassesModule`, `StudyModule`, `ContextNotificationsModule`.
+- Dependências: `ClassesModule`, `ClassLearningActivityModule`,
+  `ContextNotificationsModule` e `OfficialTestsModule`.
 - Cliente API: `follow-up-alerts-client.ts`.
 - Componente: `FollowUpAlertsPanel`.
 - Testes: `follow-up-alerts.service.spec.ts`.
@@ -99,6 +121,9 @@ Uma métrica de acompanhamento só é útil se vier de dados consistentes. Por i
 - CRIAR: `apps/api/src/modules/follow-up-alerts/follow-up-alerts.controller.ts`
 - CRIAR: `apps/api/src/modules/follow-up-alerts/follow-up-alerts.module.ts`
 - CRIAR: `apps/api/src/modules/follow-up-alerts/follow-up-alerts.service.spec.ts`
+- CRIAR: `apps/api/src/modules/class-learning-activity/class-learning-activity.service.ts`
+- CRIAR: `apps/api/src/modules/class-learning-activity/schemas/class-learning-activity.schema.ts`
+- CRIAR: `apps/api/src/modules/class-learning-activity/schemas/student-class-activity-state.schema.ts`
 - CRIAR: `apps/web/src/features/follow-up-alerts/follow-up-alerts-client.ts`
 - CRIAR: `apps/web/src/features/follow-up-alerts/follow-up-alerts-panel.tsx`
 - EDITAR: `apps/api/src/app.module.ts`
@@ -113,12 +138,13 @@ Uma métrica de acompanhamento só é útil se vier de dados consistentes. Por i
    - CRIAR: `apps/api/src/modules/follow-up-alerts/dto/create-follow-up-alert-rule.dto.ts`
    - CRIAR: `apps/api/src/modules/follow-up-alerts/schemas/follow-up-alert-rule.schema.ts`
 3. Instruções do que fazer.
-   Usa `classId`, `inactivityDays`, `title`, `message` e `enabled`.
+   Usa `classId`, `inactiveDays`, `title` e `message`. O lifecycle acionável vem da
+   turma ativa, não de uma flag duplicada na regra.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
 // apps/api/src/modules/follow-up-alerts/dto/create-follow-up-alert-rule.dto.ts
-import { IsBoolean, IsInt, IsMongoId, IsOptional, IsString, Max, MaxLength, Min, MinLength } from "class-validator";
+import { IsInt, IsMongoId, IsString, Max, MaxLength, Min, MinLength } from "class-validator";
 
 /**
  * Entrada para criar uma regra de acompanhamento docente.
@@ -130,22 +156,18 @@ export class CreateFollowUpAlertRuleDto {
     /** Janela curta evita regras abusivas ou impossíveis de interpretar. */
     @IsInt()
     @Min(1)
-    @Max(60)
-    inactivityDays!: number;
+    @Max(90)
+    inactiveDays!: number;
 
     @IsString()
-    @MinLength(3)
-    @MaxLength(120)
+    @MinLength(2)
+    @MaxLength(160)
     title!: string;
 
     @IsString()
-    @MinLength(3)
-    @MaxLength(500)
+    @MinLength(5)
+    @MaxLength(1000)
     message!: string;
-
-    @IsOptional()
-    @IsBoolean()
-    enabled?: boolean;
 }
 ```
 
@@ -167,27 +189,24 @@ export class FollowUpAlertRule {
     @Prop({ type: Types.ObjectId, ref: "SchoolClass", required: true, index: true })
     classId!: Types.ObjectId;
 
-    @Prop({ required: true, min: 1, max: 60 })
-    inactivityDays!: number;
+    @Prop({ required: true, min: 1, max: 90 })
+    inactiveDays!: number;
 
-    @Prop({ required: true, trim: true, maxlength: 120 })
+    @Prop({ required: true, trim: true, maxlength: 160 })
     title!: string;
 
-    @Prop({ required: true, trim: true, maxlength: 500 })
+    @Prop({ required: true, trim: true, maxlength: 1000 })
     message!: string;
-
-    @Prop({ required: true, default: true })
-    enabled!: boolean;
 }
 
 export const FollowUpAlertRuleSchema = SchemaFactory.createForClass(FollowUpAlertRule);
-FollowUpAlertRuleSchema.index({ teacherId: 1, classId: 1, createdAt: -1 });
+FollowUpAlertRuleSchema.index({ teacherId: 1, createdAt: -1 });
 ```
 
 5. Explicação do código.
-   A regra já não usa campos genéricos: `classId` e `inactivityDays` representam directamente RF50. O schema indexa professor e turma para listagens seguras.
+   A regra já não usa campos genéricos: `classId` e `inactiveDays` representam diretamente RF50. O schema indexa o professor para listagens seguras.
 6. Validação do passo.
-   Um DTO com `inactivityDays: 0` deve ser rejeitado.
+   Um DTO com `inactiveDays: 0` deve ser rejeitado.
 7. Cenário negativo/erro esperado.
    `classId` inválido deve produzir 400 antes do service.
 
@@ -198,7 +217,8 @@ FollowUpAlertRuleSchema.index({ teacherId: 1, classId: 1, createdAt: -1 });
 2. Ficheiros envolvidos:
    - CRIAR: `apps/api/src/modules/follow-up-alerts/follow-up-alerts.service.ts`
 3. Instruções do que fazer.
-   Injeta `ClassesService`, `StudyEvent` model e `ContextNotificationsService`. A turma é validada antes da query de actividade.
+   Injeta `ClassesService`, `ClassLearningActivityService` e
+   `ContextNotificationsService`. A turma ativa é validada antes da query de atividade.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
@@ -207,55 +227,47 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
+import { ClassLearningActivityService } from "../class-learning-activity/class-learning-activity.service.js";
 import { ClassesService } from "../classes/classes.service.js";
 import { ContextNotificationsService } from "../context-notifications/context-notifications.service.js";
-import {
-    ContextNotificationEventType,
-    ContextNotificationTargetType,
-} from "../context-notifications/dto/create-context-notification.dto.js";
-import { StudyEvent, StudyEventDocument } from "../study/schemas/study-event.schema.js";
 import { CreateFollowUpAlertRuleDto } from "./dto/create-follow-up-alert-rule.dto.js";
 import { FollowUpAlertRule, FollowUpAlertRuleDocument } from "./schemas/follow-up-alert-rule.schema.js";
 
-export type InactiveStudentView = { studentId: string; lastActivityAt: Date | null };
 export type FollowUpAlertRuleView = {
     id: string;
     classId: string;
-    inactivityDays: number;
+    inactiveDays: number;
     title: string;
     message: string;
-    enabled: boolean;
 };
 
 /**
- * Regras de acompanhamento calculadas a partir do histórico de estudo.
+ * Regras de acompanhamento calculadas apenas a partir de atividade oficial da turma.
  */
 @Injectable()
 export class FollowUpAlertsService {
     constructor(
         @InjectModel(FollowUpAlertRule.name)
         private readonly ruleModel: Model<FollowUpAlertRuleDocument>,
-        @InjectModel(StudyEvent.name)
-        private readonly eventModel: Model<StudyEventDocument>,
         private readonly classesService: ClassesService,
         private readonly notificationsService: ContextNotificationsService,
+        private readonly activityService: ClassLearningActivityService,
     ) {}
 
-    async createRule(actor: AuthenticatedUser, input: CreateFollowUpAlertRuleDto): Promise<FollowUpAlertRuleView> {
+    async create(actor: AuthenticatedUser, input: CreateFollowUpAlertRuleDto): Promise<FollowUpAlertRuleView> {
         this.assertTeacher(actor);
-        await this.classesService.findOwnedClass(actor.id, input.classId);
+        await this.classesService.findOwnedActiveClass(actor.id, input.classId);
         const rule = await this.ruleModel.create({
             teacherId: new Types.ObjectId(actor.id),
             classId: new Types.ObjectId(input.classId),
-            inactivityDays: input.inactivityDays,
+            inactiveDays: input.inactiveDays,
             title: input.title.trim(),
             message: input.message.trim(),
-            enabled: input.enabled ?? true,
         });
         return this.toRuleView(rule.toObject());
     }
 
-    async listMine(actor: AuthenticatedUser): Promise<FollowUpAlertRuleView[]> {
+    async list(actor: AuthenticatedUser): Promise<FollowUpAlertRuleView[]> {
         this.assertTeacher(actor);
         const rules = await this.ruleModel
             .find({ teacherId: new Types.ObjectId(actor.id) })
@@ -264,42 +276,57 @@ export class FollowUpAlertsService {
         return rules.map((rule) => this.toRuleView(rule));
     }
 
-    async previewInactiveStudents(actor: AuthenticatedUser, ruleId: string): Promise<InactiveStudentView[]> {
-        const rule = await this.getOwnedRule(actor, ruleId);
-        const schoolClass = await this.classesService.findOwnedClass(actor.id, String(rule.classId));
-        const since = new Date(Date.now() - rule.inactivityDays * 24 * 60 * 60 * 1000);
-        const activeRows = await this.eventModel
-            .find({
-                userId: { $in: schoolClass.studentIds.map((id) => new Types.ObjectId(id)) },
-                occurredAt: { $gte: since },
-            })
-            .select("userId occurredAt")
-            .sort({ occurredAt: -1 })
-            .lean();
-
-        const activeIds = new Set(activeRows.map((row) => String(row.userId)));
-        // A resposta é limitada à turma validada para evitar exposição de outros alunos.
-        return schoolClass.studentIds
-            .filter((studentId) => !activeIds.has(studentId))
-            .map((studentId) => ({ studentId, lastActivityAt: null }));
+    async summary(actor: AuthenticatedUser) {
+        const rules = await this.list(actor);
+        const summaries = await Promise.all(
+            rules.map(async (rule) => ({
+                ...rule,
+                inactiveStudentIds: await this.previewInactiveStudentIds(actor, rule.id),
+            })),
+        );
+        return { rules: summaries };
     }
 
-    async runRule(actor: AuthenticatedUser, ruleId: string) {
-        const rule = await this.getOwnedRule(actor, ruleId);
-        return this.notificationsService.create(actor, {
-            targetType: ContextNotificationTargetType.CLASS,
-            targetId: String(rule.classId),
-            eventType: ContextNotificationEventType.TASK_ASSIGNED,
-            title: rule.title,
-            body: rule.message,
+    async previewInactiveStudentIds(
+        actor: AuthenticatedUser,
+        ruleId: string,
+    ): Promise<string[]> {
+        this.assertTeacher(actor);
+        const rule = await this.findOwnedRule(actor.id, ruleId);
+        const schoolClass = await this.classesService.findOwnedActiveClass(
+            actor.id,
+            String(rule.classId),
+        );
+        return this.activityService.findInactiveStudentIds({
+            classId: schoolClass._id,
+            studentIds: schoolClass.studentIds,
+            inactiveDays: rule.inactiveDays,
         });
     }
 
-    private async getOwnedRule(actor: AuthenticatedUser, ruleId: string) {
+    async run(actor: AuthenticatedUser, ruleId: string) {
         this.assertTeacher(actor);
+        const rule = await this.findOwnedRule(actor.id, ruleId);
+        const recipientIds = await this.previewInactiveStudentIds(actor, ruleId);
+        if (recipientIds.length === 0) return { inactiveStudentIds: [], notification: null };
+        const notification = await this.notificationsService.createForRecipients(
+            actor,
+            {
+                contextType: "CLASS",
+                contextId: String(rule.classId),
+                type: "FOLLOW_UP",
+                title: rule.title,
+                body: rule.message,
+            },
+            recipientIds,
+        );
+        return { inactiveStudentIds: recipientIds, notification };
+    }
+
+    private async findOwnedRule(teacherId: string, ruleId: string) {
         if (!Types.ObjectId.isValid(ruleId)) throw this.notFound();
         const rule = await this.ruleModel
-            .findOne({ _id: ruleId, teacherId: new Types.ObjectId(actor.id), enabled: true })
+            .findOne({ _id: ruleId, teacherId: new Types.ObjectId(teacherId) })
             .lean();
         if (!rule) throw this.notFound();
         return rule;
@@ -318,27 +345,30 @@ export class FollowUpAlertsService {
     private toRuleView(rule: {
         _id: unknown;
         classId: unknown;
-        inactivityDays: number;
+        inactiveDays: number;
         title: string;
         message: string;
-        enabled: boolean;
     }): FollowUpAlertRuleView {
         return {
             id: String(rule._id),
             classId: String(rule.classId),
-            inactivityDays: rule.inactivityDays,
+            inactiveDays: rule.inactiveDays,
             title: rule.title,
             message: rule.message,
-            enabled: rule.enabled,
         };
     }
 }
 ```
 
 5. Explicação do código.
-   A regra é sempre filtrada por `teacherId`. O preview usa a lista de alunos da turma validada e consulta `StudyEvent` apenas para esses IDs, evitando exposição transversal.
+   A regra é sempre filtrada por `teacherId`. O preview usa os alunos efetivos da turma
+   validada; `ClassLearningActivityService` consulta a projeção pelo mesmo `classId`, exige
+   membership ativa e compara a última ação oficial com `joinedAt`. Não existe query a
+   `StudyEvent` nem exposição de atividade privada.
 6. Validação do passo.
-   Testa uma turma com dois alunos e eventos recentes só para um deles; o preview deve devolver apenas o outro.
+   Testa uma turma com dois membros antigos e atividade oficial recente, na mesma turma,
+   apenas para um deles; o preview deve devolver apenas o outro. Acrescenta um evento
+   privado recente ao aluno inativo e confirma que o resultado não muda.
 7. Cenário negativo/erro esperado.
    Um aluno autenticado deve receber `TEACHER_ROLE_REQUIRED`.
 
@@ -351,7 +381,9 @@ export class FollowUpAlertsService {
    - CRIAR: `apps/api/src/modules/follow-up-alerts/follow-up-alerts.module.ts`
    - EDITAR: `apps/api/src/app.module.ts`
 3. Instruções do que fazer.
-   Usa `SessionGuard` e importa `StudyModule`, `ClassesModule` e `ContextNotificationsModule`.
+   Usa `SessionGuard` e importa `ClassLearningActivityModule`, `ClassesModule` e
+   `ContextNotificationsModule`. O preview faz parte de `GET /summary`; não exponhas um
+   endpoint alternativo baseado em eventos privados.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
@@ -370,24 +402,24 @@ import { FollowUpAlertsService } from "./follow-up-alerts.service.js";
 export class FollowUpAlertsController {
     constructor(private readonly alertsService: FollowUpAlertsService) {}
 
+    @Get("summary")
+    summary(@Req() request: AuthenticatedRequest) {
+        return this.alertsService.summary(request.user!);
+    }
+
     @Get()
-    listMine(@Req() request: AuthenticatedRequest) {
-        return this.alertsService.listMine(request.user!);
+    list(@Req() request: AuthenticatedRequest) {
+        return this.alertsService.list(request.user!);
     }
 
     @Post()
     create(@Req() request: AuthenticatedRequest, @Body() input: CreateFollowUpAlertRuleDto) {
-        return this.alertsService.createRule(request.user!, input);
-    }
-
-    @Get(":id/preview")
-    preview(@Req() request: AuthenticatedRequest, @Param("id") id: string) {
-        return this.alertsService.previewInactiveStudents(request.user!, id);
+        return this.alertsService.create(request.user!, input);
     }
 
     @Post(":id/run")
     run(@Req() request: AuthenticatedRequest, @Param("id") id: string) {
-        return this.alertsService.runRule(request.user!, id);
+        return this.alertsService.run(request.user!, id);
     }
 }
 ```
@@ -397,9 +429,9 @@ export class FollowUpAlertsController {
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "../auth/auth.module.js";
+import { ClassLearningActivityModule } from "../class-learning-activity/class-learning-activity.module.js";
 import { ClassesModule } from "../classes/classes.module.js";
 import { ContextNotificationsModule } from "../context-notifications/context-notifications.module.js";
-import { StudyEvent, StudyEventSchema } from "../study/schemas/study-event.schema.js";
 import { FollowUpAlertsController } from "./follow-up-alerts.controller.js";
 import { FollowUpAlertsService } from "./follow-up-alerts.service.js";
 import { FollowUpAlertRule, FollowUpAlertRuleSchema } from "./schemas/follow-up-alert-rule.schema.js";
@@ -410,11 +442,11 @@ import { FollowUpAlertRule, FollowUpAlertRuleSchema } from "./schemas/follow-up-
 @Module({
     imports: [
         AuthModule,
+        ClassLearningActivityModule,
         ClassesModule,
         ContextNotificationsModule,
         MongooseModule.forFeature([
             { name: FollowUpAlertRule.name, schema: FollowUpAlertRuleSchema },
-            { name: StudyEvent.name, schema: StudyEventSchema },
         ]),
     ],
     controllers: [FollowUpAlertsController],
@@ -424,9 +456,12 @@ export class FollowUpAlertsModule {}
 ```
 
 5. Explicação do código.
-   O controller separa listagem, criação, preview e disparo. A importação directa de `StudyEvent` evita criar uma query informal noutro módulo.
+   O controller separa o resumo factual, a listagem, a criação e o disparo. O módulo de
+   atividade encapsula a projeção oficial e impede o módulo de acompanhamento de consultar
+   estudo privado ou de repetir regras de membership.
 6. Validação do passo.
-   `GET /api/follow-up-alerts/:id/preview` deve exigir professor autenticado.
+   `GET /api/follow-up-alerts/summary` deve exigir professor autenticado e devolver apenas
+   atividade oficial das turmas que lhe pertencem.
 7. Cenário negativo/erro esperado.
    Regra inexistente deve devolver `FOLLOW_UP_RULE_NOT_FOUND`.
 
@@ -448,10 +483,9 @@ import { requestMf3Json } from "../mf3/request-mf3-json.js";
 export type FollowUpAlertRule = {
     id: string;
     classId: string;
-    inactivityDays: number;
+    inactiveDays: number;
     title: string;
     message: string;
-    enabled: boolean;
 };
 
 export function loadFollowUpAlerts() {
@@ -504,7 +538,7 @@ export function FollowUpAlertsPanel() {
                 {rules.map((rule) => (
                     <li key={rule.id}>
                         <strong>{rule.title}</strong>
-                        <span>{rule.inactivityDays} dias sem actividade</span>
+                        <span>{rule.inactiveDays} dias sem atividade oficial da turma</span>
                         <button type="button" disabled={busyId === rule.id} onClick={() => handleRun(rule.id)}>
                             {busyId === rule.id ? "A enviar..." : "Enviar alerta"}
                         </button>
@@ -523,14 +557,15 @@ export function FollowUpAlertsPanel() {
 7. Cenário negativo/erro esperado.
    Se a regra pertencer a outro professor, o backend devolve erro e o painel mostra `role="alert"`.
 
-### Passo 5 - Criar teste de preview
+### Passo 5 - Testar o contrato de atividade oficial por turma
 
 1. Objetivo funcional do passo no contexto da app.
-   Cobrir a regra de inatividade.
+   Cobrir a delegação para a fonte canónica sem abrir uma dependência a estudo privado.
 2. Ficheiros envolvidos:
    - CRIAR: `apps/api/src/modules/follow-up-alerts/follow-up-alerts.service.spec.ts`
 3. Instruções do que fazer.
-   Simula turma com dois alunos e um evento recente.
+   Simula uma turma ativa com dois alunos e confirma que `classId`, os membros efetivos e
+   `inactiveDays` chegam ao serviço que aplica `joinedAt` e atividade oficial.
 4. Código completo, correto e integrado com a app final.
 
 ```ts
@@ -538,54 +573,63 @@ export function FollowUpAlertsPanel() {
 import { FollowUpAlertsService } from "./follow-up-alerts.service.js";
 
 describe("FollowUpAlertsService", () => {
-    it("devolve apenas alunos sem eventos recentes na turma validada", async () => {
+    it("calcula inatividade apenas no contexto oficial da turma", async () => {
         const rule = {
             _id: "507f1f77bcf86cd799439010",
             classId: "507f1f77bcf86cd799439011",
-            inactivityDays: 7,
+            inactiveDays: 7,
             title: "Retomar estudo",
             message: "Precisas de apoio?",
-            enabled: true,
         };
         const ruleModel = { findOne: jest.fn(() => ({ lean: async () => rule })) };
-        const eventModel = {
-            find: jest.fn(() => ({
-                select: () => ({ sort: () => ({ lean: async () => [{ userId: "507f1f77bcf86cd799439012" }] }) }),
-            })),
-        };
         const classesService = {
-            findOwnedClass: jest.fn(async () => ({
+            findOwnedActiveClass: jest.fn(async () => ({
+                _id: "507f1f77bcf86cd799439011",
                 studentIds: ["507f1f77bcf86cd799439012", "507f1f77bcf86cd799439013"],
             })),
         };
-        const notificationsService = { create: jest.fn() };
+        const notificationsService = { createForRecipients: jest.fn() };
+        const activityService = {
+            findInactiveStudentIds: jest
+                .fn()
+                .mockResolvedValue(["507f1f77bcf86cd799439013"]),
+        };
         const service = new FollowUpAlertsService(
             ruleModel as never,
-            eventModel as never,
             classesService as never,
             notificationsService as never,
+            activityService as never,
         );
 
-        const result = await service.previewInactiveStudents(
+        const result = await service.previewInactiveStudentIds(
             { id: "507f1f77bcf86cd799439014", email: "teacher@studyflow.test", role: "TEACHER" },
             "507f1f77bcf86cd799439010",
         );
 
-        expect(classesService.findOwnedClass).toHaveBeenCalledWith(
+        expect(classesService.findOwnedActiveClass).toHaveBeenCalledWith(
             "507f1f77bcf86cd799439014",
             "507f1f77bcf86cd799439011",
         );
-        expect(result).toEqual([{ studentId: "507f1f77bcf86cd799439013", lastActivityAt: null }]);
+        expect(activityService.findInactiveStudentIds).toHaveBeenCalledWith({
+            classId: "507f1f77bcf86cd799439011",
+            studentIds: ["507f1f77bcf86cd799439012", "507f1f77bcf86cd799439013"],
+            inactiveDays: 7,
+        });
+        expect(result).toEqual(["507f1f77bcf86cd799439013"]);
     });
 });
 ```
 
 5. Explicação do código.
-   O teste instancia o service com doubles dos quatro colaboradores e espera que apenas o aluno sem evento recente seja devolvido.
+   O teste instancia o service com doubles dos quatro colaboradores. Não existe modelo de
+   estudo privado neste construtor: `ClassLearningActivityService` filtra membership ativa,
+   usa `joinedAt` como baseline e consulta o estado no mesmo `classId`.
 6. Validação do passo.
    `npm run test:unit -- follow-up-alerts`
 7. Cenário negativo/erro esperado.
-   Se `findOwnedClass` não for chamado, o teste deve falhar por ausência de validação de turma.
+   Se `findOwnedActiveClass` não for chamado, o teste deve falhar por ausência de validação
+   da turma. Um teste próprio de `ClassLearningActivityService` deve ainda provar que uma
+   membership removida não entra e que atividade privada recente não altera o resultado.
 
 ### Passo 6 - Validar contrato final
 
@@ -594,13 +638,14 @@ describe("FollowUpAlertsService", () => {
 2. Ficheiros envolvidos:
    - REVER: todos os ficheiros criados neste BK
 3. Instruções do que fazer.
-   Valida criação, listagem, preview e execução.
+   Valida criação, listagem, resumo e execução, incluindo o isolamento entre turmas.
 4. Código completo, correto e integrado com a app final.
 
 Sem código neste passo.
 
 5. Explicação do código.
-   A validação final confirma que RF50 não é só configuração: a regra calcula alunos e cria uma notificação real.
+   A validação final confirma que RF50 não é só configuração: a regra calcula alunos com
+   atividade oficial da turma e cria uma notificação real, sem revelar hábitos privados.
 6. Validação do passo.
    `npm run test:unit -- follow-up-alerts` e chamada manual a `POST /api/follow-up-alerts/:id/run`.
 7. Cenário negativo/erro esperado.
@@ -610,7 +655,9 @@ Sem código neste passo.
 
 - Só professores criam regras.
 - Toda regra pertence a uma turma do professor.
-- Preview devolve apenas alunos da turma validada.
+- O resumo devolve apenas membros `ACTIVE` da turma validada.
+- `joinedAt` é o baseline quando o aluno ainda não tem atividade oficial.
+- Atividade de outra turma e estudo privado não alteram a inatividade.
 - Execução usa BK-MF4-01.
 - Frontend mostra erro e bloqueia clique duplicado.
 
@@ -618,19 +665,23 @@ Sem código neste passo.
 
 - `npm run test:unit -- follow-up-alerts`
 - `npm run test:integration`
-- Teste manual com turma sem actividade recente.
+- Teste manual com membro antigo sem atividade oficial e membro recém-inscrito.
+- Teste negativo com atividade privada recente e atividade oficial noutra turma.
 
 #### Evidence para PR/defesa
 
 - Output dos testes.
-- Payload de preview com alunos inativos.
+- Payload de `GET /api/follow-up-alerts/summary` com alunos inativos.
 - Payload da notificação criada.
 - Screenshot do painel docente.
 
 #### Handoff
 
-BK-MF4-03 deve definir quotas por canal para impedir excesso de alertas por turma/utilizador.
+BK-MF4-03 deve limitar o canal `IN_APP` e aplicar quotas para impedir excesso de alertas por
+turma/utilizador.
 
 #### Changelog
 
 - `2026-06-16`: guia corrigido com contrato real de alertas docentes, preview e integração com notificações.
+- `2026-07-11`: atividade docente isolada por `classId`, membership ativa e baseline
+  `joinedAt`; removida qualquer dependência positiva de estudo privado.

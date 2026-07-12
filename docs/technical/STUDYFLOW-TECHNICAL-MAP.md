@@ -2,9 +2,9 @@
 
 ```yaml
 doc_id: SF-TECHNICAL-MAP-BRIDGE
-implementation_manifest_sha256: 799990e7a86c9595c786069889ce2a4e893cf5c9077d23a67e9df6194a84e538
+implementation_manifest_sha256: 3e2a162b59e2d23c5276df21a10b439519df71c3b9cee67d04c709ec818dfd5c
 canonical_artifact: real_dev/docs/technical/STUDYFLOW-TECHNICAL-MAP.md
-updated_at: 2026-07-10
+updated_at: 2026-07-11
 ```
 
 Este ficheiro é apenas uma ponte documental. O único mapa técnico operativo é
@@ -25,7 +25,8 @@ controlo aplica-se apenas ao alvo `PAP_LOCAL_ENDURECIDA`; não constitui evidenc
 de prontidão para produção.
 
 O mapa inclui os nove grupos de interfaces finais (sessão, IA, jobs, privacidade,
-testes, ranking, notificações, chat e health), assim como storage/workers, transações,
+testes, ranking, notificações, chat e health). O grupo `CHAT` distingue o mural REST
+assíncrono dos grupos de estudo do canal WebSocket coletivo por disciplina. Inclui também storage/workers, transações,
 frontend e release local. O hash literal e o estado não entram no artefacto de
 `real_dev`, para evitar uma referência circular no manifesto; ficam nesta ponte e no
 [ledger de remediação](../PLANO-CORRECAO-AUDITORIA-COMPLETA-REAL_DEV-2026-07-09.md).

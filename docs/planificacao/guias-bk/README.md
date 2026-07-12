@@ -89,7 +89,7 @@
 - [BK-MF3-08 - IA coletiva para sessões de grupo.](MF3/BK-MF3-08-ia-coletiva-para-sessoes-de-grupo.md)
 - [BK-MF3-09 - Pesquisa unificada por tópico/conceito/material.](MF3/BK-MF3-09-pesquisa-unificada-por-topico-conceito-material.md)
 - [BK-MF3-10 - Navegação por programa/currículo.](MF3/BK-MF3-10-navegacao-por-programa-curriculo.md)
-- [BK-MF3-11 - Configurar preferências de notificações (email, push, app) por contexto.](MF3/BK-MF3-11-configurar-preferencias-de-notificacoes-email-push-app-por-contexto.md)
+- [BK-MF3-11 - Configurar preferências de notificações in-app por contexto.](MF3/BK-MF3-11-configurar-preferencias-de-notificacoes-email-push-app-por-contexto.md)
 - [BK-MF3-12 - Alertar alunos sobre rotinas, objetivos e sessões de estudo agendadas.](MF3/BK-MF3-12-alertar-alunos-sobre-rotinas-objetivos-e-sessoes-de-estudo-agendadas.md)
 
 ### MF4

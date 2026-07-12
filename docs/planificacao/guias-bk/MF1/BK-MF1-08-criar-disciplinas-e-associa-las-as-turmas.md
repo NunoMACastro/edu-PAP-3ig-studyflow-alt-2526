@@ -17,7 +17,7 @@
 - `core_or_reforco`: `Reforco`
 - `proximo_bk`: `BK-MF1-09`
 - `guia_path`: `docs/planificacao/guias-bk/MF1/BK-MF1-08-criar-disciplinas-e-associa-las-as-turmas.md`
-- `last_updated`: `2026-07-10`
+- `last_updated`: `2026-07-11`
 
 ## Objetivo
 Implementar `RF20`: permitir que o professor crie disciplinas dentro de uma turma sua e liste as disciplinas dessa turma.
@@ -746,6 +746,19 @@ Regista evidência de criação, listagem, duplicado e professor sem ownership.
 ## Handoff
 `BK-MF1-09` deve usar `SubjectsService.findOwnedSubject` com o mesmo professor de desenvolvimento. `BK-MF1-11` deve usar `SubjectsService.findSubjectForStudent` para validar inscrição antes de consultar materiais oficiais.
 
+## Atualização de paridade professor → aluno (2026-07-11)
+
+- Professor pode editar, arquivar e restaurar disciplinas próprias.
+- Arquivar encerra salas guiadas abertas e mini-testes publicados dessa disciplina;
+  restaurar não reabre esses recursos.
+- O aluno recebe descrição, estado e `readOnly`, sem `teacherId`; uma disciplina numa
+  turma arquivada continua consultável como histórico, mesmo que o seu estado próprio
+  permaneça ativo.
+- Criação e transições de lifecycle geram notificações in-app por outbox.
+- O fence transacional segue sempre a ordem turma → disciplina; materiais, salas, testes,
+  projetos e voz não podem confirmar depois de um archive concorrente.
+
 ## Changelog
 - 2026-05-31: Pré-requisitos e validação alinhados com a seed local de professor criada no BK-MF1-07.
 - 2026-05-30: Guia reescrito com módulo completo, ownership por turma e integração explícita para materiais e IA.
+- 2026-07-11: acrescentados lifecycle, histórico read-only, projeção discente e outbox.
