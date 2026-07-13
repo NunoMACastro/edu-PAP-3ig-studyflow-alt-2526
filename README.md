@@ -76,8 +76,60 @@ consultar [o ledger de remediação](docs/PLANO-CORRECAO-AUDITORIA-COMPLETA-REAL
 e [o estado independente dos BK](docs/planificacao/ESTADO-REFERENCIA-REAL_DEV.md). Não existe
 declaração de prontidão para produção.
 
-## 6. Escopo MVP vs Pós-PAP
+## 6. Arranque Local da Aplicação (`apps/`)
+
+### 6.1 Pré-requisitos
+
+- Node.js `24.11.1` e npm `11.6.2`;
+- MongoDB Atlas ou MongoDB local configurado como replica set `studyflow-rs`;
+- Redis local disponível em `127.0.0.1`.
+
+O backend e o frontend têm dependências e ficheiros `package-lock.json` próprios. Por isso, os
+comandos de instalação devem ser executados separadamente em cada pasta.
+
+### 6.2 Backend (`apps/api`)
+
+Na primeira execução, abrir um terminal na raiz do repositório e preparar o ambiente:
+
+```bash
+cd apps/api
+npm ci
+cp -n .env.example .env
+```
+
+Editar `apps/api/.env` e preencher, pelo menos, a ligação ao MongoDB (`MONGODB_URI`), a ligação
+ao Redis (`REDIS_URL`) e um caminho local com permissões de escrita (`MATERIALS_STORAGE_DIR`).
+Quando forem usadas funcionalidades reais de IA, preencher também `OPENAI_API_KEY`. Nunca
+adicionar o ficheiro `.env` ao Git.
+
+Depois, mantendo o terminal em `apps/api`, arrancar a API em modo de desenvolvimento:
+
+```bash
+npm run start:dev
+```
+
+A API fica disponível em `http://127.0.0.1:3000` por omissão.
+
+### 6.3 Frontend (`apps/web`)
+
+Num segundo terminal, executar:
+
+```bash
+cd apps/web
+npm ci
+npm run dev
+```
+
+O frontend fica disponível em `http://127.0.0.1:5173` e encaminha os pedidos `/api/*` para
+`http://127.0.0.1:3000`. Para usar uma API noutro endereço, copiar `apps/web/.env.example` para
+`apps/web/.env` e alterar `VITE_API_PROXY_TARGET`.
+
+Para trabalhar com a aplicação completa, manter os dois terminais em execução.
+
+## 7. Escopo MVP vs Pós-PAP
+
 ### MVP (incluído)
+
 - dois modos obrigatórios plenamente ativos: individual e turma/disciplina;
 - modo coletivo funcional para sessões de grupo;
 - voz docente como adaptação de estilo pedagógico (sem exigência de clonagem tímbrica);
@@ -86,12 +138,14 @@ declaração de prontidão para produção.
 - guardrails e isolamento de dados como condição de qualidade.
 
 ### Pós-PAP (adiado)
+
 - clonagem de voz de alta fidelidade tímbrica;
 - automações avançadas multicanal com quotas detalhadas;
 - integrações institucionais amplas (SSO completo, calendários avançados);
 - funcionalidades colaborativas de maior complexidade operacional.
 
-## 7. Requisitos Não Funcionais Críticos
+## 8. Requisitos Não Funcionais Críticos
+
 - segurança de sessão, proteção de dados e separação de contextos;
 - desempenho consistente na consulta e resposta de IA;
 - fiabilidade operacional com logs e recuperação;
@@ -100,14 +154,17 @@ declaração de prontidão para produção.
 
 Fonte canónica RNF: [docs/RNF.md](docs/RNF.md).
 
-## 8. Roadmap Resumido por Fases
+## 9. Roadmap Resumido por Fases
+
 1. fundação de conta, áreas de estudo e assistente individual;
 2. ativação de turmas/disciplina e voz docente;
 3. sessões coletivas, integrações essenciais e notificações simplificadas;
 4. reforço operacional, governança e preparação de defesa.
 
-## 9. Créditos, Licença e Changelog
+## 10. Créditos, Licença e Changelog
+
 ### Créditos
+
 - Projeto: StudyFlow
 - Tipo: PAP - Curso Profissional de Informática de Gestão
 - Ano letivo: 2025/2026
@@ -115,7 +172,10 @@ Fonte canónica RNF: [docs/RNF.md](docs/RNF.md).
 - Orientador: Nuno Castro e Cláudia Marques
 
 ### Licença
+
 Projeto académico para fins educativos.
 
 ### Changelog
+
+- 2026-07-13: adicionadas instruções para arrancar o backend e o frontend a partir de `apps/`.
 - 2026-04-17: README reescrito integralmente com estrutura canónica e explicitação dos 2 modos obrigatórios de IA + modo coletivo.
