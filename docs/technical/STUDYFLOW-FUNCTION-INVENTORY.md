@@ -2,9 +2,9 @@
 
 ```yaml
 doc_id: SF-FUNCTION-INVENTORY-BRIDGE
-implementation_manifest_sha256: 3e2a162b59e2d23c5276df21a10b439519df71c3b9cee67d04c709ec818dfd5c
+implementation_manifest_sha256: 43d68c7a959019e296394742ef5fb98796ce44cc64901d844d98b1da6a06d56d
 canonical_artifact: real_dev/docs/technical/STUDYFLOW-FUNCTION-INVENTORY.md
-updated_at: 2026-07-11
+updated_at: 2026-07-13
 ```
 
 O artefacto operativo é
