@@ -1,0 +1,97 @@
+/**
+ * Expõe notificações contextuais in-app.
+ */
+import {
+    Body,
+    Controller,
+    Get,
+    Param,
+    Patch,
+    Post,
+    Query,
+    Req,
+    UseGuards,
+} from "@nestjs/common";
+import { SessionGuard } from "../../common/guards/session.guard.js";
+import { AuthenticatedRequest } from "../../common/types/authenticated-request.js";
+import { ContextNotificationsService } from "./context-notifications.service.js";
+import { CreateContextNotificationDto } from "./dto/create-context-notification.dto.js";
+
+@Controller("api/context-notifications")
+@UseGuards(SessionGuard)
+export class ContextNotificationsController {
+    /**
+     * Recebe as dependências injetadas de ContextNotificationsController para manter notificações contextuais testável e separado de detalhes externos.
+     *
+     * @param notificationsService Service injetado para reutilizar regras de domínio sem duplicar lógica.
+     */
+    constructor(private readonly notificationsService: ContextNotificationsService) {}
+
+    /**
+     * Cria o pedido HTTP de notificações contextuais e delega no service a aplicação das regras de autenticação, validação e domínio.
+     *
+     * @param request Pedido autenticado recebido pelo controller, incluindo a sessão e o utilizador atual.
+     * @param body Payload validado recebido no pedido HTTP antes de ser entregue ao domínio.
+     * @returns Resultado da operação no formato esperado pelo chamador.
+     */
+    @Post()
+    create(@Req() request: AuthenticatedRequest, @Body() body: CreateContextNotificationDto) {
+        return this.notificationsService.create(request.user!, body);
+    }
+
+    /**
+     * Obtém o pedido HTTP de notificações contextuais e delega no service a aplicação das regras de autenticação, validação e domínio.
+     *
+     * @param request Pedido autenticado recebido pelo controller, incluindo a sessão e o utilizador atual.
+     * @returns Lista de itens filtrada e ordenada de acordo com o contrato do domínio.
+     */
+    @Get()
+    list(@Req() request: AuthenticatedRequest) {
+        return this.notificationsService.list(request.user!);
+    }
+
+    /** Lista a inbox do destinatário com cursor e contagem de não lidas. */
+    @Get("inbox")
+    inbox(
+        @Req() request: AuthenticatedRequest,
+        @Query("cursor") cursor?: string,
+        @Query("limit") limit?: string,
+        @Query("unreadOnly") unreadOnly?: string,
+    ) {
+        return this.notificationsService.listInbox(request.user!, {
+            cursor,
+            limit: limit ? Number(limit) : undefined,
+            unreadOnly: unreadOnly === "true",
+        });
+    }
+
+    /** Lista notificações criadas pelo autor com totais operacionais. */
+    @Get("sent")
+    sent(@Req() request: AuthenticatedRequest) {
+        return this.notificationsService.listSent(request.user!);
+    }
+
+    /** Marca uma notificação pertencente ao destinatário como lida. */
+    @Patch(":id/read")
+    markRead(
+        @Req() request: AuthenticatedRequest,
+        @Param("id") id: string,
+    ) {
+        return this.notificationsService.markRead(request.user!, id);
+    }
+
+    /** Arquiva uma notificação apenas na inbox do destinatário. */
+    @Patch(":id/archive")
+    archive(
+        @Req() request: AuthenticatedRequest,
+        @Param("id") id: string,
+    ) {
+        return this.notificationsService.archive(request.user!, id);
+    }
+
+    /** Marca todas as notificações entregues como lidas. */
+    @Post("read-all")
+    markAllRead(@Req() request: AuthenticatedRequest) {
+        return this.notificationsService.markAllRead(request.user!);
+    }
+}

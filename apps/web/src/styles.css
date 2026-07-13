@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    html,
+    body,
+    #root {
+        @apply min-h-full min-w-0 max-w-full;
+    }
+
+    body {
+        @apply bg-studyflow-page text-studyflow-text antialiased;
+        overflow-wrap: anywhere;
+    }
+
+    label {
+        @apply text-sm font-medium text-studyflow-text;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    textarea,
+    select {
+        @apply min-h-11 min-w-0 w-full rounded-xl border border-studyflow-border/15 bg-studyflow-page/80 px-4 py-2 text-sm text-studyflow-text outline-none transition placeholder:text-studyflow-text/50 focus:border-studyflow-brand focus:ring-2 focus:ring-studyflow-brand/25;
+    }
+
+    button {
+        @apply rounded-xl text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-studyflow-brandText disabled:cursor-not-allowed disabled:opacity-60;
+    }
+}
+
+@layer components {
+    .sf-surface {
+        @apply min-w-0 rounded-2xl border border-studyflow-border/10 bg-studyflow-card/70 p-5 sm:p-6;
+        box-shadow: 0 18px 50px rgb(0 0 0 / 0.16), inset 0 1px 0 rgb(224 224 224 / 0.04);
+    }
+
+    .sf-surface-elevated {
+        @apply border-studyflow-border/15 bg-studyflow-card/90;
+        box-shadow: 0 24px 70px rgb(0 0 0 / 0.24), inset 0 1px 0 rgb(224 224 224 / 0.06);
+    }
+
+    .sf-surface-interactive {
+        @apply transition duration-200 hover:-translate-y-0.5 hover:border-studyflow-brand/35 hover:bg-studyflow-card/90;
+    }
+
+    .sf-surface-subtle {
+        @apply min-w-0 rounded-2xl border border-studyflow-border/10 bg-studyflow-card/35 p-4 sm:p-5;
+    }
+
+    .sf-surface-tone-brand {
+        @apply border-studyflow-brand/25 bg-studyflow-brand/5;
+    }
+
+    .sf-surface-tone-attention {
+        @apply border-studyflow-alert/35 bg-studyflow-alert/10;
+    }
+
+    .sf-surface-tone-danger {
+        @apply border-studyflow-alert/55 bg-studyflow-alert/10;
+    }
+
+    .sf-toolbar {
+        @apply grid min-w-0 gap-3 rounded-2xl border border-studyflow-border/10 bg-studyflow-card/35 p-3 sm:p-4;
+    }
+
+    .sf-field {
+        @apply min-h-11 rounded-xl border-studyflow-border/15 bg-studyflow-page/80 px-4 focus:border-studyflow-brand focus:ring-studyflow-brand/25;
+    }
+
+    .sf-badge {
+        @apply inline-flex items-center rounded-full border border-studyflow-border/10 bg-studyflow-page/50 px-2.5 py-1 text-xs font-semibold text-studyflow-text/80;
+    }
+
+    .sf-badge-brand {
+        @apply border-studyflow-brand/30 bg-studyflow-brand/10 text-studyflow-brandText;
+    }
+
+    .sf-badge-attention,
+    .sf-badge-danger {
+        @apply border-studyflow-alert/45 bg-studyflow-alert/15 text-studyflow-alertText;
+    }
+
+    .sf-badge-neutral {
+        @apply text-studyflow-text/70;
+    }
+
+    .sf-notice {
+        @apply min-w-0 rounded-xl border border-studyflow-border/10 bg-studyflow-card/40 px-4 py-3 text-sm leading-6 text-studyflow-text;
+    }
+
+    .sf-notice-brand {
+        @apply border-studyflow-brand/25 bg-studyflow-brand/10;
+    }
+
+    .sf-notice-attention {
+        @apply border-studyflow-alert/35 bg-studyflow-alert/10;
+    }
+
+    .sf-notice-danger {
+        @apply border-studyflow-alert/55 bg-studyflow-alert/15 text-studyflow-alertText;
+    }
+
+    .sf-notice-neutral {
+        @apply text-studyflow-text/75;
+    }
+
+    .sf-metric-strip {
+        @apply grid min-w-0 overflow-hidden rounded-2xl border border-studyflow-border/10 bg-studyflow-page/35 sm:grid-cols-2;
+    }
+
+    .sf-metric-strip > div {
+        @apply border-b border-studyflow-border/10 last:border-b-0 sm:border-r sm:even:border-r-0;
+    }
+
+    .sf-list-card {
+        @apply min-w-0 rounded-2xl border border-studyflow-border/10 bg-studyflow-card/45 p-4 transition sm:p-5 hover:border-studyflow-brand/30 hover:bg-studyflow-card/65;
+    }
+
+    .sf-section-group {
+        @apply min-w-0 space-y-4 rounded-2xl border border-studyflow-border/10 bg-studyflow-card/20 p-4 sm:p-6;
+    }
+
+    .sf-timeline-item {
+        @apply relative min-w-0 border-l border-studyflow-border/15 py-2 pl-5 before:absolute before:-left-1.5 before:top-4 before:h-3 before:w-3 before:rounded-full before:bg-studyflow-brand;
+    }
+
+    .sf-icon-button {
+        @apply inline-flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-studyflow-text/75 transition hover:border-studyflow-border/10 hover:bg-studyflow-page/55 hover:text-studyflow-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-studyflow-brand;
+    }
+
+    .sf-empty-state {
+        @apply flex min-w-0 flex-col items-start rounded-2xl border border-dashed border-studyflow-border/15 bg-studyflow-card/25 p-6 sm:p-8;
+    }
+
+    .sf-button-primary {
+        @apply inline-flex items-center justify-center rounded-xl bg-studyflow-brand px-4 py-2 text-white shadow-lg shadow-black/10 hover:bg-studyflow-brandHover active:bg-studyflow-brandHover;
+    }
+
+    .sf-button-secondary {
+        @apply inline-flex items-center justify-center rounded-xl border border-studyflow-border/15 bg-studyflow-card/55 px-4 py-2 text-studyflow-text hover:border-studyflow-brand/60 hover:bg-studyflow-card;
+    }
+
+    .sf-error {
+        @apply rounded-xl border border-studyflow-alert/55 bg-studyflow-alert/15 px-4 py-3 text-sm font-medium text-studyflow-alertText;
+    }
+
+    .sf-success {
+        @apply rounded-xl border border-studyflow-brand/35 bg-studyflow-brand/10 px-4 py-3 text-sm text-studyflow-text;
+    }
+}
+
+@keyframes sf-slide-in {
+    from {
+        transform: translateX(1.5rem);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
