@@ -13,7 +13,7 @@ privacy_retention: ANONYMIZED_90_DAYS
 status: BLOQUEADO_OPERADOR
 created_at: 2026-07-09T20:26:24+01:00
 updated_at: 2026-07-11T11:55:00+01:00
-implementation_manifest_sha256: 43d68c7a959019e296394742ef5fb98796ce44cc64901d844d98b1da6a06d56d
+implementation_manifest_sha256: 951a8a6932d774f047caf8c7ea4c850238775ac8ab83e3c9c2883f26c6f7b18e
 ```
 
 ## 1. Autoridade e âmbito
@@ -825,7 +825,7 @@ evidence de §8.3 fecha o ciclo documental e a revalidação no manifesto corren
 
 Nenhum comando abaixo guardou credenciais, cookies, URIs autenticadas ou dados pessoais. O
 ledger corrente está ligado ao manifesto
-`43d68c7a959019e296394742ef5fb98796ce44cc64901d844d98b1da6a06d56d`; cada linha histórica
+`951a8a6932d774f047caf8c7ea4c850238775ac8ab83e3c9c2883f26c6f7b18e`; cada linha histórica
 mantém explicitamente o manifesto do ciclo em que a respetiva evidence foi recolhida.
 
 | Evidence ID | Finding | Tipo | Manifesto | Comando/procedimento | Exit/result sanitizado | Data | Reviewer |
