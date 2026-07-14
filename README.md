@@ -78,18 +78,11 @@ declaração de prontidão para produção.
 
 ## 6. Arranque Local da Aplicação (`apps/`)
 
-### 6.1 Pré-requisitos
+O backend e o frontend devem ser arrancados em terminais separados.
 
-- Node.js `24.11.1` e npm `11.6.2`;
-- MongoDB Atlas ou MongoDB local configurado como replica set `studyflow-rs`;
-- Redis local disponível em `127.0.0.1`.
+### 6.1 Backend (`apps/api`)
 
-O backend e o frontend têm dependências e ficheiros `package-lock.json` próprios. Por isso, os
-comandos de instalação devem ser executados separadamente em cada pasta.
-
-### 6.2 Backend (`apps/api`)
-
-Na primeira execução, abrir um terminal na raiz do repositório e preparar o ambiente:
+Na primeira execução, abrir um terminal na raiz do repositório e executar:
 
 ```bash
 cd apps/api
@@ -97,22 +90,21 @@ npm ci
 cp -n .env.example .env
 ```
 
-Editar `apps/api/.env` e preencher, pelo menos, a ligação ao MongoDB (`MONGODB_URI`), a ligação
-ao Redis (`REDIS_URL`) e um caminho local com permissões de escrita (`MATERIALS_STORAGE_DIR`).
-Quando forem usadas funcionalidades reais de IA, preencher também `OPENAI_API_KEY`. Nunca
-adicionar o ficheiro `.env` ao Git.
+Antes de arrancar o backend, confirmar que o ficheiro `apps/api/.env` existe e preencher os
+valores necessários. O `.env` pode ser criado a partir do `.env.example` e não deve ser
+adicionado ao Git.
 
-Depois, mantendo o terminal em `apps/api`, arrancar a API em modo de desenvolvimento:
+Depois, arrancar o backend:
 
 ```bash
 npm run start:dev
 ```
 
-A API fica disponível em `http://127.0.0.1:3000` por omissão.
+O backend fica disponível em `http://127.0.0.1:3000`.
 
-### 6.3 Frontend (`apps/web`)
+### 6.2 Frontend (`apps/web`)
 
-Num segundo terminal, executar:
+Num segundo terminal, a partir da raiz do repositório, executar:
 
 ```bash
 cd apps/web
@@ -120,11 +112,8 @@ npm ci
 npm run dev
 ```
 
-O frontend fica disponível em `http://127.0.0.1:5173` e encaminha os pedidos `/api/*` para
-`http://127.0.0.1:3000`. Para usar uma API noutro endereço, copiar `apps/web/.env.example` para
-`apps/web/.env` e alterar `VITE_API_PROXY_TARGET`.
-
-Para trabalhar com a aplicação completa, manter os dois terminais em execução.
+O frontend fica disponível em `http://127.0.0.1:5173`. Para usar o backend noutro endereço,
+copiar `apps/web/.env.example` para `apps/web/.env` e alterar `VITE_API_PROXY_TARGET`.
 
 ## 7. Escopo MVP vs Pós-PAP
 
