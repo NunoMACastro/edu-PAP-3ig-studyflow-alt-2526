@@ -1,7 +1,7 @@
 # Prof
 real_dev/
-admin/
-agent/
+/admin/
+/agent/
 
 # Node.js
 node_modules/
@@ -54,4 +54,4 @@ Thumbs.db
 .husky/_/
 
 # Assets (covers e músicas servidas publicamente)
-public/
+/public/

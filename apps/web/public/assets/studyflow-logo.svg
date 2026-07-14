@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">StudyFlow</title>
+  <rect width="512" height="512" rx="28" fill="#1473E6"/>
+  <path fill="#E0E0E0" d="M83 93c0-12 12-20 23-15l139 64v185c-43-31-91-43-145-49-10-1-17-10-17-20V93Z"/>
+  <path fill="#E0E0E0" d="M429 93c0-12-12-20-23-15l-139 64v185c43-31 91-43 145-49 10-1 17-10 17-20V93Z"/>
+  <text x="256" y="424" fill="#E0E0E0" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="700" text-anchor="middle">StudyFlow</text>
+</svg>
