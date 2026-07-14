@@ -3,7 +3,6 @@
  */
 import "../common/config/load-env.js";
 import { rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { Redis } from "ioredis";
 import mongoose from "mongoose";
@@ -12,6 +11,9 @@ import {
     ensureStudyFlowDirectory,
     normaliseDedicatedLocalDirectory,
 } from "../common/storage/dedicated-local-directory.js";
+import {
+    defaultMaterialStorageDirectory,
+} from "../common/storage/material-storage-directory.js";
 
 type ResetOptions = {
     allowReset?: boolean;
@@ -59,7 +61,7 @@ export function normaliseLocalResetOptions(options: ResetOptions): LocalResetCon
     }
 
     const storageDir = normaliseDedicatedLocalDirectory(
-        options.storageDir?.trim() || resolve(tmpdir(), "studyflow-materials"),
+        options.storageDir?.trim() || defaultMaterialStorageDirectory(),
         {
             envName: "MATERIALS_STORAGE_DIR",
             blockedRoots: [

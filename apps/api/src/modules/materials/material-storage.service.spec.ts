@@ -2,8 +2,11 @@
  * Testes focados do storage local transacional/reconciliável.
  */
 import { mkdtemp, readFile, readdir, rm, stat, utimes } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { resolve } from "node:path";
+import {
+    defaultMaterialStorageDirectory,
+} from "../../common/storage/material-storage-directory.js";
 import { MaterialStorageService } from "./material-storage.service.js";
 
 const ownerId = "507f1f77bcf86cd799439010";
@@ -47,6 +50,12 @@ describe("MaterialStorageService", () => {
             previousOrphanRetention,
         );
         await rm(root, { recursive: true, force: true });
+    });
+
+    it("resolve o storage predefinido dentro do home do utilizador", () => {
+        expect(defaultMaterialStorageDirectory()).toBe(
+            resolve(homedir(), ".studyflow", "studyflow-materials"),
+        );
     });
 
     it("promove staging de forma atómica e guarda ficheiro privado", async () => {
