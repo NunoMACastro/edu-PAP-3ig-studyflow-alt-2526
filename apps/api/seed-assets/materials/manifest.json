@@ -1,0 +1,239 @@
+{
+  "version": 1,
+  "documents": [
+    {
+      "key": "apis-seguras",
+      "filename": "apis-rest-seguras.pdf",
+      "title": "APIs REST Seguras com Node.js",
+      "subject": "Programação e Sistemas de Informação",
+      "mimeType": "application/pdf",
+      "chunks": [
+        {
+          "order": 0,
+          "text": "Objetivos: Distinguir autenticação de autorização. Validar input antes da lógica de negócio. Aplicar respostas HTTP e erros consistentes.",
+          "sourceLabel": "APIs REST Seguras com Node.js",
+          "locator": "p. 1"
+        },
+        {
+          "order": 1,
+          "text": "Contrato antes da implementação. Uma API robusta começa por definir recursos, operações, formatos de pedido e resposta, regras de autorização e falhas previsíveis. O controller recebe o pedido, valida o contrato e delega a lógica num service coeso.",
+          "sourceLabel": "APIs REST Seguras com Node.js",
+          "locator": "p. 2"
+        },
+        {
+          "order": 2,
+          "text": "Validação e controlo de acesso. Todo o input externo é não confiável. Validar tipos, limites e formatos reduz estados inválidos. Depois da autenticação, cada operação deve confirmar se o utilizador pode atuar sobre o recurso concreto.",
+          "sourceLabel": "APIs REST Seguras com Node.js",
+          "locator": "p. 2"
+        },
+        {
+          "order": 3,
+          "text": "Erros seguros. Erros públicos devem usar códigos estáveis e mensagens úteis sem expor stack traces, queries, segredos ou detalhes internos. Logs técnicos ficam no servidor e devem evitar dados pessoais desnecessários.",
+          "sourceLabel": "APIs REST Seguras com Node.js",
+          "locator": "p. 2"
+        },
+        {
+          "order": 4,
+          "text": "Exercícios: Definir o contrato de PATCH /api/projects/:id. Listar três casos limite para paginação. Explicar porque um ID válido não prova autorização.",
+          "sourceLabel": "APIs REST Seguras com Node.js",
+          "locator": "p. 3"
+        }
+      ]
+    },
+    {
+      "key": "redes-ipv4",
+      "filename": "redes-ipv4-subnetting.pdf",
+      "title": "Redes IPv4 e Subnetting",
+      "subject": "Redes de Comunicação",
+      "mimeType": "application/pdf",
+      "chunks": [
+        {
+          "order": 0,
+          "text": "Objetivos: Interpretar prefixos CIDR. Calcular rede, broadcast e hosts válidos. Diagnosticar configurações IPv4 simples.",
+          "sourceLabel": "Redes IPv4 e Subnetting",
+          "locator": "p. 1"
+        },
+        {
+          "order": 1,
+          "text": "Endereço e máscara. Um endereço IPv4 tem 32 bits. O prefixo CIDR indica quantos bits identificam a rede; os restantes identificam hosts. A máscara /24 corresponde a 255.255.255.0.",
+          "sourceLabel": "Redes IPv4 e Subnetting",
+          "locator": "p. 2"
+        },
+        {
+          "order": 2,
+          "text": "Cálculo da sub-rede. Para encontrar a rede, aplica-se AND entre endereço e máscara. O broadcast coloca a 1 todos os bits de host. Em redes tradicionais, os endereços entre rede e broadcast são atribuíveis.",
+          "sourceLabel": "Redes IPv4 e Subnetting",
+          "locator": "p. 2"
+        },
+        {
+          "order": 3,
+          "text": "Diagnóstico. Confirmar primeiro IP, máscara e gateway. Depois testar loopback, gateway, destino por IP e resolução DNS. Esta ordem separa falhas locais, encaminhamento e nomes.",
+          "sourceLabel": "Redes IPv4 e Subnetting",
+          "locator": "p. 2"
+        },
+        {
+          "order": 4,
+          "text": "Exercícios: Calcular 10.0.4.130/25. Dividir uma /24 em quatro redes iguais. Propor uma sequência de diagnóstico para falha de DNS.",
+          "sourceLabel": "Redes IPv4 e Subnetting",
+          "locator": "p. 3"
+        }
+      ]
+    },
+    {
+      "key": "linux-admin",
+      "filename": "linux-processos-permissoes.pdf",
+      "title": "Linux: Processos, Permissões e Shell",
+      "subject": "Sistemas Operativos",
+      "mimeType": "application/pdf",
+      "chunks": [
+        {
+          "order": 0,
+          "text": "Objetivos: Ler permissões de ficheiros. Gerir processos de forma segura. Automatizar tarefas simples em shell.",
+          "sourceLabel": "Linux: Processos, Permissões e Shell",
+          "locator": "p. 1"
+        },
+        {
+          "order": 1,
+          "text": "Permissões. As permissões rwx são avaliadas para proprietário, grupo e outros. chmod altera modos; chown altera proprietário. Deve aplicar-se o princípio do menor privilégio.",
+          "sourceLabel": "Linux: Processos, Permissões e Shell",
+          "locator": "p. 2"
+        },
+        {
+          "order": 2,
+          "text": "Processos. ps apresenta processos, top mostra atividade e kill envia sinais. SIGTERM permite encerramento controlado; SIGKILL deve ser a última opção porque impede limpeza.",
+          "sourceLabel": "Linux: Processos, Permissões e Shell",
+          "locator": "p. 2"
+        },
+        {
+          "order": 3,
+          "text": "Scripts previsíveis. Um script deve validar argumentos, usar códigos de saída, citar variáveis e falhar de modo explícito. set -euo pipefail ajuda, mas não substitui tratamento consciente de erros.",
+          "sourceLabel": "Linux: Processos, Permissões e Shell",
+          "locator": "p. 2"
+        },
+        {
+          "order": 4,
+          "text": "Exercícios: Interpretar o modo 750. Comparar SIGTERM e SIGKILL. Escrever pseudocódigo de um backup com validação.",
+          "sourceLabel": "Linux: Processos, Permissões e Shell",
+          "locator": "p. 3"
+        }
+      ]
+    },
+    {
+      "key": "sql-modelacao",
+      "filename": "bases-dados-sql-modelacao.pdf",
+      "title": "Bases de Dados: Modelação e SQL",
+      "subject": "Bases de Dados",
+      "mimeType": "application/pdf",
+      "chunks": [
+        {
+          "order": 0,
+          "text": "Objetivos: Distinguir entidades, atributos e relações. Aplicar normalização até à terceira forma normal. Construir queries com JOIN e agregação.",
+          "sourceLabel": "Bases de Dados: Modelação e SQL",
+          "locator": "p. 1"
+        },
+        {
+          "order": 1,
+          "text": "Modelo relacional. Cada tabela representa um conceito coeso. A chave primária identifica linhas; a chave estrangeira representa relações e preserva integridade referencial.",
+          "sourceLabel": "Bases de Dados: Modelação e SQL",
+          "locator": "p. 2"
+        },
+        {
+          "order": 2,
+          "text": "Normalização. A normalização reduz repetição e anomalias. A terceira forma normal remove dependências transitivas de atributos não-chave, sem separar dados arbitrariamente.",
+          "sourceLabel": "Bases de Dados: Modelação e SQL",
+          "locator": "p. 2"
+        },
+        {
+          "order": 3,
+          "text": "Consultas claras. JOIN combina relações através de condições explícitas. Agregações como COUNT e AVG exigem atenção ao GROUP BY e ao significado de linhas ausentes.",
+          "sourceLabel": "Bases de Dados: Modelação e SQL",
+          "locator": "p. 2"
+        },
+        {
+          "order": 4,
+          "text": "Exercícios: Normalizar uma tabela de encomendas. Escrever um JOIN entre alunos e inscrições. Explicar quando usar LEFT JOIN.",
+          "sourceLabel": "Bases de Dados: Modelação e SQL",
+          "locator": "p. 3"
+        }
+      ]
+    },
+    {
+      "key": "web-acessivel",
+      "filename": "web-semantica-acessivel.pdf",
+      "title": "Web Semântica, Responsiva e Acessível",
+      "subject": "Tecnologias Web",
+      "mimeType": "application/pdf",
+      "chunks": [
+        {
+          "order": 0,
+          "text": "Objetivos: Estruturar páginas com HTML semântico. Criar layouts responsivos. Garantir navegação por teclado e nomes acessíveis.",
+          "sourceLabel": "Web Semântica, Responsiva e Acessível",
+          "locator": "p. 1"
+        },
+        {
+          "order": 1,
+          "text": "Semântica. Elementos como header, nav, main, section e button comunicam significado ao browser e às tecnologias de apoio. Um div com clique não substitui um botão.",
+          "sourceLabel": "Web Semântica, Responsiva e Acessível",
+          "locator": "p. 2"
+        },
+        {
+          "order": 2,
+          "text": "Responsividade. Começar pelo conteúdo e por ecrãs pequenos evita layouts rígidos. Grid e Flexbox permitem adaptação; media queries devem responder a necessidades reais do conteúdo.",
+          "sourceLabel": "Web Semântica, Responsiva e Acessível",
+          "locator": "p. 2"
+        },
+        {
+          "order": 3,
+          "text": "Acessibilidade. Inputs precisam de labels, imagens informativas de texto alternativo e foco visível. A ordem do DOM deve continuar lógica sem CSS.",
+          "sourceLabel": "Web Semântica, Responsiva e Acessível",
+          "locator": "p. 2"
+        },
+        {
+          "order": 4,
+          "text": "Exercícios: Transformar uma navegação feita com divs. Definir uma grelha mobile-first. Avaliar labels e mensagens de erro num formulário.",
+          "sourceLabel": "Web Semântica, Responsiva e Acessível",
+          "locator": "p. 3"
+        }
+      ]
+    },
+    {
+      "key": "pap-planeamento",
+      "filename": "pap-planeamento-entrega.pdf",
+      "title": "PAP: Planeamento, Evidências e Apresentação",
+      "subject": "Projeto de Aptidão Profissional",
+      "mimeType": "application/pdf",
+      "chunks": [
+        {
+          "order": 0,
+          "text": "Objetivos: Transformar objetivos em entregas verificáveis. Registar decisões e evidências. Preparar uma demonstração resiliente.",
+          "sourceLabel": "PAP: Planeamento, Evidências e Apresentação",
+          "locator": "p. 1"
+        },
+        {
+          "order": 1,
+          "text": "Âmbito e prioridades. O projeto deve resolver um problema claro para utilizadores identificados. Priorizar fluxos essenciais evita dispersão e permite demonstrar valor antes de acrescentar extras.",
+          "sourceLabel": "PAP: Planeamento, Evidências e Apresentação",
+          "locator": "p. 2"
+        },
+        {
+          "order": 2,
+          "text": "Evidências. Cada funcionalidade deve ligar requisitos, implementação e validação. Capturas, testes, decisões e limitações honestas tornam o trabalho auditável.",
+          "sourceLabel": "PAP: Planeamento, Evidências e Apresentação",
+          "locator": "p. 2"
+        },
+        {
+          "order": 3,
+          "text": "Apresentação. A demonstração deve ter dados preparados, percurso curto e alternativa para falhas de rede. Explicar decisões é mais importante do que mostrar muitos ecrãs.",
+          "sourceLabel": "PAP: Planeamento, Evidências e Apresentação",
+          "locator": "p. 2"
+        },
+        {
+          "order": 4,
+          "text": "Exercícios: Escrever três critérios de sucesso mensuráveis. Preparar um roteiro de demonstração de cinco minutos. Identificar dois riscos e respetivas alternativas.",
+          "sourceLabel": "PAP: Planeamento, Evidências e Apresentação",
+          "locator": "p. 3"
+        }
+      ]
+    }
+  ]
+}
