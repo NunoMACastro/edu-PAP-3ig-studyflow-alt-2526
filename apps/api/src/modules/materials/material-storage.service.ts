@@ -29,6 +29,9 @@ import {
 import {
     defaultMaterialStorageDirectory,
 } from "../../common/storage/material-storage-directory.js";
+import {
+    hasExpectedPrivateFilesystemMode,
+} from "../../common/storage/private-filesystem-mode.js";
 
 const DEFAULT_USER_QUOTA_BYTES = 250 * 1024 * 1024;
 const DEFAULT_GLOBAL_QUOTA_BYTES = 5 * 1024 * 1024 * 1024;
@@ -98,7 +101,10 @@ export class MaterialStorageService {
             });
             await chmod(probePath, 0o600);
             const metadata = await stat(probePath);
-            if (!metadata.isFile() || (metadata.mode & 0o777) !== 0o600) {
+            if (
+                !metadata.isFile() ||
+                !hasExpectedPrivateFilesystemMode(metadata.mode, 0o600)
+            ) {
                 throw new Error("Material storage readiness probe is not private.");
             }
         } finally {

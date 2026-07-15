@@ -7,6 +7,9 @@ import { resolve } from "node:path";
 import {
     defaultMaterialStorageDirectory,
 } from "../../common/storage/material-storage-directory.js";
+import {
+    hasExpectedPrivateFilesystemMode,
+} from "../../common/storage/private-filesystem-mode.js";
 import { MaterialStorageService } from "./material-storage.service.js";
 
 const ownerId = "507f1f77bcf86cd799439010";
@@ -68,7 +71,7 @@ describe("MaterialStorageService", () => {
         );
         expect(await service.listCommittedKeys()).toEqual([staged.storageKey]);
         const info = await stat(resolve(root, staged.storageKey));
-        expect(info.mode & 0o777).toBe(0o600);
+        expect(hasExpectedPrivateFilesystemMode(info.mode, 0o600)).toBe(true);
         expect(staged.sha256).toMatch(/^[a-f0-9]{64}$/);
     });
 
@@ -154,7 +157,9 @@ describe("MaterialStorageService", () => {
         await expect(service.checkReady()).resolves.toBeUndefined();
 
         expect(await readdir(resolve(root, ".staging"))).toEqual([]);
-        expect((await stat(root)).mode & 0o777).toBe(0o700);
+        expect(
+            hasExpectedPrivateFilesystemMode((await stat(root)).mode, 0o700),
+        ).toBe(true);
     });
 
     it("cancela a outbox de delete sem apagar o ficheiro comprometido", async () => {

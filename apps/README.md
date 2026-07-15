@@ -18,6 +18,9 @@ O ambiente local não usa autenticação no MongoDB ou Redis porque os dois
 serviços estão limitados a `127.0.0.1`. Esta configuração não deve ser exposta
 noutra interface de rede sem adicionar autenticação e TLS.
 
+No Windows, o storage privado usa as ACLs NTFS herdadas do perfil do utilizador;
+em macOS/Linux, a API também valida explicitamente os modos POSIX `0600`/`0700`.
+
 ## Pré-requisitos
 
 - Docker Desktop recente, com Docker Compose e suporte para `up --wait`.
