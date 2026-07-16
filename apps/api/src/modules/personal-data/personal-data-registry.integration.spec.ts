@@ -919,7 +919,7 @@ describe("PersonalDataRegistryService — integração all-model real", () => {
         const artifactModel = model<AiArtifact>(connection, AiArtifact.name);
         const studyEventModel = model<StudyEvent>(connection, StudyEvent.name);
         const studyToolsPort: QuizGenerationStudyToolsPort = {
-            assertQuizGenerationReady: jest.fn().mockResolvedValue(undefined),
+            assertGenerationReady: jest.fn().mockResolvedValue(undefined),
             generateStudyTool: jest.fn(async (_userId, _areaId, _input, generationKey) => {
                 providerStarted.resolve();
                 await providerRelease.promise;

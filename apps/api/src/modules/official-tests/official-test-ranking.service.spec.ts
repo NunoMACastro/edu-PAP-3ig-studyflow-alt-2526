@@ -93,18 +93,19 @@ describe("OfficialTestRankingService", () => {
             service.listForTeacher(teacher, subjectId, testId),
         ).resolves.toEqual({
             testId,
+            testTitle: "Demonstração — Funções",
             subjectId,
             classId,
             policy: "BEST_ATTEMPT",
             rows: [
                 expect.objectContaining({
                     position: 1,
-                    displayName: "Aluno 9023",
+                    displayName: "Natália Carolino",
                     bestPercentage: 90,
                 }),
                 expect.objectContaining({
                     position: 2,
-                    displayName: "Aluno 9022",
+                    displayName: "Guilherme Francisco",
                     bestPercentage: 80,
                 }),
             ],
@@ -232,6 +233,7 @@ function makeService() {
                 _id: testId,
                 subjectId,
                 classId,
+                title: "Demonstração — Funções",
             }),
         }),
     };
@@ -264,10 +266,17 @@ function makeService() {
             },
         ]),
     };
+    const profileService = {
+        resolvePublicDisplayNames: jest.fn().mockResolvedValue(new Map([
+            ["507f1f77bcf86cd799439023", "Natália Carolino"],
+            ["507f1f77bcf86cd799439022", "Guilherme Francisco"],
+        ])),
+    };
     const service = new OfficialTestRankingService(
         testModel as never,
         attemptModel as never,
         subjectsService as never,
+        profileService as never,
     );
-    return { attemptModel, subjectsService, testModel, service };
+    return { attemptModel, profileService, subjectsService, testModel, service };
 }

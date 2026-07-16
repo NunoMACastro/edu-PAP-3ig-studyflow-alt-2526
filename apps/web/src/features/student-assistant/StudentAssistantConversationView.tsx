@@ -438,7 +438,7 @@ export function StudentAssistantConversationView({
             ) : composer ? (
                 <div className="shrink-0 border-t border-studyflow-border/10 pt-4">{composer}</div>
             ) : null}
-            {artifactPanelOpen ? <Suspense fallback={<InlineNotice>A preparar opções…</InlineNotice>}><StudentAssistantArtifactPanel conversationId={conversationId} initialTopic={retryJob?.topic} initialType={retryJob ? "QUIZ" : "SUMMARY"} onClose={closeArtifactPanel} onGenerated={(result) => { handleArtifactResult(result, setArtifacts, setArtifactJobs); void refreshConversation(); }} open returnFocusRef={artifactTriggerRef} /></Suspense> : null}
+            {artifactPanelOpen ? <Suspense fallback={<InlineNotice>A preparar opções…</InlineNotice>}><StudentAssistantArtifactPanel conversationId={conversationId} initialTopic={retryJob?.topic} initialType={retryJob?.type ?? "SUMMARY"} onClose={closeArtifactPanel} onGenerated={(result) => { handleArtifactResult(result, setArtifacts, setArtifactJobs); void refreshConversation(); }} open returnFocusRef={artifactTriggerRef} /></Suspense> : null}
             {forkPanelOpen ? <Suspense fallback={<InlineNotice>A preparar partilha…</InlineNotice>}><StudentAssistantForkPanel conversationId={conversationId} onClose={closeForkPanel} open returnFocusRef={overflowTriggerRef} /></Suspense> : null}
         </section>
     );
@@ -454,7 +454,8 @@ function ArtifactCard({ artifact }: { artifact: StudentAssistantArtifact }) {
 
 function ArtifactJobCard({ job, onRetry }: { job: StudentAssistantArtifactJob; onRetry: () => void }) {
     const active = job.status === "QUEUED" || job.status === "PROCESSING";
-    return <InlineNotice tone={job.status === "FAILED" ? "danger" : "neutral"}><p className="font-semibold">Quiz{job.topic ? ` — ${job.topic}` : ""}</p><p className="mt-1">{job.status === "QUEUED" ? "Quiz em fila." : job.status === "PROCESSING" ? "A preparar o quiz…" : job.errorMessage ?? "Não foi possível criar o quiz."}</p>{!active && job.status === "FAILED" ? <button className="sf-button-secondary mt-3" onClick={onRetry} type="button">Tentar novamente</button> : null}</InlineNotice>;
+    const typeLabel = artifactTypeLabel(job.type);
+    return <InlineNotice tone={job.status === "FAILED" ? "danger" : "neutral"}><p className="font-semibold">{typeLabel}{job.topic ? ` — ${job.topic}` : ""}</p><p className="mt-1">{job.status === "QUEUED" ? `${typeLabel} em fila.` : job.status === "PROCESSING" ? `A preparar ${artifactTypeLabelWithArticle(job.type)}…` : job.errorMessage ?? "Não foi possível criar o material."}</p>{!active && job.status === "FAILED" ? <button className="sf-button-secondary mt-3" onClick={onRetry} type="button">Tentar novamente</button> : null}</InlineNotice>;
 }
 
 function handleArtifactResult(
@@ -488,6 +489,15 @@ function artifactTypeLabel(type: StudentAssistantArtifact["type"]): string {
     if (type === "EXPLANATION") return "Explicação";
     if (type === "FLASHCARDS") return "Flashcards";
     return "Quiz";
+}
+
+function artifactTypeLabelWithArticle(
+    type: StudentAssistantArtifact["type"],
+): string {
+    if (type === "SUMMARY") return "o resumo";
+    if (type === "EXPLANATION") return "a explicação";
+    if (type === "FLASHCARDS") return "os flashcards";
+    return "o quiz";
 }
 
 function contextTypeLabel(kind: StudentAssistantConversation["context"]["kind"]): string {

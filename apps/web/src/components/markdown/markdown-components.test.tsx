@@ -57,6 +57,33 @@ describe("MarkdownViewer", () => {
         expect(screen.getByText("Imagem externa bloqueada")).toBeTruthy();
         expect(container.querySelector("img")).toBeNull();
     });
+
+    it("permite navegar por teclado em blocos e tabelas com scroll horizontal", () => {
+        render(
+            <MarkdownViewer
+                source={`| Coluna extensa | Valor |
+| --- | --- |
+| Conteúdo | Exemplo |
+
+\`\`\`ts
+const resultado = "conteúdo potencialmente mais largo do que o viewport";
+\`\`\``}
+            />,
+        );
+
+        expect(
+            screen
+                .getByRole("region", {
+                    name: "Tabela com deslocamento horizontal",
+                })
+                .getAttribute("tabindex"),
+        ).toBe("0");
+        expect(
+            screen
+                .getByLabelText("Bloco de código com deslocamento horizontal")
+                .getAttribute("tabindex"),
+        ).toBe("0");
+    });
 });
 
 describe("MarkdownEditor", () => {

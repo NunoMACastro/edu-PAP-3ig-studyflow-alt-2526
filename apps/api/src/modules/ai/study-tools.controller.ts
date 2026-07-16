@@ -19,6 +19,7 @@ import {
     ArtifactExportService,
     buildArtifactExportContentDisposition,
 } from "./artifact-export.service.js";
+import { CreateAiArtifactJobDto } from "./dto/create-ai-artifact-job.dto.js";
 import { CreateQuizAttemptDto } from "./dto/create-quiz-attempt.dto.js";
 import { CreateQuizJobDto } from "./dto/create-quiz-job.dto.js";
 import { CreateStudyToolDto } from "./dto/create-study-tool.dto.js";
@@ -35,7 +36,7 @@ export class StudyToolsController {
      * Recebe dependências por injeção para manter a classe testável e sem criação manual de services.
      *
      * @param studyToolsService Service injetado para reutilizar regras de study tools sem duplicar validações.
-     * @param quizJobsService Service de jobs persistidos para quizzes em background.
+     * @param quizJobsService Service de jobs persistidos para materiais IA em background.
      * @param artifactExportService Service de exportação segura de resumos e quizzes.
      */
     constructor(
@@ -79,6 +80,36 @@ export class StudyToolsController {
             request.user!.id,
             id,
             body,
+        );
+    }
+
+    /**
+     * Inicia a geração recuperável de resumo, explicação, flashcards ou quiz.
+     */
+    @Post("artifact-jobs")
+    createArtifactJob(
+        @Req() request: AuthenticatedRequest,
+        @Param("id") id: string,
+        @Body() body: CreateAiArtifactJobDto,
+    ) {
+        return this.quizJobsService.createArtifactJob(
+            request.user!.id,
+            id,
+            body,
+        );
+    }
+
+    /** Consulta um job de material, sempre limitado ao aluno e à área. */
+    @Get("artifact-jobs/:jobId")
+    getArtifactJob(
+        @Req() request: AuthenticatedRequest,
+        @Param("id") id: string,
+        @Param("jobId") jobId: string,
+    ) {
+        return this.quizJobsService.findArtifactJob(
+            request.user!.id,
+            id,
+            jobId,
         );
     }
 

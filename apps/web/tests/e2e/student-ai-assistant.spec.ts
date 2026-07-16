@@ -5,9 +5,17 @@ import { logoutFromShell } from "./authenticated-shell.js";
 const student = {
     // Conta dedicada a este percurso para que os testes de outros módulos não
     // consumam a quota USER que este cenário pretende validar.
-    email: process.env.STUDYFLOW_E2E_ASSISTANT_STUDENT_EMAIL ?? "ines.silva@studyflow.local",
-    password: process.env.STUDYFLOW_E2E_STUDENT_PASSWORD ?? "aluno-dev-12345",
+    email: requiredEnvironment("STUDYFLOW_E2E_ASSISTANT_STUDENT_EMAIL"),
+    password: requiredEnvironment("STUDYFLOW_E2E_STUDENT_PASSWORD"),
 };
+const primaryStudentEmail = requiredEnvironment("STUDYFLOW_E2E_STUDENT_EMAIL");
+
+/** Lê uma variável preparada por scripts/run-e2e.mjs sem expor PII no código. */
+function requiredEnvironment(name: string): string {
+    const value = process.env[name]?.trim();
+    if (!value) throw new Error(`${name} não foi definida pelo runner E2E.`);
+    return value;
+}
 
 type AssistantContext = {
     kind: "STUDY_AREA";
@@ -27,7 +35,7 @@ async function loginAsStudent(
     await page.getByLabel("Email").fill(account.email);
     await page.getByLabel("Password").fill(account.password);
     await page.getByRole("button", { name: "Entrar" }).click();
-    await expect(page.getByRole("button", { name: `Conta: ${account.email}` })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Conta:/ })).toBeVisible();
 }
 
 /** Executa um pedido autenticado e validado através da origem da aplicação. */
@@ -245,11 +253,11 @@ test("fork completo copia sala e grupo, permite repartilhar e sobrevive à orige
     const flows = [
         {
             kind: "STUDY_GROUP" as const,
-            sourceEmail: "aluno.dev@studyflow.local",
+            sourceEmail: primaryStudentEmail,
         },
         {
             kind: "STUDY_ROOM" as const,
-            sourceEmail: "aluno.dev@studyflow.local",
+            sourceEmail: primaryStudentEmail,
         },
     ];
 
@@ -369,7 +377,7 @@ test("fork completo copia sala e grupo, permite repartilhar e sobrevive à orige
 
 test("painel de fork respeita viewports, teclado, foco e Axe", async ({ page }) => {
     await loginAsStudent(page, {
-        email: "aluno.dev@studyflow.local",
+        email: primaryStudentEmail,
         password: student.password,
     });
     const conversations = await apiRequest<{
@@ -422,7 +430,7 @@ test("painel de fork respeita viewports, teclado, foco e Axe", async ({ page }) 
 
 test("materiais privados transversais respeitam arquivo, destinos, viewports e Axe", async ({ page }) => {
     await loginAsStudent(page, {
-        email: "aluno.dev@studyflow.local",
+        email: primaryStudentEmail,
         password: student.password,
     });
     const conversations = await apiRequest<{

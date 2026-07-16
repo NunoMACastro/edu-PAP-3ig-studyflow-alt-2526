@@ -88,6 +88,19 @@ export function StudentGroupWorkspacePage({
                 description="Conversa em tempo real, notas e sessões partilham este contexto."
                 title={group.title}
             />
+            <section aria-label="Membros do grupo" className="sf-surface-subtle space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-studyflow-text/60">Membros</p>
+                <ul className="flex flex-wrap gap-2">
+                    {(group.members ?? group.memberIds.map((id) => ({
+                        id,
+                        displayName: `Aluno ${id.slice(-4).toUpperCase()}`,
+                    }))).map((member) => (
+                        <li className="max-w-full truncate rounded-full bg-studyflow-page px-3 py-1 text-sm" key={member.id} title={member.displayName}>
+                            {member.displayName}
+                        </li>
+                    ))}
+                </ul>
+            </section>
             <WorkspaceTabs items={[
                 { label: unreadCount > 0 ? `Conversar (${unreadCount})` : "Conversar", href: `${base}/mensagens`, active: tab === "mensagens" },
                 { label: "Notas", href: `${base}/notas`, active: tab === "notas" },

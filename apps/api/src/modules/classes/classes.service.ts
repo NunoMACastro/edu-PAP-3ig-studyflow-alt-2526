@@ -14,6 +14,7 @@ import { Types, type ClientSession, type Connection, type Model } from "mongoose
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { isMongoDuplicateKeyError } from "../../common/utils/mongo-error.util.js";
 import { User, UserDocument } from "../auth/schemas/user.schema.js";
+import { StudentProfileService } from "../students/student-profile.service.js";
 import { NotificationOutboxPublisher } from "../context-notifications/notification-outbox-publisher.service.js";
 import { NotificationContext } from "../notification-preferences/dto/update-notification-preferences.dto.js";
 import {
@@ -43,6 +44,7 @@ import {
  */
 export type SchoolClassStudentView = {
     id: string;
+    displayName: string;
     email: string;
 };
 
@@ -122,6 +124,8 @@ export class ClassesService {
         @Optional()
         @InjectConnection()
         private readonly connection?: Connection,
+        @Optional()
+        private readonly studentProfileService?: StudentProfileService,
     ) {}
 
     /**
@@ -697,8 +701,13 @@ export class ClassesService {
             })
             .select({ email: 1 })
             .lean();
+        const names = await this.resolveStudentNames(
+            students.map((student) => String(student._id)),
+        );
         return students.map((student) => ({
             id: String(student._id),
+            displayName: names.get(String(student._id))
+                ?? `Aluno ${String(student._id).slice(-4).toUpperCase()}`,
             email: student.email,
         }));
     }
@@ -908,11 +917,19 @@ export class ClassesService {
             })
             .select({ email: 1 })
             .lean();
+        const names = await this.resolveStudentNames(
+            students.map((student) => String(student._id)),
+        );
 
         const studentsById = new Map(
             students.map((student) => [
                 String(student._id),
-                { id: String(student._id), email: student.email },
+                {
+                    id: String(student._id),
+                    displayName: names.get(String(student._id))
+                        ?? `Aluno ${String(student._id).slice(-4).toUpperCase()}`,
+                    email: student.email,
+                },
             ]),
         );
 
@@ -925,6 +942,15 @@ export class ClassesService {
 
             return this.toClassView(schoolClass, publicStudents, effectiveStudentIds);
         });
+    }
+
+    /** Resolve nomes em batch sem expor o perfil completo nas respostas de turma. */
+    private async resolveStudentNames(
+        studentIds: string[],
+    ): Promise<Map<string, string>> {
+        return this.studentProfileService
+            ? this.studentProfileService.resolvePublicDisplayNames(studentIds)
+            : new Map();
     }
 
     /**

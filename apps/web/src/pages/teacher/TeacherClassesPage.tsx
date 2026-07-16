@@ -1016,15 +1016,12 @@ export function TeacherClassesPage({ initialVoiceClassId }: TeacherClassesPagePr
                                                                 className="flex min-w-0 items-center gap-2 rounded-xl bg-studyflow-page/55 px-3 py-2 text-sm text-studyflow-text"
                                                                 key={student.id}
                                                             >
-                                                                <span
-                                                                    aria-label={`Email do aluno: ${student.email}`}
-                                                                    className="min-w-0 flex-1 truncate"
-                                                                    title={student.email}
-                                                                >
-                                                                    {student.email}
+                                                                <span className="min-w-0 flex-1" title={`${student.displayName ?? student.email} — ${student.email}`}>
+                                                                    <span className="block truncate font-semibold">{student.displayName ?? student.email}</span>
+                                                                    <span className="block truncate text-xs text-studyflow-text/60">{student.email}</span>
                                                                 </span>
                                                                 <button
-                                                                    aria-label={`Remover ${student.email} de ${schoolClass.name}`}
+                                                                    aria-label={`Remover ${student.displayName ?? student.email} de ${schoolClass.name}`}
                                                                     className="sf-icon-button group relative h-8 w-8 shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
                                                                     disabled={schoolClass.status === "ARCHIVED" || removingStudentKey === mutationKey}
                                                                     onClick={() =>

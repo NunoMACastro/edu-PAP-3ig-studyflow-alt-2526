@@ -5,6 +5,16 @@
 import type { AiSource } from "./providers/ai-provider.js";
 import type { GovernedAiConversationTurn } from "./student-ai-conversation-context.js";
 
+export const AI_ARTIFACT_GENERATION_TYPES = [
+    "SUMMARY",
+    "EXPLANATION",
+    "FLASHCARDS",
+    "QUIZ",
+] as const;
+
+export type AiArtifactGenerationType =
+    (typeof AI_ARTIFACT_GENERATION_TYPES)[number];
+
 export const AI_ARTIFACT_TARGET_KINDS = [
     "STUDY_AREA",
     "SUBJECT",

@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "officialTests": [
+    {
+      "key": "lp11-html-css",
+      "subjectCode": "LP-11",
+      "title": "Demonstração — HTML semântico e CSS",
+      "description": "Dados sintéticos locais para rever estrutura, formulários, layout e acessibilidade.",
+      "status": "CLOSED",
+      "sourcePaths": [
+        "materiais/11 ano/HTML e CSS/02-html-semantico-estrutura.md",
+        "materiais/11 ano/HTML e CSS/13-acessibilidade-e-boas-praticas.md"
+      ],
+      "questions": [
+        { "statement": "Qual elemento representa o conteúdo principal único de uma página?", "topic": "HTML semântico", "options": ["main", "div", "span", "aside"], "correctOptionIndex": 0 },
+        { "statement": "Como se associa explicitamente uma label a um input?", "topic": "Formulários", "options": ["for da label igual ao id do input", "name igual à class", "placeholder igual ao value", "title igual ao type"], "correctOptionIndex": 0 },
+        { "statement": "Que abordagem começa o layout pelo ecrã mais pequeno?", "topic": "Responsividade", "options": ["Mobile first", "Desktop only", "Fixed canvas", "Table layout"], "correctOptionIndex": 0 },
+        { "statement": "Qual propriedade é adequada para organizar itens num eixo principal?", "topic": "Flexbox", "options": ["justify-content", "font-weight", "z-index", "text-decoration"], "correctOptionIndex": 0 },
+        { "statement": "Uma interface acessível deve permitir navegação através de quê?", "topic": "Acessibilidade", "options": ["Teclado", "Apenas rato", "Apenas toque", "Cor"], "correctOptionIndex": 0 }
+      ]
+    },
+    {
+      "key": "lp11-javascript",
+      "subjectCode": "LP-11",
+      "title": "Demonstração — Fundamentos de JavaScript",
+      "description": "Dados sintéticos locais sobre funções, arrays, objetos, exceções e assincronismo.",
+      "status": "CLOSED",
+      "sourcePaths": [
+        "materiais/11 ano/JavaScript/10-Funcoes.md",
+        "materiais/11 ano/JavaScript/15-Assincrono-EventLoop.md"
+      ],
+      "questions": [
+        { "statement": "Que declaração cria uma constante com âmbito de bloco?", "topic": "Variáveis", "options": ["const", "var", "global", "static"], "correctOptionIndex": 0 },
+        { "statement": "Que método cria um novo array transformando cada elemento?", "topic": "Arrays", "options": ["map", "push", "pop", "includes"], "correctOptionIndex": 0 },
+        { "statement": "Que bloco trata uma exceção lançada num try?", "topic": "Exceções", "options": ["catch", "switch", "while", "import"], "correctOptionIndex": 0 },
+        { "statement": "O que devolve sempre uma função declarada com async?", "topic": "Assincronismo", "options": ["Uma Promise", "Um array", "Uma string", "Um evento DOM"], "correctOptionIndex": 0 },
+        { "statement": "Que palavra exporta um valor de um módulo ES?", "topic": "Módulos", "options": ["export", "expose", "public", "module"], "correctOptionIndex": 0 }
+      ]
+    },
+    {
+      "key": "lp11-react",
+      "subjectCode": "LP-11",
+      "title": "Demonstração — Fundamentos de React",
+      "description": "Dados sintéticos locais sobre componentes, props, estado, formulários e efeitos.",
+      "status": "CLOSED",
+      "sourcePaths": [
+        "materiais/11 ano/React/02_jsx_e_componentes.md",
+        "materiais/11 ano/React/04_estado_e_eventos.md"
+      ],
+      "questions": [
+        { "statement": "Que conceito permite dividir a interface em unidades reutilizáveis?", "topic": "Componentes", "options": ["Componentes", "Cookies", "Índices", "Sockets"], "correctOptionIndex": 0 },
+        { "statement": "Como recebe um componente dados do componente pai?", "topic": "Props", "options": ["Através de props", "Através de CSS", "Através do DOM global", "Através de SQL"], "correctOptionIndex": 0 },
+        { "statement": "Que hook guarda estado local num componente funcional?", "topic": "Estado", "options": ["useState", "useMemo", "useId", "useReferrer"], "correctOptionIndex": 0 },
+        { "statement": "Num formulário controlado, quem mantém o valor do input?", "topic": "Formulários", "options": ["O estado React", "O servidor DNS", "O ficheiro CSS", "O router"], "correctOptionIndex": 0 },
+        { "statement": "Que hook executa efeitos após renderização?", "topic": "Efeitos", "options": ["useEffect", "useClass", "useEventLoop", "useQueryString"], "correctOptionIndex": 0 }
+      ]
+    },
+    {
+      "key": "lp12-documentacao-git",
+      "subjectCode": "LP-12",
+      "title": "Demonstração — Documentação e Git",
+      "description": "Dados sintéticos locais sobre README, documentação técnica e fluxo Git.",
+      "status": "DRAFT",
+      "sourcePaths": [
+        "materiais/12 ano/LP/Documentacao/02_readme_profissional.md",
+        "materiais/12 ano/LP/Git/git-guia.md"
+      ],
+      "questions": [
+        { "statement": "Qual é uma função essencial de um README profissional?", "topic": "README", "options": ["Explicar instalação e utilização", "Guardar passwords", "Substituir testes", "Compilar o projeto"], "correctOptionIndex": 0 },
+        { "statement": "Onde devem ficar segredos de produção?", "topic": "Segurança documental", "options": ["Fora do repositório", "No README", "Num comentário", "No histórico Git"], "correctOptionIndex": 0 },
+        { "statement": "Que comando prepara alterações para um commit?", "topic": "Git", "options": ["git add", "git clone", "git status --server", "git deploy"], "correctOptionIndex": 0 },
+        { "statement": "Uma mensagem de commit útil deve descrever o quê?", "topic": "Git", "options": ["A intenção da alteração", "A password local", "O nome do computador", "O tamanho da pasta"], "correctOptionIndex": 0 },
+        { "statement": "O que deve documentar uma API?", "topic": "Documentação API", "options": ["Contratos, erros e autenticação", "Apenas cores", "Apenas dependências", "Apenas screenshots"], "correctOptionIndex": 0 }
+      ]
+    },
+    {
+      "key": "lp12-javascript",
+      "subjectCode": "LP-12",
+      "title": "Demonstração — JavaScript modular e assíncrono",
+      "description": "Dados sintéticos locais sobre módulos, programação funcional e controlo de erros.",
+      "status": "PUBLISHED",
+      "sourcePaths": [
+        "materiais/12 ano/LP/JavaScript/11-Arrays-HighOrder.md",
+        "materiais/12 ano/LP/JavaScript/14-Assincrono-EventLoop.md"
+      ],
+      "questions": [
+        { "statement": "Que método reduz um array a um valor acumulado?", "topic": "Arrays", "options": ["reduce", "slice", "findIndex", "concat"], "correctOptionIndex": 0 },
+        { "statement": "Que sintaxe aguarda uma Promise dentro de uma função async?", "topic": "Assincronismo", "options": ["await", "yield from", "pause", "defer"], "correctOptionIndex": 0 },
+        { "statement": "Qual é a vantagem principal dos módulos ES?", "topic": "Módulos", "options": ["Separação explícita de responsabilidades", "Eliminar validação", "Evitar funções", "Substituir HTTP"], "correctOptionIndex": 0 },
+        { "statement": "Que método devolve apenas elementos que cumprem uma condição?", "topic": "Arrays", "options": ["filter", "join", "reverse", "fill"], "correctOptionIndex": 0 },
+        { "statement": "Onde deve ser tratado um erro de uma operação awaited?", "topic": "Erros", "options": ["Num try/catch apropriado", "Num ficheiro CSS", "No package name", "No HTML title"], "correctOptionIndex": 0 }
+      ]
+    },
+    {
+      "key": "lp12-node",
+      "subjectCode": "LP-12",
+      "title": "Demonstração — Node.js e APIs Express",
+      "description": "Dados sintéticos locais sobre módulos Node, Express, validação, erros e segurança.",
+      "status": "CLOSED",
+      "sourcePaths": [
+        "materiais/12 ano/LP/Node/06_rotas_controladores_validacao.md",
+        "materiais/12 ano/LP/Node/09_seguranca_logging.md"
+      ],
+      "questions": [
+        { "statement": "Que responsabilidade deve ter um controller HTTP?", "topic": "Arquitetura", "options": ["Adaptar o pedido e delegar negócio", "Guardar passwords", "Renderizar CSS", "Gerir DNS"], "correctOptionIndex": 0 },
+        { "statement": "Onde deve ser validado input recebido por uma API?", "topic": "Validação", "options": ["Na fronteira do sistema", "Apenas no browser", "No README", "No logger"], "correctOptionIndex": 0 },
+        { "statement": "Que código HTTP é adequado para um recurso não encontrado?", "topic": "HTTP", "options": ["404", "201", "204", "301"], "correctOptionIndex": 0 },
+        { "statement": "O que nunca deve ser escrito em logs?", "topic": "Segurança", "options": ["Passwords e tokens", "Estado público", "Duração", "Código HTTP"], "correctOptionIndex": 0 },
+        { "statement": "Para que serve middleware no Express?", "topic": "Express", "options": ["Processar pedidos numa cadeia controlada", "Criar tabelas SQL", "Compilar React", "Gerir branches Git"], "correctOptionIndex": 0 }
+      ]
+    },
+    {
+      "key": "si12-mongodb",
+      "subjectCode": "SI-12",
+      "title": "Demonstração — MongoDB e Mongoose",
+      "description": "Dados sintéticos locais sobre documentos, CRUD, schemas, agregações e índices.",
+      "status": "DRAFT",
+      "sourcePaths": [
+        "materiais/12 ano/SI/MongoDB/02_modelacao_documentos_e_relacoes.md",
+        "materiais/12 ano/SI/MongoDB/05_mongoose_schemas_models.md"
+      ],
+      "questions": [
+        { "statement": "Qual é a unidade principal de dados numa coleção MongoDB?", "topic": "MongoDB", "options": ["Documento", "Folha CSS", "Componente", "Socket"], "correctOptionIndex": 0 },
+        { "statement": "Para que serve um schema Mongoose?", "topic": "Mongoose", "options": ["Definir estrutura e validação", "Criar HTML", "Gerir Git", "Comprimir imagens"], "correctOptionIndex": 0 },
+        { "statement": "Que operação consulta vários documentos?", "topic": "CRUD", "options": ["find", "insertOne", "deleteOne", "replaceOne"], "correctOptionIndex": 0 },
+        { "statement": "Qual é o objetivo de um índice?", "topic": "Índices", "options": ["Acelerar consultas suportadas", "Encriptar passwords", "Substituir backups", "Criar componentes"], "correctOptionIndex": 0 },
+        { "statement": "Que recurso transforma documentos por várias etapas?", "topic": "Agregações", "options": ["Aggregation pipeline", "Event loop", "CSS cascade", "React context"], "correctOptionIndex": 0 }
+      ]
+    },
+    {
+      "key": "si12-react",
+      "subjectCode": "SI-12",
+      "title": "Demonstração — React e gestão de estado",
+      "description": "Dados sintéticos locais sobre composição, formulários, efeitos, router e contexto.",
+      "status": "PUBLISHED",
+      "sourcePaths": [
+        "materiais/12 ano/SI/React/04_estado_e_eventos.md",
+        "materiais/12 ano/SI/React/12_context_api_estado_global.md"
+      ],
+      "questions": [
+        { "statement": "Quando deve o estado ser elevado para um componente comum?", "topic": "Estado", "options": ["Quando vários filhos precisam do mesmo valor", "Sempre", "Nunca", "Apenas com CSS"], "correctOptionIndex": 0 },
+        { "statement": "Para que serve Context API?", "topic": "Context", "options": ["Partilhar estado em parte da árvore", "Criar índices MongoDB", "Enviar emails", "Compilar TypeScript"], "correctOptionIndex": 0 },
+        { "statement": "Que propriedade identifica elementos de uma lista React?", "topic": "Listas", "options": ["key", "name", "href", "scope"], "correctOptionIndex": 0 },
+        { "statement": "O que deve conter a dependency array de useEffect?", "topic": "Efeitos", "options": ["Valores reativos usados pelo efeito", "Passwords", "Classes CSS", "Rotas do servidor"], "correctOptionIndex": 0 },
+        { "statement": "Que componente permite navegação declarativa sem recarregar a SPA?", "topic": "Router", "options": ["Link", "script", "form GET", "iframe"], "correctOptionIndex": 0 }
+      ]
+    },
+    {
+      "key": "si12-integracao-api",
+      "subjectCode": "SI-12",
+      "title": "Demonstração — Integração React e API",
+      "description": "Dados sintéticos locais sobre HTTP, autenticação, CORS, paginação e contratos de API.",
+      "status": "CLOSED",
+      "sourcePaths": [
+        "materiais/12 ano/SI/React/11_consumo_api_e_backend_node.md",
+        "materiais/12 ano/SI/React/14_autenticacao_em_spa_jwt_sessions_cookies.md"
+      ],
+      "questions": [
+        { "statement": "Que API do browser é normalmente usada para pedidos HTTP?", "topic": "HTTP", "options": ["fetch", "localStorage SQL", "querySelectorAll API", "canvas"], "correctOptionIndex": 0 },
+        { "statement": "Onde deve ser aplicada a autorização real de um recurso?", "topic": "Autorização", "options": ["No backend", "Apenas no menu", "No CSS", "No título da página"], "correctOptionIndex": 0 },
+        { "statement": "Qual é uma vantagem de cookies HttpOnly para sessões?", "topic": "Sessões", "options": ["JavaScript do browser não lê o cookie", "Dispensam HTTPS", "Eliminam CSRF", "Guardam qualquer tamanho"], "correctOptionIndex": 0 },
+        { "statement": "Para que serve paginação numa lista extensa?", "topic": "Paginação", "options": ["Limitar dados e custo por pedido", "Desativar validação", "Ocultar erros", "Substituir autenticação"], "correctOptionIndex": 0 },
+        { "statement": "O que deve fazer o frontend perante um erro HTTP controlado?", "topic": "Erros", "options": ["Mostrar uma mensagem pública segura", "Expor a stack trace", "Ignorar sempre", "Repetir infinitamente"], "correctOptionIndex": 0 }
+      ]
+    }
+  ]
+}

@@ -16,15 +16,13 @@ import { usePollingTask } from "../../hooks/usePollingTask.js";
 import {
     type ArtifactExportFile,
     type ArtifactExportFormat,
-    createQuizGenerationJob,
+    createAiArtifactGenerationJob,
     exportStudyToolArtifact,
-    generateStudyTool,
-    generateSummary,
-    getQuizGenerationJob,
+    getAiArtifactGenerationJob,
     listStudyTools,
     listSummaries,
     type AiArtifact,
-    type QuizGenerationJob,
+    type AiArtifactGenerationJob,
     type StudyToolType,
 } from "../../lib/apiClient.js";
 
@@ -51,7 +49,8 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
     const [artifact, setArtifact] = useState<AiArtifact | null>(null);
     const [summaries, setSummaries] = useState<AiArtifact[]>([]);
     const [studyTools, setStudyTools] = useState<AiArtifact[]>([]);
-    const [quizJob, setQuizJob] = useState<QuizGenerationJob | null>(null);
+    const [artifactJob, setArtifactJob] =
+        useState<AiArtifactGenerationJob | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [pollingError, setPollingError] = useState<string | null>(null);
     const [isLoadingExisting, setIsLoadingExisting] = useState(true);
@@ -114,20 +113,20 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
         void refreshArtifacts(preferredArtifactId);
     }, [studyAreaId, preferredArtifactId]);
 
-    const isQuizPolling = Boolean(
-        quizJob && ["QUEUED", "PROCESSING"].includes(quizJob.status),
+    const isArtifactPolling = Boolean(
+        artifactJob && ["QUEUED", "PROCESSING"].includes(artifactJob.status),
     );
     usePollingTask(
         async (signal) => {
-            if (!quizJob) return;
+            if (!artifactJob) return;
             try {
-                const nextJob = await getQuizGenerationJob(
+                const nextJob = await getAiArtifactGenerationJob(
                     studyAreaId,
-                    quizJob._id,
+                    artifactJob._id,
                     signal,
                 );
-                setQuizJob((current) =>
-                    current && !canAdvanceQuizJob(current.status, nextJob.status)
+                setArtifactJob((current) =>
+                    current && !canAdvanceArtifactJob(current.status, nextJob.status)
                         ? current
                         : nextJob,
                 );
@@ -140,11 +139,11 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
                 setPollingError(
                     caught instanceof Error
                         ? caught.message
-                        : "Não foi possível atualizar o estado do quiz.",
+                        : "Não foi possível atualizar o estado do material.",
                 );
             }
         },
-        { enabled: isQuizPolling, intervalMs: 1500 },
+        { enabled: isArtifactPolling, intervalMs: 1500 },
     );
 
     /**
@@ -155,9 +154,11 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
     async function handleSummary(): Promise<void> {
         setPollingError(null);
         await generationAction.run("generate-summary", async () => {
-            const created = await generateSummary(studyAreaId);
-            setArtifact(created);
-            setSummaries((current) => [created, ...current]);
+            const createdJob = await createAiArtifactGenerationJob(studyAreaId, {
+                type: "SUMMARY",
+            });
+            setArtifact(null);
+            setArtifactJob(createdJob);
         }, "Não foi possível gerar.");
     }
 
@@ -171,24 +172,21 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
         event.preventDefault();
         setPollingError(null);
         await generationAction.run("generate-tool", async () => {
-            if (type === "QUIZ") {
-                const normalizedTopic = topic.trim();
-                const createdJob = await createQuizGenerationJob(studyAreaId, {
-                    topic: normalizedTopic || undefined,
-                });
-                setArtifact(null);
-                setQuizJob(createdJob);
-                return;
-            }
-            const created = await generateStudyTool(studyAreaId, { type, topic });
-            setArtifact(created);
-            setStudyTools((current) => [created, ...current]);
+            const normalizedTopic = topic.trim();
+            const createdJob = await createAiArtifactGenerationJob(studyAreaId, {
+                type,
+                topic: normalizedTopic || undefined,
+            });
+            setArtifact(null);
+            setArtifactJob(createdJob);
         }, "Não foi possível gerar.");
     }
 
-    const isQuizJobActive =
-        quizJob?.status === "QUEUED" || quizJob?.status === "PROCESSING";
-    const isGenerating = isGeneratingSummary || isGeneratingTool || isQuizJobActive;
+    const isArtifactJobActive =
+        artifactJob?.status === "QUEUED" ||
+        artifactJob?.status === "PROCESSING";
+    const isGenerating =
+        isGeneratingSummary || isGeneratingTool || isArtifactJobActive;
     const hasArtifacts = summaries.length > 0 || studyTools.length > 0;
 
     return (
@@ -205,18 +203,18 @@ export function StudyToolsPage({ studyAreaId }: StudyToolsPageProps) {
                     <InlineNotice>
                         {isGeneratingSummary
                             ? "A gerar resumo..."
-                            : isQuizJobActive
-                              ? "A preparar quiz em background..."
+                            : isArtifactJobActive && artifactJob
+                              ? `A preparar ${artifactTypeLabel(artifactJob.artifactType).toLocaleLowerCase("pt-PT")} em background...`
                               : "A gerar ferramenta..."}
                     </InlineNotice>
                 ) : null}
-                {quizJob ? (
+                {artifactJob ? (
                     <p className="text-sm text-studyflow-text" aria-live="polite">
-                        {quizJob.status === "DONE"
-                            ? "Quiz pronto para resolver."
-                            : quizJob.status === "FAILED"
-                              ? quizJob.errorMessage ?? "Não foi possível gerar o quiz."
-                              : `Quiz em ${quizJob.status === "QUEUED" ? "fila" : "processamento"}.`}
+                        {artifactJob.status === "DONE"
+                            ? `${artifactTypeLabel(artifactJob.artifactType)}: material pronto.`
+                            : artifactJob.status === "FAILED"
+                              ? artifactJob.errorMessage ?? "Não foi possível gerar o material."
+                              : `${artifactTypeLabel(artifactJob.artifactType)} em ${artifactJob.status === "QUEUED" ? "fila" : "processamento"}.`}
                     </p>
                 ) : null}
                 <div className="flex flex-wrap gap-3">
@@ -499,18 +497,26 @@ function artifactLabel(artifact: AiArtifact): string {
 }
 
 /**
- * Mantém estados de jobs de quiz monotónicos perante retries e respostas tardias.
+ * Mantém estados de jobs de material monotónicos perante respostas tardias.
  */
-function canAdvanceQuizJob(
-    previous: QuizGenerationJob["status"],
-    next: QuizGenerationJob["status"],
+function canAdvanceArtifactJob(
+    previous: AiArtifactGenerationJob["status"],
+    next: AiArtifactGenerationJob["status"],
 ): boolean {
     if (previous === "DONE" || previous === "FAILED") return next === previous;
-    const rank: Record<QuizGenerationJob["status"], number> = {
+    const rank: Record<AiArtifactGenerationJob["status"], number> = {
         QUEUED: 0,
         PROCESSING: 1,
         DONE: 2,
         FAILED: 2,
     };
     return rank[next] >= rank[previous];
+}
+
+/** Traduz o discriminador persistido para linguagem visível ao aluno. */
+function artifactTypeLabel(type: AiArtifact["type"]): string {
+    if (type === "SUMMARY") return "Resumo";
+    if (type === "EXPLANATION") return "Explicação";
+    if (type === "FLASHCARDS") return "Flashcards";
+    return "Quiz";
 }

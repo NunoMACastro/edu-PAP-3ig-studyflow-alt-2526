@@ -45,6 +45,7 @@ export function AppShell({ user, children, onLogout }: AppShellProps) {
     const menuButtonRef = useRef<HTMLButtonElement>(null);
     const mobileMenuRef = useRef<HTMLDivElement>(null);
     const logoutAction = useAsyncAction();
+    const primaryIdentity = user.displayName?.trim() || user.email;
 
     useEffect(() => {
         setMenuOpen(false);
@@ -163,8 +164,8 @@ export function AppShell({ user, children, onLogout }: AppShellProps) {
                     <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : "justify-between gap-2 px-2"}`}>
                         {!sidebarCollapsed ? (
                             <div className="min-w-0">
-                                <p className="truncate text-xs font-semibold text-studyflow-text">{user.email}</p>
-                                <p className="mt-0.5 text-xs text-studyflow-text/50">{roleLabels[user.role]}</p>
+                                <p className="truncate text-xs font-semibold text-studyflow-text">{primaryIdentity}</p>
+                                <p className="mt-0.5 truncate text-xs text-studyflow-text/50">{user.email}</p>
                             </div>
                         ) : null}
                         <NotificationTray placement="side" />
@@ -245,8 +246,9 @@ export function AppShell({ user, children, onLogout }: AppShellProps) {
                             id="studyflow-mobile-navigation"
                         >
                             <div className="border-b border-studyflow-border/10 px-3 pb-3 pt-1">
-                                <p className="truncate text-sm font-semibold">{user.email}</p>
-                                <p className="mt-1 text-xs text-studyflow-text/75">{roleLabels[user.role]}</p>
+                                <p className="truncate text-sm font-semibold">{primaryIdentity}</p>
+                                <p className="mt-1 truncate text-xs text-studyflow-text/75">{user.email}</p>
+                                <p className="mt-1 text-xs text-studyflow-text/60">{roleLabels[user.role]}</p>
                             </div>
                             <nav aria-label="Navegação principal móvel" className="space-y-1 py-3">
                                 {navigation.map((item) => {

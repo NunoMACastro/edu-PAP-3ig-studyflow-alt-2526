@@ -24,7 +24,7 @@ async function loginAs(
     await page.getByLabel("Password").fill(credentials.password);
     await page.getByRole("button", { name: "Entrar" }).click();
     if (role === "STUDENT") {
-        await expect(page.getByRole("button", { name: `Conta: ${credentials.email}` })).toBeVisible();
+        await expect(page.getByRole("button", { name: /^Conta:/ })).toBeVisible();
     } else {
         await expect(page.getByRole("button", { name: "Sair" })).toBeVisible();
     }
@@ -165,7 +165,7 @@ test("onboarding é não bloqueante e o adiamento é limpo no logout", async ({ 
     await page.getByRole("button", { name: "Agora não" }).click();
     await expect(page.getByRole("heading", { name: "Vamos adaptar o teu estudo" })).toHaveCount(0);
 
-    await page.getByRole("button", { name: `Conta: ${credentials.email}` }).click();
+    await page.getByRole("button", { name: /^Conta:/ }).click();
     await page.getByRole("menuitem", { name: "Sair" }).click();
     await loginAs(page, credentials, "STUDENT");
     await expect(page.getByRole("heading", { name: "Vamos adaptar o teu estudo" })).toBeVisible();

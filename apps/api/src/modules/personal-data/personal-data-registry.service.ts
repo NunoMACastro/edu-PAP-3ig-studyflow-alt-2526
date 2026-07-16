@@ -19,9 +19,6 @@ import { join } from "node:path";
 import { Types } from "mongoose";
 import type { ClientSession, Connection, Model } from "mongoose";
 import {
-    hasExpectedPrivateFilesystemMode,
-} from "../../common/storage/private-filesystem-mode.js";
-import {
     MaterialStorageService,
     StorageDeleteOperation,
 } from "../materials/material-storage.service.js";
@@ -415,10 +412,7 @@ export class PersonalDataRegistryService {
             await closeHandle();
             await chmod(filePath, 0o600);
             const fileStats = await stat(filePath);
-            if (
-                !fileStats.isFile() ||
-                !hasExpectedPrivateFilesystemMode(fileStats.mode, 0o600)
-            ) {
+            if (!fileStats.isFile() || (fileStats.mode & 0o777) !== 0o600) {
                 throw new Error("O ficheiro temporário de exportação não é privado.");
             }
 

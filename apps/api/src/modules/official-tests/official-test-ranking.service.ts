@@ -1,11 +1,12 @@
 /**
  * Implementa o ranking docente de mini-testes oficiais com filtros de ownership.
  */
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { SubjectsService } from "../subjects/subjects.service.js";
+import { StudentProfileService } from "../students/student-profile.service.js";
 import {
     OfficialTestAttempt,
     OfficialTestAttemptDocument,
@@ -46,6 +47,7 @@ export type OfficialTestRankingRow = {
  */
 export type OfficialTestRankingView = {
     testId: string;
+    testTitle: string;
     subjectId: string;
     classId: string;
     policy: "BEST_ATTEMPT";
@@ -78,6 +80,7 @@ export type FollowUpOfficialTestView = {
  */
 export function buildOfficialTestRanking(
     attempts: OfficialTestRankingAttempt[],
+    displayNames: ReadonlyMap<string, string> = new Map(),
 ): OfficialTestRankingRow[] {
     const bestByStudent = new Map<
         string,
@@ -105,7 +108,8 @@ export function buildOfficialTestRanking(
             return {
                 position: index + 1,
                 studentRef,
-                displayName: `Aluno ${studentRef.slice(-4)}`,
+                displayName: displayNames.get(studentRef)
+                    ?? `Aluno ${studentRef.slice(-4).toUpperCase()}`,
                 bestCorrectAnswers: attempt.correctAnswers,
                 bestTotalQuestions: attempt.totalQuestions,
                 bestPercentage: attempt.percentage,
@@ -172,6 +176,8 @@ export class OfficialTestRankingService {
         @InjectModel(OfficialTestAttempt.name)
         private readonly attemptModel: Model<OfficialTestAttemptDocument>,
         private readonly subjectsService: SubjectsService,
+        @Optional()
+        private readonly studentProfileService?: StudentProfileService,
     ) {}
 
     /**
@@ -213,14 +219,20 @@ export class OfficialTestRankingService {
             })
             .sort({ percentage: -1, answeredAt: 1 })
             .lean();
+        const displayNames = this.studentProfileService
+            ? await this.studentProfileService.resolvePublicDisplayNames(
+                attempts.map((attempt) => String(attempt.studentId)),
+            )
+            : new Map<string, string>();
 
         return {
             testId: String(test._id),
+            testTitle: test.title,
             subjectId: String(subject._id),
             classId: String(subject.classId),
             policy: "BEST_ATTEMPT",
             // A autorização fica acima; o helper recebe apenas tentativas já filtradas.
-            rows: buildOfficialTestRanking(attempts),
+            rows: buildOfficialTestRanking(attempts, displayNames),
         };
     }
 

@@ -4,14 +4,15 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AiArtifact } from "../../lib/apiClient.js";
+import type {
+    AiArtifact,
+    AiArtifactGenerationJob,
+} from "../../lib/apiClient.js";
 
 const api = vi.hoisted(() => ({
-    createQuizGenerationJob: vi.fn(),
+    createAiArtifactGenerationJob: vi.fn(),
     exportStudyToolArtifact: vi.fn(),
-    generateStudyTool: vi.fn(),
-    generateSummary: vi.fn(),
-    getQuizGenerationJob: vi.fn(),
+    getAiArtifactGenerationJob: vi.fn(),
     listStudyTools: vi.fn(),
     listSummaries: vi.fn(),
     submitQuizAttempt: vi.fn(),
@@ -51,14 +52,36 @@ beforeEach(() => {
     for (const mock of Object.values(api)) mock.mockReset();
     api.listSummaries.mockResolvedValue([summary]);
     api.listStudyTools.mockResolvedValue([explanation, cards, quiz]);
-    api.generateSummary.mockResolvedValue(makeArtifact("new-summary", "SUMMARY", { title: "Resumo novo", bullets: [] }));
-    api.generateStudyTool.mockResolvedValue(makeArtifact("generated-tool", "FLASHCARDS", { cards: [{ front: "Nova", back: "Resposta" }] }));
-    api.createQuizGenerationJob.mockResolvedValue({
-        _id: "quiz-job-id",
-        studyAreaId: "area-id",
-        status: "QUEUED",
-    });
-    api.getQuizGenerationJob.mockResolvedValue({ _id: "quiz-job-id", studyAreaId: "area-id", status: "DONE", artifactId: "quiz-id" });
+    api.createAiArtifactGenerationJob.mockImplementation(
+        (_areaId: string, input: { type: AiArtifact["type"] }) =>
+            Promise.resolve({
+                _id: `${input.type.toLocaleLowerCase()}-job-id`,
+                studyAreaId: "area-id",
+                artifactType: input.type,
+                status: "DONE",
+                artifactId: `${input.type.toLocaleLowerCase()}-artifact-id`,
+            }),
+    );
+    api.getAiArtifactGenerationJob.mockImplementation(
+        (_areaId: string, jobId: string) => {
+            const artifactType = jobId
+                .replace("-job-id", "")
+                .toLocaleUpperCase() as AiArtifact["type"];
+            const artifactIds: Record<AiArtifact["type"], string> = {
+                SUMMARY: "summary-id",
+                EXPLANATION: "explanation-id",
+                FLASHCARDS: "cards-id",
+                QUIZ: "quiz-id",
+            };
+            return Promise.resolve({
+                _id: jobId,
+                studyAreaId: "area-id",
+                artifactType,
+                status: "DONE",
+                artifactId: artifactIds[artifactType],
+            });
+        },
+    );
     api.exportStudyToolArtifact.mockImplementation((_area: string, _id: string, format: "md" | "pdf") => Promise.resolve({
         fileName: format === "md" ? "resumo.md" : "resumo.html",
         contentType: "text/plain",
@@ -82,7 +105,7 @@ beforeEach(() => {
 });
 
 describe("StudyToolsPage", () => {
-    it("seleciona todos os tipos, gera artefactos e inicia quiz background", async () => {
+    it("seleciona os tipos e coloca todos os materiais na fila background", async () => {
         const user = userEvent.setup();
         render(<StudyToolsPage studyAreaId="area-id" />);
 
@@ -100,20 +123,41 @@ describe("StudyToolsPage", () => {
         expect(screen.getByText("Q?")).toBeTruthy();
 
         await user.click(screen.getByRole("button", { name: "Gerar resumo" }));
-        expect((await screen.findAllByText("Resumo novo")).length).toBeGreaterThan(0);
-        expect(api.generateSummary).toHaveBeenCalledWith("area-id");
+        await waitFor(() => expect(api.createAiArtifactGenerationJob).toHaveBeenCalledWith(
+            "area-id",
+            { type: "SUMMARY" },
+        ));
+        expect(await screen.findByText("Resumo: material pronto.")).toBeTruthy();
+
+        await user.type(
+            screen.getByLabelText("Tópico opcional"),
+            "Normalização",
+        );
+        await user.click(screen.getByRole("button", { name: "Gerar" }));
+        await waitFor(() => expect(api.createAiArtifactGenerationJob).toHaveBeenCalledWith(
+            "area-id",
+            { type: "EXPLANATION", topic: "Normalização" },
+        ));
+        expect(await screen.findByText("Explicação: material pronto.")).toBeTruthy();
 
         await user.selectOptions(screen.getByLabelText("Tipo de ferramenta"), "FLASHCARDS");
+        await user.clear(screen.getByLabelText("Tópico opcional"));
         await user.type(screen.getByLabelText("Tópico opcional"), "Equações");
         await user.click(screen.getByRole("button", { name: "Gerar" }));
-        expect(await screen.findByText("Nova")).toBeTruthy();
-        expect(api.generateStudyTool).toHaveBeenCalledWith("area-id", { type: "FLASHCARDS", topic: "Equações" });
+        await waitFor(() => expect(api.createAiArtifactGenerationJob).toHaveBeenCalledWith(
+            "area-id",
+            { type: "FLASHCARDS", topic: "Equações" },
+        ));
+        expect(await screen.findByText("Flashcards: material pronto.")).toBeTruthy();
 
         await user.selectOptions(screen.getByLabelText("Tipo de ferramenta"), "QUIZ");
         await user.clear(screen.getByLabelText("Tópico opcional"));
         await user.click(screen.getByRole("button", { name: "Gerar" }));
-        await waitFor(() => expect(api.createQuizGenerationJob).toHaveBeenCalledWith("area-id", { topic: undefined }));
-        expect(screen.getByText("Quiz em fila.")).toBeTruthy();
+        await waitFor(() => expect(api.createAiArtifactGenerationJob).toHaveBeenCalledWith(
+            "area-id",
+            { type: "QUIZ", topic: undefined },
+        ));
+        expect(await screen.findByText("Quiz: material pronto.")).toBeTruthy();
     });
 
     it("exporta MD/PDF e mantém mensagens de sucesso", async () => {
@@ -138,7 +182,7 @@ describe("StudyToolsPage", () => {
         first.unmount();
 
         api.listSummaries.mockResolvedValue([summary]);
-        api.generateSummary.mockRejectedValueOnce(new Error("Geração recusada"));
+        api.createAiArtifactGenerationJob.mockRejectedValueOnce(new Error("Geração recusada"));
         const second = render(<StudyToolsPage studyAreaId="area-id" />);
         await screen.findAllByText("Resumo inicial");
         await user.click(screen.getByRole("button", { name: "Gerar resumo" }));
@@ -152,8 +196,8 @@ describe("StudyToolsPage", () => {
 
     it("serializa resumo e ferramenta no mesmo ciclo assíncrono", async () => {
         const user = userEvent.setup();
-        const generation = deferred<AiArtifact>();
-        api.generateSummary.mockReturnValue(generation.promise);
+        const generation = deferred<AiArtifactGenerationJob>();
+        api.createAiArtifactGenerationJob.mockReturnValue(generation.promise);
         render(<StudyToolsPage studyAreaId="area-id" />);
         await screen.findAllByText("Resumo inicial");
 
@@ -167,18 +211,21 @@ describe("StudyToolsPage", () => {
                 .disabled,
         ).toBe(true);
         screen.getByRole("button", { name: "Gerar" }).click();
-        expect(api.generateStudyTool).not.toHaveBeenCalled();
+        expect(api.createAiArtifactGenerationJob).toHaveBeenCalledTimes(1);
 
         await act(async () => {
             generation.resolve(
-                makeArtifact("serialized-summary", "SUMMARY", {
-                    title: "Resumo serializado",
-                    bullets: [],
-                }),
+                {
+                    _id: "summary-job-id",
+                    studyAreaId: "area-id",
+                    artifactType: "SUMMARY",
+                    status: "DONE",
+                    artifactId: "summary-id",
+                },
             );
             await generation.promise;
         });
-        expect(await screen.findAllByText("Resumo serializado")).toHaveLength(2);
+        expect(await screen.findByText("Resumo: material pronto.")).toBeTruthy();
     });
 });
 

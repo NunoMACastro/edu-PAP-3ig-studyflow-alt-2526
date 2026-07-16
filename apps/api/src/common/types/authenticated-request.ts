@@ -13,6 +13,7 @@ export type AuthenticatedUser = {
     id: string;
     email: string;
     role: "STUDENT" | "TEACHER" | "ADMIN";
+    displayName?: string;
 };
 
 /**

@@ -78,42 +78,115 @@ declaração de prontidão para produção.
 
 ## 6. Arranque Local da Aplicação (`apps/`)
 
-O backend e o frontend devem ser arrancados em terminais separados.
+A API e a aplicação web encontram-se, respetivamente, em `apps/api` e `apps/web`. Devem ser
+mantidas em execução em dois terminais separados.
 
-### 6.1 Backend (`apps/api`)
+### 6.1 Pré-requisitos
 
-Na primeira execução, abrir um terminal na raiz do repositório e executar:
+Antes do primeiro arranque, instalar e configurar:
 
-```bash
-cd apps/api
-npm ci
-cp -n .env.example .env
-```
+- Node.js `24.11.1`;
+- npm `11.6.2`;
+- uma instância MongoDB Atlas ou um MongoDB local com o replica set `studyflow-rs`;
+- Redis local em loopback (`127.0.0.1`), usando uma base dedicada entre `1` e `15`.
 
-Antes de arrancar o backend, confirmar que o ficheiro `apps/api/.env` existe e preencher os
-valores necessários. O `.env` pode ser criado a partir do `.env.example` e não deve ser
-adicionado ao Git.
-
-Depois, arrancar o backend:
+Confirmar as versões de Node.js e npm:
 
 ```bash
-npm run start:dev
+node --version
+npm --version
 ```
 
-O backend fica disponível em `http://127.0.0.1:3000`.
+### 6.2 Primeira instalação
 
-### 6.2 Frontend (`apps/web`)
-
-Num segundo terminal, a partir da raiz do repositório, executar:
+Abrir um terminal na raiz do repositório, entrar na pasta `apps` e instalar as dependências
+registadas nos lockfiles:
 
 ```bash
-cd apps/web
-npm ci
-npm run dev
+cd apps
+npm --prefix api ci
+npm --prefix web ci
 ```
 
-O frontend fica disponível em `http://127.0.0.1:5173`. Para usar o backend noutro endereço,
-copiar `apps/web/.env.example` para `apps/web/.env` e alterar `VITE_API_PROXY_TARGET`.
+Criar o ficheiro de ambiente da API sem substituir um `.env` que já exista:
+
+```bash
+cp -n api/.env.example api/.env
+```
+
+No Windows PowerShell, usar o equivalente:
+
+```powershell
+if (-not (Test-Path api\.env)) {
+  Copy-Item api\.env.example api\.env
+}
+```
+
+Editar `apps/api/.env` e confirmar, pelo menos, estes valores:
+
+- `MONGODB_URI`: ligação real ao MongoDB Atlas ou ao replica set local;
+- `REDIS_URL`: por omissão, `redis://127.0.0.1:6379/1`;
+- `MATERIALS_STORAGE_DIR`: diretório local e privado para os materiais;
+- `OPENAI_API_KEY`: opcional no arranque, mas necessária para funcionalidades que usem IA real.
+
+O ficheiro `.env` pode conter segredos e não deve ser adicionado ao Git. Antes de continuar,
+garantir que MongoDB e Redis estão iniciados e acessíveis através dos endereços configurados.
+
+### 6.3 Iniciar o backend/API
+
+No primeiro terminal, dentro de `apps`, executar:
+
+```bash
+npm --prefix api run start:dev
+```
+
+A API fica disponível em `http://127.0.0.1:3000`. Para confirmar o seu estado:
+
+```text
+http://127.0.0.1:3000/api/health/live
+http://127.0.0.1:3000/api/health/ready
+```
+
+O endpoint `live` confirma que o processo está ativo. O endpoint `ready` confirma também que
+as dependências necessárias estão operacionais.
+
+### 6.4 Iniciar o frontend
+
+Abrir um segundo terminal na raiz do repositório e executar:
+
+```bash
+cd apps
+npm --prefix web run dev
+```
+
+Abrir `http://127.0.0.1:5173` no browser. Durante o desenvolvimento, o Vite encaminha os
+pedidos `/api` e `/socket.io` para a API em `http://127.0.0.1:3000`.
+
+O frontend não precisa de um `.env` no arranque normal. Se a API usar outro endereço, criar
+`apps/web/.env` a partir de `apps/web/.env.example` e alterar `VITE_API_PROXY_TARGET`.
+
+### 6.5 Arranques seguintes
+
+Depois da primeira instalação, basta garantir que MongoDB e Redis estão ativos e executar os
+dois processos em terminais separados.
+
+Terminal 1 — API:
+
+```bash
+cd apps
+npm --prefix api run start:dev
+```
+
+Terminal 2 — frontend:
+
+```bash
+cd apps
+npm --prefix web run dev
+```
+
+Só é necessário repetir `npm ci` quando for feita uma instalação limpa ou quando o respetivo
+`package-lock.json` for alterado. Para parar qualquer um dos processos, premir `Ctrl+C` no
+terminal correspondente.
 
 ## 7. Escopo MVP vs Pós-PAP
 
@@ -166,5 +239,6 @@ Projeto académico para fins educativos.
 
 ### Changelog
 
+- 2026-07-16: expandido o passo a passo de instalação e arranque local da API e do frontend em `apps/`.
 - 2026-07-13: adicionadas instruções para arrancar o backend e o frontend a partir de `apps/`.
 - 2026-04-17: README reescrito integralmente com estrutura canónica e explicitação dos 2 modos obrigatórios de IA + modo coletivo.

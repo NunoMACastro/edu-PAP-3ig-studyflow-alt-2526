@@ -19,7 +19,7 @@ describe("QuizGenerationJobsService", () => {
         jest.restoreAllMocks();
     });
 
-    it("persiste QUEUED e só gera depois de claim atómico", async () => {
+    it("isola o job de workers legacy e só gera depois de claim atómico", async () => {
         const { jobModel, service, studyToolsService } = makeService([
             claimedJob({ attempts: 1 }),
             null,
@@ -30,6 +30,9 @@ describe("QuizGenerationJobsService", () => {
         });
         expect(queued.status).toBe("QUEUED");
         expect(studyToolsService.generateStudyTool).not.toHaveBeenCalled();
+        expect(jobModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({ status: "ARTIFACT_QUEUED" }),
+        );
 
         await expect(service.runUntilIdle()).resolves.toBe(1);
 
@@ -38,15 +41,19 @@ describe("QuizGenerationJobsService", () => {
             studyAreaId,
             { type: "QUIZ", topic: "fotossíntese" },
             `quiz-job:${jobId.toHexString()}`,
+            undefined,
+            "BACKGROUND",
         );
         expect(jobModel.findOneAndUpdate).toHaveBeenCalledWith(
             expect.objectContaining({
                 $or: expect.arrayContaining([
-                    expect.objectContaining({ status: "PROCESSING" }),
+                    expect.objectContaining({
+                        status: { $in: ["PROCESSING", "ARTIFACT_PROCESSING"] },
+                    }),
                 ]),
             }),
             expect.objectContaining({
-                $set: expect.objectContaining({ status: "PROCESSING" }),
+                $set: expect.objectContaining({ status: "ARTIFACT_PROCESSING" }),
                 $inc: { attempts: 1, leaseToken: 1 },
             }),
             expect.objectContaining({ new: true }),
@@ -62,7 +69,7 @@ describe("QuizGenerationJobsService", () => {
         expect(jobModel.updateOne).toHaveBeenCalledWith(
             expect.objectContaining({
                 _id: jobId,
-                status: "PROCESSING",
+                status: "ARTIFACT_PROCESSING",
                 leaseToken: 7,
                 leaseExpiresAt: { $gt: expect.any(Date) },
             }),
@@ -125,10 +132,10 @@ describe("QuizGenerationJobsService", () => {
         await service.runUntilIdle();
 
         expect(jobModel.updateOne).toHaveBeenCalledWith(
-            expect.objectContaining({ status: "PROCESSING" }),
+            expect.objectContaining({ status: "ARTIFACT_PROCESSING" }),
             expect.objectContaining({
                 $set: expect.objectContaining({
-                    status: "QUEUED",
+                    status: "ARTIFACT_QUEUED",
                     availableAt: expect.any(Date),
                 }),
                 $unset: expect.objectContaining({ leaseOwner: "" }),
@@ -156,7 +163,7 @@ describe("QuizGenerationJobsService", () => {
         const retryUpdate = jobModel.updateOne.mock.calls.find(
             ([, update]) =>
                 (update as { $set?: { status?: string } }).$set?.status ===
-                "QUEUED",
+                "ARTIFACT_QUEUED",
         )?.[1] as { $set: { availableAt: Date } };
         expect(retryUpdate.$set.availableAt.getTime()).toBe(now + delayMs);
     });
@@ -198,7 +205,7 @@ describe("QuizGenerationJobsService", () => {
 
     it("não cria job quando faltam fontes processáveis", async () => {
         const { jobModel, service, studyToolsService } = makeService([]);
-        studyToolsService.assertQuizGenerationReady.mockRejectedValueOnce(
+        studyToolsService.assertGenerationReady.mockRejectedValueOnce(
             new Error("Sem fontes processáveis."),
         );
 
@@ -206,6 +213,45 @@ describe("QuizGenerationJobsService", () => {
             service.createQuizJob(userId, studyAreaId, {}),
         ).rejects.toThrow("Sem fontes processáveis.");
         expect(jobModel.create).not.toHaveBeenCalled();
+    });
+
+    it.each(["EXPLANATION", "FLASHCARDS", "QUIZ"] as const)(
+        "processa %s em background através do pipeline de ferramentas",
+        async (artifactType) => {
+            const { service, studyToolsService } = makeService([
+                claimedJob({ artifactType }),
+                null,
+            ]);
+
+            await service.runUntilIdle();
+
+            expect(studyToolsService.generateStudyTool).toHaveBeenCalledWith(
+                userId,
+                studyAreaId,
+                { type: artifactType, topic: "fotossíntese" },
+                `artifact-job:${jobId.toHexString()}`,
+                undefined,
+                "BACKGROUND",
+            );
+        },
+    );
+
+    it("processa SUMMARY em background através do pipeline de resumos", async () => {
+        const { service, studyToolsService, summariesService } = makeService([
+            claimedJob({ artifactType: "SUMMARY" }),
+            null,
+        ]);
+
+        await service.runUntilIdle();
+
+        expect(summariesService.generateSummary).toHaveBeenCalledWith(
+            userId,
+            studyAreaId,
+            `artifact-job:${jobId.toHexString()}`,
+            undefined,
+            "BACKGROUND",
+        );
+        expect(studyToolsService.generateStudyTool).not.toHaveBeenCalled();
     });
 
     it("não chama o provider quando a conta do job já não está ativa", async () => {
@@ -219,9 +265,9 @@ describe("QuizGenerationJobsService", () => {
 
         expect(studyToolsService.generateStudyTool).not.toHaveBeenCalled();
         expect(jobModel.updateOne).toHaveBeenCalledWith(
-            expect.objectContaining({ status: "PROCESSING" }),
+            expect.objectContaining({ status: "ARTIFACT_PROCESSING" }),
             expect.objectContaining({
-                $set: expect.objectContaining({ status: "QUEUED" }),
+                $set: expect.objectContaining({ status: "ARTIFACT_QUEUED" }),
             }),
         );
     });
@@ -241,14 +287,19 @@ function claimedJob(
     overrides: Partial<{
         attempts: number;
         maxAttempts: number;
-        status: "QUEUED" | "PROCESSING";
+        status:
+            | "QUEUED"
+            | "PROCESSING"
+            | "ARTIFACT_QUEUED"
+            | "ARTIFACT_PROCESSING";
+        artifactType: "SUMMARY" | "EXPLANATION" | "FLASHCARDS" | "QUIZ";
     }> = {},
 ) {
     return {
         _id: jobId,
         userId: new Types.ObjectId(userId),
         studyAreaId: new Types.ObjectId(studyAreaId),
-        status: "PROCESSING",
+        status: "ARTIFACT_PROCESSING",
         topic: "fotossíntese",
         attempts: 1,
         maxAttempts: 3,
@@ -269,7 +320,7 @@ function makeService(claims: Array<ReturnType<typeof claimedJob> | null>) {
                 _id: jobId,
                 userId: new Types.ObjectId(userId),
                 studyAreaId: new Types.ObjectId(studyAreaId),
-                status: "QUEUED",
+                status: "ARTIFACT_QUEUED",
                 topic: "fotossíntese",
                 attempts: 0,
                 maxAttempts: 3,
@@ -281,8 +332,12 @@ function makeService(claims: Array<ReturnType<typeof claimedJob> | null>) {
         findOne: jest.fn().mockReturnValue(queryResult(null)),
     };
     const studyToolsService: jest.Mocked<QuizGenerationStudyToolsPort> = {
-        assertQuizGenerationReady: jest.fn().mockResolvedValue(undefined),
+        assertGenerationReady: jest.fn().mockResolvedValue(undefined),
         generateStudyTool: jest.fn().mockResolvedValue({ _id: artifactId }),
+    };
+    const summariesService = {
+        assertGenerationReady: jest.fn().mockResolvedValue(undefined),
+        generateSummary: jest.fn().mockResolvedValue({ _id: artifactId }),
     };
     const usersService = {
         findSessionUser: jest.fn().mockResolvedValue({
@@ -297,12 +352,17 @@ function makeService(claims: Array<ReturnType<typeof claimedJob> | null>) {
     return {
         jobModel,
         studyToolsService,
+        summariesService,
         usersService,
         service: new QuizGenerationJobsService(
             jobModel as never,
             studyToolsService,
             new AccountLifecycleBarrierService(),
             usersService as never,
+            undefined,
+            undefined,
+            undefined,
+            summariesService as never,
         ),
     };
 }

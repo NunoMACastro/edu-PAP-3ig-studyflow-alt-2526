@@ -89,7 +89,7 @@ import {
                 name: AdaptiveExplanation.name,
                 schema: AdaptiveExplanationSchema,
             },
-            // O job de quiz fica persistido para sobreviver a refresh da UI e a múltiplas instâncias da API.
+            // A fila de materiais fica persistida para sobreviver a refresh da UI e a múltiplas instâncias da API.
             { name: QuizGenerationJob.name, schema: QuizGenerationJobSchema },
         ]),
     ],

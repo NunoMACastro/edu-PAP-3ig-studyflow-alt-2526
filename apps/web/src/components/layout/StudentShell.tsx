@@ -1,10 +1,10 @@
 /** Shell dedicada ao aluno: quatro destinos, pesquisa e conta. */
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { NotificationProvider } from "../../features/mf5/notification-provider.js";
 import { NotificationTray } from "../../features/mf5/notification-tray.js";
 import { useAsyncAction } from "../../hooks/useAsyncAction.js";
-import type { User } from "../../lib/apiClient.js";
+import { getProfile, type User } from "../../lib/apiClient.js";
 import { AccountMenu } from "./AccountMenu.js";
 import { getNavigationForRole, isNavigationItemActive } from "./navigation.js";
 import { SearchOverlay } from "./SearchOverlay.js";
@@ -15,6 +15,7 @@ import { StudentAssistantLauncher } from "../../features/student-assistant/Stude
 export function StudentShell({ user, children, onLogout }: { user: User; children: ReactNode; onLogout: () => Promise<void> }) {
     const { pathname } = useLocation();
     const [searchOpen, setSearchOpen] = useState(false);
+    const [studentName, setStudentName] = useState<string | null>(null);
     const searchButtonRef = useRef<HTMLButtonElement>(null);
     const searchScope = resolveSearchScope(pathname);
     const logoutAction = useAsyncAction();
@@ -28,6 +29,18 @@ export function StudentShell({ user, children, onLogout }: { user: User; childre
         setSearchOpen(false);
         requestAnimationFrame(() => searchButtonRef.current?.focus());
     };
+    useEffect(() => {
+        let active = true;
+        void getProfile()
+            .then((profile) => {
+                if (active) setStudentName(profile?.name?.trim() || null);
+            })
+            .catch(() => undefined);
+        return () => {
+            active = false;
+        };
+    }, []);
+    const publicUser = studentName ? { ...user, displayName: studentName } : user;
     return (
         <NotificationProvider>
             <div className="min-h-screen bg-studyflow-page lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
@@ -41,7 +54,7 @@ export function StudentShell({ user, children, onLogout }: { user: User; childre
                             return <NavLink aria-current={active ? "page" : undefined} className={active ? "flex min-h-11 items-center gap-3 rounded-xl bg-studyflow-brand px-3 text-sm font-semibold text-white" : "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-studyflow-text/70 hover:bg-studyflow-card/70 hover:text-studyflow-text"} key={item.href} to={item.href}><ShellIcon className="h-5 w-5" name={item.icon} /><span>{item.label}</span></NavLink>;
                         })}
                     </nav>
-                    <div className="mt-auto rounded-2xl border border-studyflow-border/10 bg-studyflow-page/30 p-3"><p className="truncate text-sm font-semibold">{user.email}</p><p className="mt-1 text-xs text-studyflow-text/55">Tudo o resto fica no menu da conta.</p></div>
+                    <div className="mt-auto rounded-2xl border border-studyflow-border/10 bg-studyflow-page/30 p-3"><p className="truncate text-sm font-semibold">{studentName ?? user.email}</p>{studentName ? <p className="mt-1 truncate text-xs text-studyflow-text/55">{user.email}</p> : null}<p className="mt-1 text-xs text-studyflow-text/55">Tudo o resto fica no menu da conta.</p></div>
                 </aside>
                 <div className="min-w-0 pb-20 lg:pb-0">
                     <header className="sticky top-0 z-40 border-b border-studyflow-border/10 bg-studyflow-page/90 backdrop-blur-xl">
@@ -49,7 +62,7 @@ export function StudentShell({ user, children, onLogout }: { user: User; childre
                             <Link aria-label="StudyFlow" className="flex items-center gap-2 lg:hidden" to="/app/hoje"><img alt="" aria-hidden="true" className="h-9 w-9 rounded-lg" src="/assets/studyflow-logo.svg" /><span className="hidden font-bold sm:inline">StudyFlow</span></Link>
                             <button ref={searchButtonRef} aria-label="Pesquisar nos meus estudos" className="ml-auto flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-studyflow-border/10 px-3 text-sm font-semibold text-studyflow-text/70 hover:bg-studyflow-card sm:min-w-56 sm:justify-start" onClick={() => setSearchOpen(true)} type="button"><ShellIcon className="h-5 w-5" name="search" /><span className="hidden sm:inline">Pesquisar nos meus estudos</span></button>
                             <NotificationTray />
-                            <AccountMenu onLogout={logout} pending={logoutAction.isPending} user={user} />
+                            <AccountMenu onLogout={logout} pending={logoutAction.isPending} user={publicUser} />
                         </div>
                     </header>
                     <main className="mx-auto w-full max-w-[90rem] px-4 py-7 sm:px-6 sm:py-9 lg:px-10 xl:px-12" id="studyflow-main-content" tabIndex={-1}>

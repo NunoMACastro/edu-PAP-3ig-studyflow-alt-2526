@@ -4,7 +4,9 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
 import {
+    AI_ARTIFACT_GENERATION_TYPES,
     AI_ARTIFACT_TARGET_KINDS,
+    type AiArtifactGenerationType,
     type AiArtifactTargetKind,
 } from "../ai-artifact-generation.types.js";
 
@@ -19,6 +21,8 @@ export type QuizGenerationJobDocument = HydratedDocument<QuizGenerationJob>;
 export type QuizGenerationJobStatus =
     | "QUEUED"
     | "PROCESSING"
+    | "ARTIFACT_QUEUED"
+    | "ARTIFACT_PROCESSING"
     | "DONE"
     | "FAILED";
 
@@ -47,10 +51,29 @@ export class QuizGenerationJob {
 
     @Prop({
         required: true,
-        enum: ["QUEUED", "PROCESSING", "DONE", "FAILED"],
+        enum: [
+            "QUEUED",
+            "PROCESSING",
+            "ARTIFACT_QUEUED",
+            "ARTIFACT_PROCESSING",
+            "DONE",
+            "FAILED",
+        ],
         default: "QUEUED",
     })
     status!: QuizGenerationJobStatus;
+
+    /**
+     * Tipo de artefacto. O fallback `QUIZ` mantém compatibilidade com jobs
+     * persistidos antes da generalização desta fila.
+     */
+    @Prop({
+        required: true,
+        enum: AI_ARTIFACT_GENERATION_TYPES,
+        default: "QUIZ",
+        index: true,
+    })
+    artifactType!: AiArtifactGenerationType;
 
     @Prop({ type: Types.ObjectId })
     artifactId?: Types.ObjectId;

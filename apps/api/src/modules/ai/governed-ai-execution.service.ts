@@ -30,6 +30,7 @@ import {
     AiProviderOptions,
 } from "./providers/ai-provider.js";
 import {
+    resolveAiBackgroundBudgetMs,
     resolveAiBudgetMs,
     withAiResponseBudget,
 } from "./utils/with-ai-response-budget.js";
@@ -54,7 +55,14 @@ export type GovernedAiExecutionInput<TSource, TResult> = {
     validateResult: (result: TResult, limitedSources: readonly TSource[]) => void;
     pedagogicalContext?: "STUDENT_PROFILE";
     conversationTurns?: readonly GovernedAiConversationTurn[];
+    executionMode?: GovernedAiExecutionMode;
 };
+
+/**
+ * Distingue pedidos interativos, sujeitos ao RNF09, de trabalho já aceite e
+ * executado por um worker recuperável em background.
+ */
+export type GovernedAiExecutionMode = "INTERACTIVE" | "BACKGROUND";
 
 export type GovernedAiQuotaInput = {
     scope: AiQuotaScope;
@@ -90,6 +98,7 @@ export type AuthorizedAiExecutionInput<TSource, TResult> = {
     validateResult: (result: TResult, limitedSources: readonly TSource[]) => void;
     pedagogicalContext?: "STUDENT_PROFILE";
     conversationTurns?: readonly GovernedAiConversationTurn[];
+    executionMode?: GovernedAiExecutionMode;
 };
 
 /**
@@ -273,6 +282,10 @@ export class GovernedAiExecutionService {
                 message: "A estimativa de consumo de IA não é válida.",
             });
         }
+        const executionMode = input.executionMode ?? "INTERACTIVE";
+        const budgetMs = executionMode === "BACKGROUND"
+            ? resolveAiBackgroundBudgetMs()
+            : resolveAiBudgetMs(policy.timeoutMs);
         let auditAttempted = false;
         try {
             await this.quotasService.reserveUsage({
@@ -282,7 +295,6 @@ export class GovernedAiExecutionService {
                 units,
             });
 
-            const budgetMs = resolveAiBudgetMs(policy.timeoutMs);
             const result = await withAiResponseBudget(
                 input.invoke({
                     provider: this.provider,
@@ -305,6 +317,8 @@ export class GovernedAiExecutionService {
                 metadata: {
                     purpose: authorization.purpose,
                     model: policy.model,
+                    executionMode,
+                    budgetMs,
                     sourceCount: sources.length,
                     units,
                 },
@@ -329,6 +343,8 @@ export class GovernedAiExecutionService {
                     metadata: {
                         purpose: authorization.purpose,
                         errorCode: this.errorCode(error),
+                        executionMode,
+                        budgetMs,
                     },
                 });
             }

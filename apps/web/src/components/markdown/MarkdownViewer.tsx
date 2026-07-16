@@ -98,7 +98,12 @@ const MARKDOWN_COMPONENTS: Components = {
         );
     },
     table: ({ children }) => (
-        <div className="my-4 overflow-x-auto">
+        <div
+            aria-label="Tabela com deslocamento horizontal"
+            className="my-4 overflow-x-auto"
+            role="region"
+            tabIndex={0}
+        >
             <table className="w-full border-collapse text-left text-sm">{children}</table>
         </div>
     ),
@@ -111,7 +116,11 @@ const MARKDOWN_COMPONENTS: Components = {
         <td className="border border-studyflow-border/20 px-3 py-2 align-top">{children}</td>
     ),
     pre: ({ children }) => (
-        <pre className="my-4 overflow-x-auto rounded-xl border border-studyflow-border/15 bg-studyflow-page p-4 text-sm text-studyflow-text">
+        <pre
+            aria-label="Bloco de código com deslocamento horizontal"
+            className="my-4 overflow-x-auto rounded-xl border border-studyflow-border/15 bg-studyflow-page p-4 text-sm text-studyflow-text"
+            tabIndex={0}
+        >
             {children}
         </pre>
     ),

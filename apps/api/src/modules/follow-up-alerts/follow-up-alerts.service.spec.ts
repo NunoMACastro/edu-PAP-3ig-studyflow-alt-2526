@@ -420,8 +420,8 @@ function makeClass(input: Partial<SchoolClassView> = {}): SchoolClassView {
         schoolYear: "2025/2026",
         studentIds: [activeStudentId, inactiveStudentId],
         students: [
-            { id: activeStudentId, email: "ativo@example.test" },
-            { id: inactiveStudentId, email: "inativo@example.test" },
+            { id: activeStudentId, displayName: "Aluno Ativo", email: "ativo@example.test" },
+            { id: inactiveStudentId, displayName: "Aluno Inativo", email: "inativo@example.test" },
         ],
         ...input,
     };

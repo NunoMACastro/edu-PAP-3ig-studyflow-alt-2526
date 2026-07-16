@@ -35,6 +35,7 @@ type StudentFilter = "ALL" | "INACTIVE";
 
 type FollowUpStudentRow = {
     id: string;
+    displayName: string;
     email: string;
     inactiveRules: FollowUpSummaryRule[];
 };
@@ -94,7 +95,9 @@ export function FollowUpAlertsPanel() {
             }
             return normalizedSearch.length === 0
                 ? true
-                : student.email.toLocaleLowerCase("pt-PT").includes(normalizedSearch);
+                : `${student.displayName} ${student.email}`
+                    .toLocaleLowerCase("pt-PT")
+                    .includes(normalizedSearch);
         });
     }, [searchTerm, studentFilter, students]);
 
@@ -378,7 +381,10 @@ export function FollowUpAlertsPanel() {
                                     <article className="sf-list-card space-y-3" key={student.id}>
                                         <div className="flex flex-wrap items-start justify-between gap-3">
                                             <div className="min-w-0">
-                                                <h3 className="break-all font-semibold">{student.email}</h3>
+                                                <h3 className="font-semibold">{student.displayName}</h3>
+                                                {student.displayName !== student.email ? (
+                                                    <p className="break-all text-xs text-studyflow-text/60">{student.email}</p>
+                                                ) : null}
                                                 {student.inactiveRules.length === 0 ? (
                                                     <p className="mt-1 text-sm text-studyflow-text/65">Sem alertas pelas regras atuais.</p>
                                                 ) : (
@@ -457,7 +463,7 @@ export function FollowUpAlertsPanel() {
                 description="Resultados oficiais existentes e contacto interno, sem classificações de risco."
                 onClose={() => setSelectedStudent(null)}
                 open={Boolean(selectedStudent)}
-                title={selectedStudent?.email ?? "Aluno"}
+                title={selectedStudent?.displayName ?? "Aluno"}
             >
                 <div className="space-y-6">
                     {studentPanelError ? <InlineNotice role="alert" tone="danger">{studentPanelError}</InlineNotice> : null}
@@ -617,15 +623,17 @@ function buildStudentRows(
         ? schoolClass.students
         : (schoolClass.studentIds ?? []).map((id) => ({
               id,
+              displayName: `Aluno ${id.slice(-4).toUpperCase()}`,
               email: `Aluno ${id.slice(-4)}`,
           }));
     return publicStudents
         .map((student) => ({
             id: student.id,
+            displayName: student.displayName ?? student.email,
             email: student.email,
             inactiveRules: inactiveRulesByStudent.get(student.id) ?? [],
         }))
-        .sort((left, right) => left.email.localeCompare(right.email, "pt-PT"));
+        .sort((left, right) => left.displayName.localeCompare(right.displayName, "pt-PT"));
 }
 
 /** Obtém o classId pedido sem assumir que é autorizado. */

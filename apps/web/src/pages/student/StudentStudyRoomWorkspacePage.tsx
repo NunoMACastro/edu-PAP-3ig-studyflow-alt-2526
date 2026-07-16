@@ -95,6 +95,19 @@ export function StudentStudyRoomWorkspacePage({
                 <StatusBadge>{createdByCurrentStudent ? "Criada por ti" : "Criada por outro aluno"}</StatusBadge>
                 <StatusBadge tone="brand">Partilhada · {memberLabel(room.memberIds.length)}</StatusBadge>
             </div>
+            <section aria-label="Membros da sala" className="sf-surface-subtle space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-studyflow-text/60">Membros</p>
+                <ul className="flex flex-wrap gap-2">
+                    {(room.members ?? room.memberIds.map((id) => ({
+                        id,
+                        displayName: `Aluno ${id.slice(-4).toUpperCase()}`,
+                    }))).map((member) => (
+                        <li className="max-w-full truncate rounded-full bg-studyflow-page px-3 py-1 text-sm" key={member.id} title={member.displayName}>
+                            {member.displayName}
+                        </li>
+                    ))}
+                </ul>
+            </section>
             <WorkspaceTabs items={[
                 { label: "Partilhas", href: base, active: tab === "partilhas" },
                 { label: unreadCount > 0 ? `Conversar (${unreadCount})` : "Conversar", href: `${base}/conversar`, active: tab === "conversar" },

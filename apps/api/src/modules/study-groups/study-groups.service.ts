@@ -17,6 +17,7 @@ export type StudyGroupView = {
     disciplineName?: string;
     description?: string;
     memberIds: string[];
+    members: Array<{ id: string; displayName: string }>;
     createdAt?: Date;
     collaborationKind: "STUDY_GROUP";
     collaborationKindSource: "NATIVE" | "LEGACY_INFERRED";
@@ -116,6 +117,7 @@ export class StudyGroupsService {
         disciplineName?: string;
         description?: string;
         memberIds: string[];
+        members: Array<{ id: string; displayName: string }>;
         createdAt?: Date;
         collaborationKind: "STUDY_GROUP" | "STUDY_ROOM";
         collaborationKindSource: "NATIVE" | "LEGACY_INFERRED";
@@ -127,6 +129,7 @@ export class StudyGroupsService {
             disciplineName: room.disciplineName,
             description: room.description,
             memberIds: room.memberIds,
+            members: room.members,
             createdAt: room.createdAt,
             collaborationKind: "STUDY_GROUP",
             collaborationKindSource: room.collaborationKindSource,

@@ -1,6 +1,6 @@
 /** Prova apply, idempotência e rollback numa base Mongo isolada. */
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { mongo } from "mongoose";
+import { MongoClient, ObjectId } from "mongodb";
 import { migrateCollaborationKinds } from "./migrate-collaboration-kinds.js";
 
 jest.setTimeout(120_000);
@@ -8,12 +8,12 @@ jest.setTimeout(120_000);
 describe("collaboration kind migration integration", () => {
     it("classifica sem duplicar e reverte apenas o runId", async () => {
         const server = await MongoMemoryServer.create();
-        const client = new mongo.MongoClient(server.getUri());
+        const client = new MongoClient(server.getUri());
         await client.connect();
         try {
             const database = client.db("collaboration-migration");
-            const groupId = new mongo.ObjectId();
-            const roomId = new mongo.ObjectId();
+            const groupId = new ObjectId();
+            const roomId = new ObjectId();
             await database.collection("study_rooms").insertMany([
                 { _id: groupId, name: "Grupo" },
                 { _id: roomId, name: "Sala", disciplineName: "BD" },

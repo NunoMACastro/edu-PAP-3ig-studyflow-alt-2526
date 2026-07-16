@@ -83,7 +83,10 @@ export function OfficialTestRankingPage({
     if (!ranking || ranking.rows.length === 0) {
         return (
             <section className="sf-surface space-y-3">
-                <h1 className="text-xl font-bold">Ranking do mini-teste</h1>
+                <h1 className="text-xl font-bold">{ranking?.testTitle ?? "Ranking do mini-teste"}</h1>
+                {ranking?.testTitle?.startsWith("Demonstração") ? (
+                    <p className="sf-notice mt-3 text-sm">Pontuações e posições fictícias, criadas apenas para demonstração local.</p>
+                ) : null}
                 <p className="text-sm text-studyflow-text">
                     Ainda não existem tentativas submetidas para este mini-teste.
                 </p>
@@ -94,7 +97,10 @@ export function OfficialTestRankingPage({
     return (
         <section className="sf-surface space-y-4">
             <div>
-                <h1 className="text-xl font-bold">Ranking do mini-teste</h1>
+                <h1 className="text-xl font-bold">{ranking.testTitle}</h1>
+                {ranking.testTitle.startsWith("Demonstração") ? (
+                    <p className="sf-notice mt-3 text-sm">Pontuações e posições fictícias, criadas apenas para demonstração local.</p>
+                ) : null}
                 <p className="text-sm text-studyflow-text">
                     Política BEST_ATTEMPT: surge apenas a melhor tentativa de cada aluno.
                     Em empate, conta a submissão mais antiga e depois um identificador

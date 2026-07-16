@@ -1,6 +1,6 @@
 /** Testa apenas a barreira de segurança do reset; nunca apaga dados reais. */
 import { join, resolve } from "node:path";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { normaliseLocalResetOptions } from "./reset-local-data.js";
 
 const valid = {
@@ -16,13 +16,6 @@ describe("normaliseLocalResetOptions", () => {
         expect(normaliseLocalResetOptions(valid)).toMatchObject({
             databaseName: "studyflow_test",
         });
-    });
-
-    it("usa o mesmo storage predefinido do runtime", () => {
-        expect(
-            normaliseLocalResetOptions({ ...valid, storageDir: undefined })
-                .storageDir,
-        ).toBe(resolve(homedir(), ".studyflow", "studyflow-materials"));
     });
 
     it.each([

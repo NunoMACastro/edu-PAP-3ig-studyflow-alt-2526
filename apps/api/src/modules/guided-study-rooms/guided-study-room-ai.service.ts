@@ -190,7 +190,10 @@ export class GuidedStudyRoomAiService {
                     model: execution.policy.model,
                 },
             });
-            return this.toView(interaction.toObject(), usedMaterials, actor.email, false);
+            return this.toView(interaction.toObject(), usedMaterials, {
+                email: actor.email,
+                displayName: actor.displayName ?? actor.email,
+            }, false);
         } catch (error) {
             if (
                 error instanceof ConflictException ||
@@ -224,7 +227,7 @@ export class GuidedStudyRoomAiService {
             { roomId: new Types.ObjectId(roomId), studentId: new Types.ObjectId(actor.id) },
             cursor,
             limit,
-            new Map([[actor.id, actor.email]]),
+            new Map([[actor.id, { email: actor.email, displayName: actor.displayName ?? actor.email }]]),
             room,
             false,
         );
@@ -268,9 +271,15 @@ export class GuidedStudyRoomAiService {
                 message: "O aluno indicado não pertence à audiência desta sala.",
             });
         }
-        const emails = new Map([
-            ...progress.students.map((student) => [student.studentId, student.email] as const),
-            ...students.map((student) => [student.id, student.email] as const),
+        const identities = new Map([
+            ...progress.students.map((student) => [student.studentId, {
+                email: student.email,
+                displayName: student.displayName,
+            }] as const),
+            ...students.map((student) => [student.id, {
+                email: student.email,
+                displayName: student.displayName,
+            }] as const),
         ]);
         const page = await this.listPage(
             {
@@ -281,7 +290,7 @@ export class GuidedStudyRoomAiService {
             },
             input.cursor,
             input.limit ?? 20,
-            emails,
+            identities,
             room,
             true,
         );
@@ -305,7 +314,7 @@ export class GuidedStudyRoomAiService {
         filter: Record<string, unknown>,
         cursor: string | undefined,
         requestedLimit: number,
-        emails: Map<string, string>,
+        identities: Map<string, { email: string; displayName: string }>,
         room: Awaited<ReturnType<GuidedStudyRoomsService["findOwnedRoom"]>>,
         exposeTeacherDetails: boolean,
     ) {
@@ -344,7 +353,10 @@ export class GuidedStudyRoomAiService {
                     row.sourceMaterialIds
                         .map((id) => materialById.get(String(id)))
                         .filter((item): item is OfficialMaterialView => Boolean(item)),
-                    emails.get(String(row.studentId)) ?? `Aluno ${String(row.studentId).slice(-4)}`,
+                    identities.get(String(row.studentId)) ?? {
+                        email: `Aluno ${String(row.studentId).slice(-4).toUpperCase()}`,
+                        displayName: `Aluno ${String(row.studentId).slice(-4).toUpperCase()}`,
+                    },
                     exposeTeacherDetails,
                 ),
             ),
@@ -371,7 +383,7 @@ export class GuidedStudyRoomAiService {
     private toView(
         interaction: InteractionRecord,
         sources: OfficialMaterialView[],
-        studentEmail: string,
+        studentIdentity: { email: string; displayName: string },
         exposeTeacherDetails: boolean,
     ) {
         const publicSources: Array<OfficialMaterialView | StudentOfficialMaterialView> =
@@ -391,7 +403,8 @@ export class GuidedStudyRoomAiService {
             ...(exposeTeacherDetails
                 ? {
                       studentId: String(interaction.studentId),
-                      studentEmail,
+                      studentEmail: studentIdentity.email,
+                      studentDisplayName: studentIdentity.displayName,
                       voice: {
                           source: interaction.voiceSource,
                           tone: interaction.voiceTone,

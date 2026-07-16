@@ -27,7 +27,10 @@ import {
     toQuizAttemptResultDto,
 } from "./dto/quiz-attempt.dto.js";
 import { buildStudyToolPrompt } from "./prompts/study-tools.prompt.js";
-import { GovernedAiExecutionService } from "./governed-ai-execution.service.js";
+import {
+    GovernedAiExecutionService,
+    type GovernedAiExecutionMode,
+} from "./governed-ai-execution.service.js";
 import { AiSource } from "./providers/ai-provider.js";
 import {
     AiArtifact,
@@ -128,6 +131,7 @@ export class StudyToolsService {
         input: CreateStudyToolDto,
         generationKey?: string,
         assistantConversationId?: string,
+        executionMode: GovernedAiExecutionMode = "INTERACTIVE",
     ) {
         const type = this.validateRequiredStudyToolType(input.type);
 
@@ -160,6 +164,7 @@ export class StudyToolsService {
             const execution = await this.aiExecution.execute({
                 userId,
                 purpose: "STUDY_TOOL",
+                executionMode,
                 quota: { scope: "USER", targetId: userId },
                 sources,
                 guardrailText:
@@ -269,6 +274,7 @@ export class StudyToolsService {
         snapshot: AssistantArtifactGenerationSnapshot,
         input: CreateStudyToolDto,
         generationKey: string,
+        executionMode: GovernedAiExecutionMode = "INTERACTIVE",
     ) {
         const type = this.validateRequiredStudyToolType(input.type);
         this.assertGenerationKey(generationKey);
@@ -285,6 +291,7 @@ export class StudyToolsService {
             const execution = await this.aiExecution.execute({
                 userId: snapshot.userId,
                 purpose: "STUDY_TOOL",
+                executionMode,
                 quota: { scope: "USER", targetId: snapshot.userId },
                 sources: snapshot.sources,
                 guardrailText:
@@ -384,6 +391,7 @@ export class StudyToolsService {
     private assertGenerationKey(value: string): void {
         if (
             !/^quiz-job:[a-f0-9]{24}$/.test(value) &&
+            !/^artifact-job:[a-f0-9]{24}$/.test(value) &&
             !/^assistant-artifact:[a-f0-9]{64}$/.test(value)
         ) {
             throw new Error("Chave interna de geração inválida.");
@@ -406,7 +414,7 @@ export class StudyToolsService {
      * @param studyAreaId Identificador usado para localizar o recurso correto e validar o acesso ao seu âmbito.
      * @returns Não devolve payload; termina quando os efeitos locais ou remotos ficam concluídos.
      */
-    async assertQuizGenerationReady(
+    async assertGenerationReady(
         userId: string,
         studyAreaId: string,
     ): Promise<void> {
@@ -422,6 +430,14 @@ export class StudyToolsService {
                     "Este material ainda não tem texto processável para gerar conteúdo de estudo.",
             });
         }
+    }
+
+    /** Compatibilidade para consumidores legacy que ainda nomeiam apenas quizzes. */
+    async assertQuizGenerationReady(
+        userId: string,
+        studyAreaId: string,
+    ): Promise<void> {
+        return this.assertGenerationReady(userId, studyAreaId);
     }
 
     /**

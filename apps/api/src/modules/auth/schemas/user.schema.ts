@@ -44,6 +44,10 @@ export class User {
     })
     email!: string;
 
+    /** Nome público opcional para identidades institucionais, como professores. */
+    @Prop({ trim: true, maxlength: 120 })
+    displayName?: string;
+
     @Prop({ required: true })
     passwordHash!: string;
 

@@ -110,6 +110,7 @@ export type GuidedStudyRoomProgressView = {
     completionPercent: number;
     students: Array<{
         studentId: string;
+        displayName: string;
         email: string;
         status: "NOT_VIEWED" | GuidedStudyRoomParticipationStatus;
         firstViewedAt?: Date;
@@ -883,7 +884,10 @@ export class GuidedStudyRoomsService {
             const participation = participationById.get(studentId);
             return {
                 studentId,
-                email: currentById.get(studentId)?.email ?? `Aluno ${studentId.slice(-4)}`,
+                displayName: currentById.get(studentId)?.displayName
+                    ?? `Aluno ${studentId.slice(-4).toUpperCase()}`,
+                email: currentById.get(studentId)?.email
+                    ?? `Aluno ${studentId.slice(-4).toUpperCase()}`,
                 status: participation?.status ?? ("NOT_VIEWED" as const),
                 firstViewedAt: participation?.firstViewedAt,
                 lastViewedAt: participation?.lastViewedAt,

@@ -129,6 +129,54 @@ describe("GovernedAiExecutionService", () => {
         );
     });
 
+    it("usa 120 segundos nos jobs background sem alterar o limite interativo", async () => {
+        const invoke = jest.fn().mockResolvedValue({ title: "Resumo" });
+        const audit = { record: jest.fn().mockResolvedValue(undefined) };
+        const service = new GovernedAiExecutionService(
+            {} as never,
+            { assertGranted: jest.fn().mockResolvedValue(undefined) } as never,
+            {
+                resolveForUse: jest.fn().mockResolvedValue({
+                    purpose: "SUMMARY",
+                    enabled: true,
+                    provider: "test",
+                    model: "test-model",
+                    timeoutMs: 8_000,
+                    maxSourceCount: 1,
+                    maxPromptChars: 1_000,
+                }),
+            } as never,
+            { reserveUsage: jest.fn().mockResolvedValue(undefined) } as never,
+            audit as never,
+        );
+
+        await service.execute({
+            userId: "507f1f77bcf86cd799439012",
+            purpose: "SUMMARY",
+            executionMode: "BACKGROUND",
+            quota: { scope: "USER", targetId: "507f1f77bcf86cd799439012" },
+            sources: ["fonte"],
+            guardrailText: "Resume a matéria.",
+            buildPrompt: () => "Resume a matéria.",
+            invoke,
+            validateResult: () => undefined,
+        });
+
+        expect(invoke).toHaveBeenCalledWith(
+            expect.objectContaining({
+                options: { model: "test-model", timeoutMs: 120_000 },
+            }),
+        );
+        expect(audit.record).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metadata: expect.objectContaining({
+                    executionMode: "BACKGROUND",
+                    budgetMs: 120_000,
+                }),
+            }),
+        );
+    });
+
     it("limita a memória a seis turnos e mantém o histórico dentro do budget próprio", async () => {
         const provider = {
             generateSummary: jest.fn().mockResolvedValue({ title: "Resposta" }),

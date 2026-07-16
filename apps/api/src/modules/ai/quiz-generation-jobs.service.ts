@@ -1,5 +1,8 @@
 /**
- * Fila Mongo recuperável para geração de quizzes privados.
+ * Fila Mongo recuperável para geração de materiais de estudo privados.
+ *
+ * O nome da classe e da coleção mantém-se por compatibilidade com jobs de quiz
+ * já persistidos. Novos jobs identificam explicitamente o tipo de artefacto.
  */
 import {
     Inject,
@@ -18,6 +21,7 @@ import {
     executeWithMongoLeaseHeartbeat,
     MongoLeaseLostError,
 } from "../../common/reliability/mongo-lease-heartbeat.js";
+import { CreateAiArtifactJobDto } from "./dto/create-ai-artifact-job.dto.js";
 import { CreateQuizJobDto } from "./dto/create-quiz-job.dto.js";
 import {
     QuizGenerationJob,
@@ -25,6 +29,7 @@ import {
     QuizGenerationJobStatus,
 } from "./schemas/quiz-generation-job.schema.js";
 import { StudyToolsService } from "./study-tools.service.js";
+import { SummariesService } from "./summaries.service.js";
 import { UsersService } from "../users/users.service.js";
 import { AuditLogService } from "../audit-log/audit-log.service.js";
 import {
@@ -35,19 +40,31 @@ import {
     StudentAiArtifactGenerationSnapshot,
     type StudentAiArtifactGenerationSnapshotDocument,
 } from "../student-ai-assistant/schemas/student-ai-artifact-generation-snapshot.schema.js";
-import type { AssistantArtifactGenerationSnapshot } from "./ai-artifact-generation.types.js";
+import type {
+    AiArtifactGenerationType,
+    AssistantArtifactGenerationSnapshot,
+} from "./ai-artifact-generation.types.js";
 
 const DEFAULT_LEASE_MS = 30_000;
 const DEFAULT_POLL_MS = 1_000;
-const QUIZ_JOB_CONCURRENCY = 2;
+const ARTIFACT_JOB_CONCURRENCY = 2;
+const ACTIVE_JOB_STATUSES: QuizGenerationJobStatus[] = [
+    "QUEUED",
+    "PROCESSING",
+    "ARTIFACT_QUEUED",
+    "ARTIFACT_PROCESSING",
+];
+
+type QuizGenerationJobPublicStatus = "QUEUED" | "PROCESSING" | "DONE" | "FAILED";
 
 export type QuizGenerationJobView = {
     _id: string;
+    artifactType: AiArtifactGenerationType;
     studyAreaId?: string;
     targetKind?: "STUDY_AREA" | "SUBJECT" | "CLASS";
     targetId?: string;
     targetLabel?: string;
-    status: QuizGenerationJobStatus;
+    status: QuizGenerationJobPublicStatus;
     artifactId?: string;
     topic?: string;
     errorMessage?: string;
@@ -65,10 +82,18 @@ type QuizGenerationJobLean = QuizGenerationJob & {
 
 export type QuizGenerationStudyToolsPort = Pick<
     StudyToolsService,
-    "assertQuizGenerationReady" | "generateStudyTool"
+    "assertGenerationReady" | "generateStudyTool"
 > &
     Partial<
         Pick<StudyToolsService, "generateStudyToolFromAssistantSnapshot">
+    >;
+
+export type AiArtifactGenerationSummariesPort = Pick<
+    SummariesService,
+    "assertGenerationReady" | "generateSummary"
+> &
+    Partial<
+        Pick<SummariesService, "generateSummaryFromAssistantSnapshot">
     >;
 
 /**
@@ -81,7 +106,7 @@ export class QuizGenerationJobsService
     implements OnApplicationBootstrap, OnApplicationShutdown
 {
     private readonly logger = new Logger(QuizGenerationJobsService.name);
-    private readonly workerId = `quiz-${randomUUID()}`;
+    private readonly workerId = `artifact-${randomUUID()}`;
     private readonly active = new Set<Promise<void>>();
     private timer?: NodeJS.Timeout;
     private started = false;
@@ -103,6 +128,9 @@ export class QuizGenerationJobsService
         @Optional()
         @InjectModel(StudentAiArtifactGenerationSnapshot.name)
         private readonly snapshotModel?: Model<StudentAiArtifactGenerationSnapshotDocument>,
+        @Optional()
+        @Inject(SummariesService)
+        private readonly summariesService?: AiArtifactGenerationSummariesPort,
     ) {}
 
     onApplicationBootstrap(): void {
@@ -123,8 +151,17 @@ export class QuizGenerationJobsService
     /** Confirma que o runner iniciou e ainda aceita trabalho. */
     checkReady(): void {
         if (!this.started || this.shuttingDown) {
-            throw new Error("Quiz generation job runner is not ready.");
+            throw new Error("AI artifact generation job runner is not ready.");
         }
+    }
+
+    /** Cria um job para qualquer um dos quatro materiais suportados. */
+    async createArtifactJob(
+        userId: string,
+        studyAreaId: string,
+        input: CreateAiArtifactJobDto,
+    ): Promise<QuizGenerationJobView> {
+        return this.createArtifactJobInternal(userId, studyAreaId, input);
     }
 
     async createQuizJob(
@@ -132,7 +169,10 @@ export class QuizGenerationJobsService
         studyAreaId: string,
         input: CreateQuizJobDto,
     ): Promise<QuizGenerationJobView> {
-        return this.createQuizJobInternal(userId, studyAreaId, input);
+        return this.createArtifactJobInternal(userId, studyAreaId, {
+            type: "QUIZ",
+            topic: input.topic,
+        });
     }
 
     /** Cria um job idempotente associado exclusivamente a uma conversa. */
@@ -142,7 +182,12 @@ export class QuizGenerationJobsService
         input: CreateQuizJobDto,
         options: { conversationId: string; requestKey: string },
     ): Promise<QuizGenerationJobView> {
-        return this.createQuizJobInternal(userId, studyAreaId, input, options);
+        return this.createArtifactJobInternal(
+            userId,
+            studyAreaId,
+            { type: "QUIZ", topic: input.topic },
+            options,
+        );
     }
 
     /**
@@ -152,6 +197,21 @@ export class QuizGenerationJobsService
     async createQuizJobForAssistantSnapshot(
         snapshot: AssistantArtifactGenerationSnapshot,
         input: CreateQuizJobDto,
+        options: { conversationId: string; requestKey: string },
+    ): Promise<QuizGenerationJobView> {
+        return this.createArtifactJobForAssistantSnapshot(
+            snapshot,
+            { type: "QUIZ", topic: input.topic },
+            options,
+        );
+    }
+
+    /**
+     * Persiste snapshot e job de qualquer material numa única transação Mongo.
+     */
+    async createArtifactJobForAssistantSnapshot(
+        snapshot: AssistantArtifactGenerationSnapshot,
+        input: CreateAiArtifactJobDto,
         options: { conversationId: string; requestKey: string },
     ): Promise<QuizGenerationJobView> {
         if (!this.snapshotModel || !this.jobModel.db) {
@@ -170,6 +230,7 @@ export class QuizGenerationJobsService
         const activeKey = this.activeKey(
             snapshot.userId,
             snapshot.target.id,
+            input.type,
             topic,
             options.conversationId,
         );
@@ -181,7 +242,7 @@ export class QuizGenerationJobsService
                     .findOne({
                         $or: [
                             { assistantRequestKey: options.requestKey },
-                            { activeKey, status: { $in: ["QUEUED", "PROCESSING"] } },
+                            { activeKey, status: { $in: ACTIVE_JOB_STATUSES } },
                         ],
                     })
                     .session(session)
@@ -222,7 +283,11 @@ export class QuizGenerationJobsService
                         targetId: this.parseObjectId(snapshot.target.id),
                         targetLabelSnapshot: snapshot.target.label,
                         sourceContextKind: snapshot.sourceContextKind,
-                        status: "QUEUED",
+                        artifactType: input.type,
+                        // O estado dedicado impede workers de uma versão anterior,
+                        // que conhecem apenas QUIZ, de reclamarem novos artefactos
+                        // durante um restart ou rolling deployment.
+                        status: "ARTIFACT_QUEUED",
                         topic,
                         attempts: 0,
                         maxAttempts: 3,
@@ -244,7 +309,7 @@ export class QuizGenerationJobsService
                         { assistantRequestKey: options.requestKey },
                         {
                             activeKey,
-                            status: { $in: ["QUEUED", "PROCESSING"] },
+                            status: { $in: ACTIVE_JOB_STATUSES },
                         },
                     ],
                 })
@@ -262,13 +327,13 @@ export class QuizGenerationJobsService
         return this.toView(value as QuizGenerationJobLean);
     }
 
-    private async createQuizJobInternal(
+    private async createArtifactJobInternal(
         userId: string,
         studyAreaId: string,
-        input: CreateQuizJobDto,
+        input: CreateAiArtifactJobDto,
         assistant?: { conversationId: string; requestKey: string },
     ): Promise<QuizGenerationJobView> {
-        await this.studyToolsService.assertQuizGenerationReady(userId, studyAreaId);
+        await this.assertGenerationReady(userId, studyAreaId, input.type);
         const topic = input.topic?.trim() || undefined;
         if (assistant) {
             const replay = await this.jobModel
@@ -285,11 +350,12 @@ export class QuizGenerationJobsService
         const activeKey = this.activeKey(
             userId,
             studyAreaId,
+            input.type,
             topic,
             assistant?.conversationId,
         );
         const activeJob = await this.jobModel
-            .findOne({ activeKey, status: { $in: ["QUEUED", "PROCESSING"] } })
+            .findOne({ activeKey, status: { $in: ACTIVE_JOB_STATUSES } })
             .sort({ createdAt: -1 })
             .lean();
         if (activeJob) return this.toView(activeJob as QuizGenerationJobLean);
@@ -301,7 +367,8 @@ export class QuizGenerationJobsService
                 studyAreaId: this.parseObjectId(studyAreaId),
                 targetKind: "STUDY_AREA",
                 targetId: this.parseObjectId(studyAreaId),
-                status: "QUEUED",
+                artifactType: input.type,
+                status: "ARTIFACT_QUEUED",
                 topic,
                 attempts: 0,
                 maxAttempts: 3,
@@ -322,7 +389,7 @@ export class QuizGenerationJobsService
             const concurrent = await this.jobModel
                 .findOne({
                     activeKey,
-                    status: { $in: ["QUEUED", "PROCESSING"] },
+                    status: { $in: ACTIVE_JOB_STATUSES },
                 })
                 .lean();
             if (!concurrent) throw error;
@@ -344,7 +411,7 @@ export class QuizGenerationJobsService
                 userId: this.parseObjectId(userId),
                 assistantConversationId: this.parseObjectId(conversationId),
                 ...(activeOnly
-                    ? { status: { $in: ["QUEUED", "PROCESSING"] } }
+                    ? { status: { $in: ACTIVE_JOB_STATUSES } }
                     : {}),
             })
             .sort({ createdAt: -1, _id: -1 })
@@ -422,7 +489,7 @@ export class QuizGenerationJobsService
         }
     }
 
-    async findQuizJob(
+    async findArtifactJob(
         userId: string,
         studyAreaId: string,
         jobId: string,
@@ -436,6 +503,14 @@ export class QuizGenerationJobsService
             .lean();
         if (!job) throw this.notFound();
         return this.toView(job as QuizGenerationJobLean);
+    }
+
+    async findQuizJob(
+        userId: string,
+        studyAreaId: string,
+        jobId: string,
+    ): Promise<QuizGenerationJobView> {
+        return this.findArtifactJob(userId, studyAreaId, jobId);
     }
 
     /**
@@ -456,7 +531,7 @@ export class QuizGenerationJobsService
         if (!this.started || this.cycleRunning) return;
         this.cycleRunning = true;
         try {
-            while (this.active.size < QUIZ_JOB_CONCURRENCY) {
+            while (this.active.size < ARTIFACT_JOB_CONCURRENCY) {
                 const claimed = await this.claimNext();
                 if (!claimed) break;
                 const work = this.processClaimed(claimed).finally(() => {
@@ -466,7 +541,7 @@ export class QuizGenerationJobsService
                 this.active.add(work);
             }
         } catch {
-            this.logger.error("Falha controlada no runner Mongo de quizzes.");
+            this.logger.error("Falha controlada no runner Mongo de materiais IA.");
         } finally {
             this.cycleRunning = false;
         }
@@ -480,9 +555,9 @@ export class QuizGenerationJobsService
             {
                 $expr: { $gte: ["$attempts", "$maxAttempts"] },
                 $or: [
-                    { status: "QUEUED" },
+                    { status: { $in: ["QUEUED", "ARTIFACT_QUEUED"] } },
                     {
-                        status: "PROCESSING",
+                        status: { $in: ["PROCESSING", "ARTIFACT_PROCESSING"] },
                         leaseExpiresAt: { $lte: now },
                     },
                 ],
@@ -491,7 +566,7 @@ export class QuizGenerationJobsService
                 $set: {
                     status: "FAILED",
                     errorMessage:
-                        "Não foi possível gerar o quiz neste momento.",
+                        "Não foi possível gerar o material neste momento.",
                     completedAt: now,
                 },
                 $unset: {
@@ -507,18 +582,18 @@ export class QuizGenerationJobsService
                     $expr: { $lt: ["$attempts", "$maxAttempts"] },
                     $or: [
                         {
-                            status: "QUEUED",
+                            status: { $in: ["QUEUED", "ARTIFACT_QUEUED"] },
                             availableAt: { $lte: now },
                         },
                         {
-                            status: "PROCESSING",
+                            status: { $in: ["PROCESSING", "ARTIFACT_PROCESSING"] },
                             leaseExpiresAt: { $lte: now },
                         },
                     ],
                 },
                 {
                     $set: {
-                        status: "PROCESSING",
+                        status: "ARTIFACT_PROCESSING",
                         leaseOwner: this.workerId,
                         leaseExpiresAt: new Date(now.getTime() + this.leaseMs()),
                     },
@@ -533,6 +608,7 @@ export class QuizGenerationJobsService
 
     private async processClaimed(job: QuizGenerationJobLean): Promise<void> {
         let releaseMutation: (() => void) | undefined;
+        const artifactType = this.artifactType(job);
         try {
             const userId = String(job.userId);
             // O runner é uma mutação da conta tal como um POST autenticado. A
@@ -541,7 +617,7 @@ export class QuizGenerationJobsService
             releaseMutation = this.accountLifecycleBarrier.enterMutation(userId);
             const activeAccount = await this.usersService.findSessionUser(userId);
             if (!activeAccount) {
-                throw new Error("QUIZ_JOB_ACCOUNT_NOT_ACTIVE");
+                throw new Error("AI_ARTIFACT_JOB_ACCOUNT_NOT_ACTIVE");
             }
 
             const leaseMs = this.leaseMs();
@@ -549,8 +625,27 @@ export class QuizGenerationJobsService
                 leaseMs,
                 heartbeat: () => this.renewLease(job, leaseMs),
                 operation: async () => {
+                    const generationKey = job.artifactType
+                        ? `artifact-job:${String(job._id)}`
+                        : `quiz-job:${String(job._id)}`;
                     if (job.assistantSnapshotId) {
                         const snapshot = await this.loadAssistantSnapshot(job);
+                        if (artifactType === "SUMMARY") {
+                            const generateSummaryFromSnapshot =
+                                this.summariesService
+                                    ?.generateSummaryFromAssistantSnapshot;
+                            if (!generateSummaryFromSnapshot) {
+                                throw new Error(
+                                    "ASSISTANT_SUMMARY_GENERATOR_UNAVAILABLE",
+                                );
+                            }
+                            return generateSummaryFromSnapshot.call(
+                                this.summariesService,
+                                snapshot,
+                                generationKey,
+                                "BACKGROUND",
+                            );
+                        }
                         const generateFromSnapshot =
                             this.studyToolsService
                                 .generateStudyToolFromAssistantSnapshot;
@@ -562,23 +657,41 @@ export class QuizGenerationJobsService
                         return generateFromSnapshot.call(
                             this.studyToolsService,
                             snapshot,
-                            { type: "QUIZ", topic: job.topic },
-                            `quiz-job:${String(job._id)}`,
+                            { type: artifactType, topic: job.topic },
+                            generationKey,
+                            "BACKGROUND",
+                        );
+                    }
+                    if (artifactType === "SUMMARY") {
+                        if (!this.summariesService || !job.studyAreaId) {
+                            throw new Error("SUMMARY_GENERATOR_UNAVAILABLE");
+                        }
+                        return this.summariesService.generateSummary(
+                            String(job.userId),
+                            String(job.studyAreaId),
+                            generationKey,
+                            job.assistantConversationId
+                                ? String(job.assistantConversationId)
+                                : undefined,
+                            "BACKGROUND",
                         );
                     }
                     return job.assistantConversationId
                         ? this.studyToolsService.generateStudyTool(
                               String(job.userId),
                               String(job.studyAreaId),
-                              { type: "QUIZ", topic: job.topic },
-                              `quiz-job:${String(job._id)}`,
+                              { type: artifactType, topic: job.topic },
+                              generationKey,
                               String(job.assistantConversationId),
+                              "BACKGROUND",
                           )
                         : this.studyToolsService.generateStudyTool(
                               String(job.userId),
                               String(job.studyAreaId),
-                              { type: "QUIZ", topic: job.topic },
-                              `quiz-job:${String(job._id)}`,
+                              { type: artifactType, topic: job.topic },
+                              generationKey,
+                              undefined,
+                              "BACKGROUND",
                           );
                 },
             });
@@ -601,7 +714,7 @@ export class QuizGenerationJobsService
             );
             if (completed.modifiedCount !== 1) {
                 this.logger.warn(
-                    "Resultado de quiz descartado porque o fencing token mudou.",
+                    "Resultado de material IA descartado porque o fencing token mudou.",
                 );
             }
             if (completed.modifiedCount === 1 && job.assistantConversationId) {
@@ -612,7 +725,7 @@ export class QuizGenerationJobsService
         } catch (error) {
             if (error instanceof MongoLeaseLostError) {
                 this.logger.warn(
-                    "Processamento de quiz interrompido após perda do lease.",
+                    "Processamento de material IA interrompido após perda do lease.",
                 );
                 return;
             }
@@ -624,7 +737,10 @@ export class QuizGenerationJobsService
                     ? {
                           $set: {
                               status: "FAILED",
-                              errorMessage: this.toPublicErrorMessage(error),
+                              errorMessage: this.toPublicErrorMessage(
+                                  error,
+                                  artifactType,
+                              ),
                               completedAt: new Date(),
                           },
                           $unset: {
@@ -635,8 +751,11 @@ export class QuizGenerationJobsService
                       }
                     : {
                           $set: {
-                              status: "QUEUED",
-                              errorMessage: this.toPublicErrorMessage(error),
+                              status: "ARTIFACT_QUEUED",
+                              errorMessage: this.toPublicErrorMessage(
+                                  error,
+                                  artifactType,
+                              ),
                               availableAt: new Date(
                                   Date.now() + this.retryDelayMs(job.attempts ?? 1),
                               ),
@@ -646,7 +765,7 @@ export class QuizGenerationJobsService
             );
             if (transitioned.modifiedCount !== 1) {
                 this.logger.warn(
-                    "Falha de quiz não reagendada porque o fencing token mudou.",
+                    "Falha de material IA não reagendada porque o fencing token mudou.",
                 );
             }
             if (
@@ -683,7 +802,7 @@ export class QuizGenerationJobsService
     private leaseFilter(job: QuizGenerationJobLean, now: Date) {
         return {
             _id: job._id,
-            status: "PROCESSING",
+            status: "ARTIFACT_PROCESSING",
             leaseOwner: this.workerId,
             leaseToken: job.leaseToken,
             leaseExpiresAt: { $gt: now },
@@ -712,16 +831,40 @@ export class QuizGenerationJobsService
         return new Types.ObjectId(value);
     }
 
+    private async assertGenerationReady(
+        userId: string,
+        studyAreaId: string,
+        artifactType: AiArtifactGenerationType,
+    ): Promise<void> {
+        if (artifactType === "SUMMARY") {
+            if (!this.summariesService) {
+                throw new Error("SUMMARY_GENERATOR_UNAVAILABLE");
+            }
+            await this.summariesService.assertGenerationReady(
+                userId,
+                studyAreaId,
+            );
+            return;
+        }
+        await this.studyToolsService.assertGenerationReady(userId, studyAreaId);
+    }
+
+    /** Jobs antigos não tinham discriminador porque a fila aceitava só quiz. */
+    private artifactType(job: QuizGenerationJobLean): AiArtifactGenerationType {
+        return job.artifactType ?? "QUIZ";
+    }
+
     private toView(job: QuizGenerationJobLean): QuizGenerationJobView {
         return {
             _id: String(job._id),
+            artifactType: this.artifactType(job),
             ...(job.studyAreaId ? { studyAreaId: String(job.studyAreaId) } : {}),
             ...(job.targetKind ? { targetKind: job.targetKind } : {}),
             ...(job.targetId ? { targetId: String(job.targetId) } : {}),
             ...(job.targetLabelSnapshot
                 ? { targetLabel: job.targetLabelSnapshot }
                 : {}),
-            status: job.status,
+            status: this.publicStatus(job.status),
             artifactId: job.artifactId ? String(job.artifactId) : undefined,
             topic: job.topic,
             errorMessage: job.errorMessage,
@@ -732,17 +875,27 @@ export class QuizGenerationJobsService
         };
     }
 
-    private toPublicErrorMessage(error: unknown): string {
+    private publicStatus(status: QuizGenerationJobStatus): QuizGenerationJobPublicStatus {
+        if (status === "ARTIFACT_QUEUED") return "QUEUED";
+        if (status === "ARTIFACT_PROCESSING") return "PROCESSING";
+        return status;
+    }
+
+    private toPublicErrorMessage(
+        error: unknown,
+        artifactType: AiArtifactGenerationType,
+    ): string {
         if (error instanceof Error && error.message.includes("processável")) {
             return error.message;
         }
-        return "Não foi possível gerar o quiz neste momento.";
+        return `Não foi possível gerar ${this.artifactTypeLabel(artifactType, true)} neste momento.`;
     }
 
     /** Chave sem tópico em claro para deduplicar apenas pedidos equivalentes. */
     private activeKey(
         userId: string,
         studyAreaId: string,
+        artifactType: AiArtifactGenerationType,
         topic?: string,
         conversationId?: string,
     ): string {
@@ -753,8 +906,8 @@ export class QuizGenerationJobsService
                 .toLocaleLowerCase("pt-PT") ?? "";
         const topicDigest = createHash("sha256").update(normalizedTopic).digest("hex");
         return conversationId
-            ? `quiz-assistant:${userId}:${conversationId}:${studyAreaId}:${topicDigest}`
-            : `quiz:${userId}:${studyAreaId}:${topicDigest}`;
+            ? `artifact-assistant:${artifactType}:${userId}:${conversationId}:${studyAreaId}:${topicDigest}`
+            : `artifact:${artifactType}:${userId}:${studyAreaId}:${topicDigest}`;
     }
 
     private async promoteAssistantConversation(
@@ -762,9 +915,10 @@ export class QuizGenerationJobsService
         completedAt: Date,
     ): Promise<void> {
         if (!this.conversationModel || !job.assistantConversationId) return;
+        const typeLabel = this.artifactTypeLabel(this.artifactType(job));
         const label = job.topic?.trim()
-            ? `Quiz — ${job.topic.trim()}`
-            : `Quiz — ${job.targetLabelSnapshot ?? "material de estudo"}`;
+            ? `${typeLabel} — ${job.topic.trim()}`
+            : `${typeLabel} — ${job.targetLabelSnapshot ?? "material de estudo"}`;
         const title = label.length <= 80 ? label : `${label.slice(0, 77).trimEnd()}…`;
         await this.conversationModel.updateOne(
             {
@@ -804,10 +958,23 @@ export class QuizGenerationJobsService
             result,
             metadata: {
                 contextKind: job.sourceContextKind ?? "STUDY_AREA",
-                artifactType: "QUIZ",
+                artifactType: this.artifactType(job),
                 generationState: result,
             },
         });
+    }
+
+    private artifactTypeLabel(
+        artifactType: AiArtifactGenerationType,
+        withArticle = false,
+    ): string {
+        const labels: Record<AiArtifactGenerationType, string> = {
+            SUMMARY: withArticle ? "o resumo" : "Resumo",
+            EXPLANATION: withArticle ? "a explicação" : "Explicação",
+            FLASHCARDS: withArticle ? "os flashcards" : "Flashcards",
+            QUIZ: withArticle ? "o quiz" : "Quiz",
+        };
+        return labels[artifactType];
     }
 
     /** Reconstitui o contrato imutável e rejeita snapshots de outro job/aluno. */

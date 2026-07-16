@@ -7,6 +7,7 @@ import { AuthModule } from "../auth/auth.module.js";
 import { ClassLearningActivityModule } from "../class-learning-activity/class-learning-activity.module.js";
 import { SubjectsModule } from "../subjects/subjects.module.js";
 import { ContextNotificationsModule } from "../context-notifications/context-notifications.module.js";
+import { StudentsModule } from "../students/students.module.js";
 import { OfficialTestRankingService } from "./official-test-ranking.service.js";
 import { OfficialTestsController } from "./official-tests.controller.js";
 import { OfficialTestsService } from "./official-tests.service.js";
@@ -29,6 +30,7 @@ import {
         ClassLearningActivityModule,
         SubjectsModule,
         ContextNotificationsModule,
+        StudentsModule,
         MongooseModule.forFeature([
             { name: OfficialTest.name, schema: OfficialTestSchema },
             { name: OfficialTestAttempt.name, schema: OfficialTestAttemptSchema },

@@ -19,7 +19,7 @@ describe("StudentAiAssistantArtifactsService", () => {
     it("aceita uma disciplina e deriva o destino no servidor", async () => {
         const setup = makeService({
             contextKind: "SUBJECT",
-            artifactFindOne: [null, artifact("SUBJECT")],
+            artifactFindOne: [null],
         });
         await expect(
             setup.service.generate(
@@ -29,17 +29,15 @@ describe("StudentAiAssistantArtifactsService", () => {
                 requestKey,
             ),
         ).resolves.toMatchObject({
-            status: "DONE",
-            artifact: {
-                id: artifactId,
-                target: { kind: "SUBJECT", id: areaId },
-            },
+            status: "QUEUED",
+            job: { type: "SUMMARY", status: "QUEUED" },
         });
         expect(
-            setup.summariesService.generateSummaryFromAssistantSnapshot,
+            setup.quizJobsService.createArtifactJobForAssistantSnapshot,
         ).toHaveBeenCalledWith(
             expect.objectContaining({ target: { kind: "SUBJECT", id: areaId, label: "Bases de Dados" } }),
-            expect.any(String),
+            { type: "SUMMARY", topic: undefined },
+            { conversationId, requestKey: expect.any(String) },
         );
     });
 
@@ -73,13 +71,12 @@ describe("StudentAiAssistantArtifactsService", () => {
         });
         expect(setup.conversationModel.findOneAndUpdate).not.toHaveBeenCalled();
         expect(
-            setup.studyToolsService.generateStudyToolFromAssistantSnapshot,
+            setup.quizJobsService.createArtifactJobForAssistantSnapshot,
         ).not.toHaveBeenCalled();
     });
 
-    it("delega a explicação no serviço existente e promove o draft só após persistir", async () => {
-        const created = artifact();
-        const setup = makeService({ artifactFindOne: [null, created] });
+    it("coloca a explicação na fila sem esperar pelo provider", async () => {
+        const setup = makeService({ artifactFindOne: [null] });
         await expect(
             setup.service.generate(
                 actor,
@@ -88,14 +85,11 @@ describe("StudentAiAssistantArtifactsService", () => {
                 requestKey,
             ),
         ).resolves.toMatchObject({
-            status: "DONE",
-            artifact: {
-                id: artifactId,
-                targetPath: `/app/estudar/materiais/${artifactId}`,
-            },
+            status: "QUEUED",
+            job: { type: "EXPLANATION", status: "QUEUED" },
         });
         expect(
-            setup.studyToolsService.generateStudyToolFromAssistantSnapshot,
+            setup.quizJobsService.createArtifactJobForAssistantSnapshot,
         ).toHaveBeenCalledWith(
             expect.objectContaining({
                 userId: studentId,
@@ -103,14 +97,7 @@ describe("StudentAiAssistantArtifactsService", () => {
                 target: { kind: "STUDY_AREA", id: areaId, label: "Bases de Dados" },
             }),
             { type: "EXPLANATION", topic: "normalização" },
-            expect.any(String),
-        );
-        expect(setup.conversationModel.updateOne).toHaveBeenCalledWith(
-            expect.objectContaining({ _id: new Types.ObjectId(conversationId) }),
-            expect.objectContaining({
-                $set: expect.objectContaining({ status: "ACTIVE" }),
-                $unset: { draftExpiresAt: 1 },
-            }),
+            { conversationId, requestKey: expect.any(String) },
         );
         expect(JSON.stringify(setup.auditLogService.record.mock.calls)).not.toContain(
             "normalização",
@@ -215,20 +202,22 @@ function makeService(options: {
                 : { targetPath: `/app/areas/${areaId}` }),
         }),
     };
-    const summariesService = {
-        generateSummaryFromAssistantSnapshot: jest
-            .fn()
-            .mockResolvedValue({ _id: artifactId }),
-    };
-    const studyToolsService = {
-        generateStudyToolFromAssistantSnapshot: jest
-            .fn()
-            .mockResolvedValue({ _id: artifactId }),
-    };
     const quizJobsService = {
         findAssistantQuizJobByRequestKey: jest.fn().mockResolvedValue(null),
         listAssistantQuizJobs: jest.fn().mockResolvedValue([]),
         createQuizJobForAssistantSnapshot: jest.fn(),
+        createArtifactJobForAssistantSnapshot: jest
+            .fn()
+            .mockImplementation((
+                _snapshot: unknown,
+                input: { type: "SUMMARY" | "EXPLANATION" | "FLASHCARDS" | "QUIZ"; topic?: string },
+            ) => Promise.resolve({
+                _id: "507f1f77bcf86cd799439018",
+                artifactType: input.type,
+                status: "QUEUED",
+                topic: input.topic,
+                createdAt: new Date("2026-07-12T12:20:00.000Z"),
+            })),
         findAssistantQuizJob: jest.fn(),
         detachAssistantConversation: jest.fn(),
     };
@@ -238,8 +227,6 @@ function makeService(options: {
         artifactModel as never,
         contextResolver as never,
         artifactContext as never,
-        summariesService as never,
-        studyToolsService as never,
         quizJobsService as never,
         auditLogService as never,
     );
@@ -247,8 +234,6 @@ function makeService(options: {
         service,
         conversationModel,
         artifactModel,
-        summariesService,
-        studyToolsService,
         quizJobsService,
         auditLogService,
     };

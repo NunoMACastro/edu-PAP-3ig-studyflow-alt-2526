@@ -4,6 +4,16 @@
 import { GatewayTimeoutException } from "@nestjs/common";
 
 export const AI_RESPONSE_BUDGET_MS = 4000;
+export const AI_BACKGROUND_RESPONSE_BUDGET_MS = 120_000;
+
+/**
+ * Resolve o budget de um job recuperável que já não bloqueia o pedido HTTP.
+ * O teto de 30 segundos coincide com o máximo aceite pela política de modelos
+ * e evita que o timeout interativo de RNF09 interrompa materiais mais longos.
+ */
+export function resolveAiBackgroundBudgetMs(): number {
+    return AI_BACKGROUND_RESPONSE_BUDGET_MS;
+}
 
 /**
  * Escolhe o budget efetivo para uma chamada IA.

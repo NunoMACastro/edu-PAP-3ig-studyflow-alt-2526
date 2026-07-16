@@ -1,14 +1,14 @@
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { mongo } from "mongoose";
+import { MongoClient, ObjectId } from "mongodb";
 import { migrateStudentAiConversations } from "./migrate-student-ai-conversations.js";
 
 describe("migrateStudentAiConversations", () => {
     let server: MongoMemoryServer | undefined;
-    let client: mongo.MongoClient | undefined;
+    let client: MongoClient | undefined;
 
     beforeAll(async () => {
         server = await MongoMemoryServer.create();
-        client = await mongo.MongoClient.connect(server.getUri());
+        client = await MongoClient.connect(server.getUri());
     });
 
     afterAll(async () => {
@@ -18,14 +18,14 @@ describe("migrateStudentAiConversations", () => {
 
     it("prova dry-run, aplicação idempotente e rollback sem tocar em dados nativos", async () => {
         const database = client!.db("assistant-migration");
-        const studentId = new mongo.ObjectId();
-        const subjectId = new mongo.ObjectId();
-        const materialId = new mongo.ObjectId();
+        const studentId = new ObjectId();
+        const subjectId = new ObjectId();
+        const materialId = new ObjectId();
         await database.collection("subjects").insertOne({ _id: subjectId, name: "Bases de Dados" });
         await database.collection("official_materials").insertOne({ _id: materialId, title: "Guia de normalização" });
         await database.collection("class_ai_interactions").insertMany([
-            { _id: new mongo.ObjectId(), studentId, subjectId, question: "Q1", answer: "A1", sourceMaterialIds: [materialId], createdAt: new Date("2026-01-01") },
-            { _id: new mongo.ObjectId(), studentId, subjectId, question: "Q2", answer: "A2", createdAt: new Date("2026-01-02") },
+            { _id: new ObjectId(), studentId, subjectId, question: "Q1", answer: "A1", sourceMaterialIds: [materialId], createdAt: new Date("2026-01-01") },
+            { _id: new ObjectId(), studentId, subjectId, question: "Q2", answer: "A2", createdAt: new Date("2026-01-02") },
         ]);
 
         const dryRun = await migrateStudentAiConversations(database, { mode: "DRY_RUN" });

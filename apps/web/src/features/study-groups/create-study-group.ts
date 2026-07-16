@@ -13,6 +13,7 @@ export type StudyGroup = {
     disciplineName?: string;
     description?: string;
     memberIds: string[];
+    members: Array<{ id: string; displayName: string }>;
     createdAt?: string;
     collaborationKind: "STUDY_GROUP";
     collaborationKindSource: "NATIVE" | "LEGACY_INFERRED";

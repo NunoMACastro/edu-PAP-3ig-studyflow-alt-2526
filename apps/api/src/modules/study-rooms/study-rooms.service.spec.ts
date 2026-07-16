@@ -98,6 +98,7 @@ describe("StudyRoomsService", () => {
             _id: roomId,
             ownerStudentId: student.id,
             memberIds: [student.id],
+            members: [{ id: student.id, displayName: "Aluno da Sala" }],
         });
         expect(roomModel.create).toHaveBeenCalledWith(expect.objectContaining({
             ownerStudentId: expect.anything(),
@@ -225,7 +226,7 @@ describe("StudyRoomsService", () => {
     });
 
     it("bloqueia acesso a salas onde o aluno não é membro", async () => {
-        const { roomModel, service } = makeService();
+        const { profileService, roomModel, service } = makeService();
         roomModel.findOne.mockReturnValue({
             lean: jest.fn().mockResolvedValue(null),
         });
@@ -240,6 +241,7 @@ describe("StudyRoomsService", () => {
         await expect(
             service.ensureMember(student.id, roomId),
         ).rejects.toBeInstanceOf(ForbiddenException);
+        expect(profileService.resolvePublicDisplayNames).not.toHaveBeenCalled();
     });
 });
 
@@ -258,11 +260,21 @@ function makeService() {
     const userModel = {
         findOne: jest.fn(),
     };
-    const service = new StudyRoomsService(roomModel as never, userModel as never);
+    const profileService = {
+        resolvePublicDisplayNames: jest.fn().mockImplementation(
+            async (ids: string[]) => new Map(ids.map((id) => [id, "Aluno da Sala"])),
+        ),
+    };
+    const service = new StudyRoomsService(
+        roomModel as never,
+        userModel as never,
+        profileService as never,
+    );
 
     return {
         roomModel,
         userModel,
+        profileService,
         service,
     };
 }

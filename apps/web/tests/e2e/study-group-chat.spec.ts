@@ -4,10 +4,29 @@ import { expect, test, type Page } from "@playwright/test";
 import { expectAuthenticatedShell } from "./authenticated-shell.js";
 
 const accounts = {
-    owner: { email: "aluno.dev@studyflow.local", password: "aluno-dev-12345" },
-    member: { email: "ines.silva@studyflow.local", password: "aluno-dev-12345" },
-    outsider: { email: "joao.costa@studyflow.local", password: "aluno-dev-12345" },
+    owner: {
+        email: requiredEnvironment("STUDYFLOW_E2E_STUDENT_EMAIL"),
+        displayName: requiredEnvironment("STUDYFLOW_E2E_STUDENT_DISPLAY_NAME"),
+        password: requiredEnvironment("STUDYFLOW_E2E_STUDENT_PASSWORD"),
+    },
+    member: {
+        email: requiredEnvironment("STUDYFLOW_E2E_SECOND_STUDENT_EMAIL"),
+        displayName: requiredEnvironment("STUDYFLOW_E2E_SECOND_STUDENT_DISPLAY_NAME"),
+        password: requiredEnvironment("STUDYFLOW_E2E_STUDENT_PASSWORD"),
+    },
+    outsider: {
+        email: requiredEnvironment("STUDYFLOW_E2E_THIRD_STUDENT_EMAIL"),
+        displayName: requiredEnvironment("STUDYFLOW_E2E_THIRD_STUDENT_DISPLAY_NAME"),
+        password: requiredEnvironment("STUDYFLOW_E2E_STUDENT_PASSWORD"),
+    },
 };
+
+/** Lê apenas as identidades preparadas a partir do input privado pelo runner. */
+function requiredEnvironment(name: string): string {
+    const value = process.env[name]?.trim();
+    if (!value) throw new Error(`${name} não foi definida pelo runner E2E.`);
+    return value;
+}
 
 test("chat de grupo: dois membros, unread, notas isoladas e outsider recusado", async ({ browser }) => {
     const ownerContext = await browser.newContext();
@@ -46,12 +65,12 @@ test("chat de grupo: dois membros, unread, notas isoladas e outsider recusado", 
         await ownerPage.getByLabel("Mensagem").fill("Olá Inês, recebeste?");
         await ownerPage.getByRole("button", { name: "Enviar" }).click();
         await expect(memberPage.getByText("Olá Inês, recebeste?")).toBeVisible();
-        await expect(memberPage.getByText("Leonor Martins", { exact: true })).toBeVisible();
+        await expect(memberPage.getByText(accounts.owner.displayName, { exact: true })).toBeVisible();
 
         await memberPage.getByLabel("Mensagem").fill("Recebi sem atualizar.");
         await memberPage.getByRole("button", { name: "Enviar" }).click();
         await expect(ownerPage.getByText("Recebi sem atualizar.")).toBeVisible();
-        await expect(ownerPage.getByText("Inês Silva", { exact: true })).toBeVisible();
+        await expect(ownerPage.getByText(accounts.member.displayName, { exact: true })).toBeVisible();
 
         await memberPage.getByRole("link", { name: "Notas" }).click();
         await ownerPage.getByLabel("Mensagem").fill("Mensagem para unread");

@@ -6,6 +6,7 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "../auth/auth.module.js";
 import { User, UserSchema } from "../auth/schemas/user.schema.js";
 import { NotificationOutboxModule } from "../context-notifications/notification-outbox.module.js";
+import { StudentsModule } from "../students/students.module.js";
 import {
     GuidedStudyRoom,
     GuidedStudyRoomSchema,
@@ -29,6 +30,7 @@ import { SchoolClass, SchoolClassSchema } from "./schemas/school-class.schema.js
     imports: [
         AuthModule,
         NotificationOutboxModule,
+        StudentsModule,
         MongooseModule.forFeature([
             { name: User.name, schema: UserSchema },
             { name: SchoolClass.name, schema: SchoolClassSchema },

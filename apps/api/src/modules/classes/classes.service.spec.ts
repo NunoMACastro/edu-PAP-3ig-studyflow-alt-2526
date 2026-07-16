@@ -185,7 +185,11 @@ describe("ClassesService", () => {
             expect.objectContaining({
                 _id: classId,
                 studentIds: [studentId],
-                students: [{ id: studentId, email: "aluno@example.test" }],
+                students: [{
+                    id: studentId,
+                    displayName: "Aluno 9015",
+                    email: "aluno@example.test",
+                }],
             }),
         ]);
         expect(JSON.stringify(result)).not.toContain("passwordHash");

@@ -153,7 +153,7 @@ describe("MaterialIndexQueueService — recuperação Mongo após restart", () =
             activeKey: `quiz:${userId}:${studyAreaId}:energia`,
         });
         const studyToolsService = {
-            assertQuizGenerationReady: jest.fn().mockResolvedValue(undefined),
+            assertGenerationReady: jest.fn().mockResolvedValue(undefined),
             generateStudyTool: jest.fn().mockResolvedValue({
                 _id: artifactId.toHexString(),
             }),
@@ -190,7 +190,9 @@ describe("MaterialIndexQueueService — recuperação Mongo após restart", () =
             userId.toHexString(),
             studyAreaId.toHexString(),
             { type: "QUIZ", topic: "Energia" },
-            `quiz-job:${crashedJob._id.toString()}`,
+            `artifact-job:${crashedJob._id.toString()}`,
+            undefined,
+            "BACKGROUND",
         );
     });
 });

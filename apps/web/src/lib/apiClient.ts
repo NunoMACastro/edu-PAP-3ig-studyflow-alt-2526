@@ -5,6 +5,7 @@ export type User = {
     id: string;
     email: string;
     role: "STUDENT" | "TEACHER" | "ADMIN";
+    displayName?: string;
 };
 
 /**
@@ -125,6 +126,7 @@ export type StudyMaterial = {
  * Tipos de artefacto IA que a UI pode pedir para uma área de estudo.
  */
 export type StudyToolType = "EXPLANATION" | "FLASHCARDS" | "QUIZ";
+export type AiArtifactGenerationType = "SUMMARY" | StudyToolType;
 
 /**
  * Referência de fonte usada para explicar a origem de um artefacto IA.
@@ -142,7 +144,7 @@ export type AiArtifactSource = {
 export type AiArtifact = {
     _id: string;
     studyAreaId?: string;
-    type: "SUMMARY" | StudyToolType;
+    type: AiArtifactGenerationType;
     contentJson: Record<string, unknown>;
     sourcesJson: AiArtifactSource[];
     createdAt?: string;
@@ -189,12 +191,11 @@ export type QuizAttemptResult = {
     results: QuizAttemptQuestionResult[];
 };
 
-/**
- * Job de geração de quiz em background, sem expor prompts nem conteúdo privado.
- */
-export type QuizGenerationJob = {
+/** Job de geração de material em background, sem prompts nem conteúdo privado. */
+export type AiArtifactGenerationJob = {
     _id: string;
     studyAreaId: string;
+    artifactType: AiArtifactGenerationType;
     status: "QUEUED" | "PROCESSING" | "DONE" | "FAILED";
     artifactId?: string;
     topic?: string;
@@ -202,6 +203,9 @@ export type QuizGenerationJob = {
     createdAt?: string;
     updatedAt?: string;
 };
+
+/** Alias mantido para integrações que ainda usam os endpoints legacy de quiz. */
+export type QuizGenerationJob = AiArtifactGenerationJob;
 
 /**
  * Perfil pedagógico da área, usado para adaptar ritmo, nível e estilo das explicações.
@@ -239,6 +243,7 @@ export type StudyRoom = {
     disciplineName?: string;
     description?: string;
     memberIds: string[];
+    members: Array<{ id: string; displayName: string }>;
     createdAt?: string;
     collaborationKind: "STUDY_ROOM";
     collaborationKindSource: "NATIVE" | "LEGACY_INFERRED";
@@ -323,6 +328,7 @@ export type RoomAiShareResult = {
  */
 export type SchoolClassStudent = {
     id: string;
+    displayName: string;
     email: string;
 };
 
@@ -556,6 +562,7 @@ export type GuidedStudyRoomProgress = {
     completionPercent: number;
     students: Array<{
         studentId: string;
+        displayName: string;
         email: string;
         status: "NOT_VIEWED" | "VIEWED" | "COMPLETED";
         firstViewedAt?: string;
@@ -570,6 +577,7 @@ export type GuidedStudyRoomAiInteraction = {
     classId: string;
     subjectId?: string;
     studentId: string;
+    studentDisplayName: string;
     studentEmail: string;
     question: string;
     answer: string;
@@ -741,6 +749,7 @@ export type OfficialTestRankingRow = {
  */
 export type OfficialTestRanking = {
     testId: string;
+    testTitle: string;
     subjectId: string;
     classId: string;
     policy: "BEST_ATTEMPT";
@@ -1193,6 +1202,7 @@ function parseSchoolClass(value: unknown): SchoolClass {
         contractArray(object.students, "turma.students", (student) => {
             const publicStudent = contractObject(student, "aluno da turma");
             contractString(publicStudent.id, "aluno.id");
+            contractString(publicStudent.displayName, "aluno.displayName");
             contractString(publicStudent.email, "aluno.email");
             return publicStudent as SchoolClassStudent;
         });
@@ -2267,6 +2277,32 @@ export function generateStudyTool(
             method: "POST",
             body: JSON.stringify(input),
         },
+    );
+}
+
+/** Inicia a geração recuperável de qualquer material de estudo suportado. */
+export function createAiArtifactGenerationJob(
+    studyAreaId: string,
+    input: { type: AiArtifactGenerationType; topic?: string },
+): Promise<AiArtifactGenerationJob> {
+    return requestJson<AiArtifactGenerationJob>(
+        `/api/study-areas/${studyAreaId}/study-tools/artifact-jobs`,
+        {
+            method: "POST",
+            body: JSON.stringify(input),
+        },
+    );
+}
+
+/** Consulta o estado de um job recuperável de material de estudo. */
+export function getAiArtifactGenerationJob(
+    studyAreaId: string,
+    jobId: string,
+    signal?: AbortSignal,
+): Promise<AiArtifactGenerationJob> {
+    return requestJson<AiArtifactGenerationJob>(
+        `/api/study-areas/${studyAreaId}/study-tools/artifact-jobs/${jobId}`,
+        { signal },
     );
 }
 
@@ -3985,7 +4021,7 @@ export type StudentStudyMaterialDetail = StudentAssistantArtifact & {
 
 export type StudentAssistantArtifactJob = {
     id: string;
-    type: "QUIZ";
+    type: AiArtifactGenerationType;
     status: "QUEUED" | "PROCESSING" | "DONE" | "FAILED";
     topic?: string;
     artifact?: StudentAssistantArtifact;

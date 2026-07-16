@@ -14,8 +14,6 @@ import { createHash } from "node:crypto";
 import { Model, Types } from "mongoose";
 import type { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { AuditLogService } from "../audit-log/audit-log.service.js";
-import { SummariesService } from "../ai/summaries.service.js";
-import { StudyToolsService } from "../ai/study-tools.service.js";
 import {
     QuizGenerationJobsService,
     type QuizGenerationJobView,
@@ -65,8 +63,6 @@ export class StudentAiAssistantArtifactsService {
         private readonly artifactModel: Model<AiArtifactDocument>,
         private readonly contextResolver: StudentAiContextResolverService,
         private readonly artifactContext: StudentAiArtifactContextService,
-        private readonly summariesService: SummariesService,
-        private readonly studyToolsService: StudyToolsService,
         private readonly quizJobsService: QuizGenerationJobsService,
         private readonly auditLogService: AuditLogService,
     ) {}
@@ -167,33 +163,33 @@ export class StudentAiAssistantArtifactsService {
             input.target,
         );
 
-        if (input.type === "QUIZ") {
-            const replay = await this.quizJobsService.findAssistantQuizJobByRequestKey(
+        const replayJob =
+            await this.quizJobsService.findAssistantQuizJobByRequestKey(
                 actor.id,
                 conversationId,
                 generationKey,
             );
-            if (replay) return this.toGenerationResult(conversation, replay);
+        if (replayJob) {
+            return this.toGenerationResult(conversation, replayJob);
         }
 
-        if (input.type !== "QUIZ") {
-            const replay = await this.artifactModel
-                .findOne({
-                    userId: new Types.ObjectId(actor.id),
-                    assistantConversationId: conversation._id,
-                    generationKey,
-                })
-                .lean();
-            if (replay) {
-                return {
-                    status: "DONE" as const,
-                    artifact: await this.toArtifactView(
-                        actor.id,
-                        replay as ArtifactRecord,
-                        conversation,
-                    ),
-                };
-            }
+        // Compatibilidade com materiais síncronos criados antes da fila comum.
+        const replayArtifact = await this.artifactModel
+            .findOne({
+                userId: new Types.ObjectId(actor.id),
+                assistantConversationId: conversation._id,
+                generationKey,
+            })
+            .lean();
+        if (replayArtifact) {
+            return {
+                status: "DONE" as const,
+                artifact: await this.toArtifactView(
+                    actor.id,
+                    replayArtifact as ArtifactRecord,
+                    conversation,
+                ),
+            };
         }
 
         const activeJobs = await this.quizJobsService.listAssistantQuizJobs(
@@ -218,41 +214,14 @@ export class StudentAiAssistantArtifactsService {
                 input.target,
             );
             await this.audit(actor.id, conversation, input.type, "ACCEPTED");
-            if (input.type === "QUIZ") {
-                const job = await this.quizJobsService.createQuizJobForAssistantSnapshot(
+            const job =
+                await this.quizJobsService.createArtifactJobForAssistantSnapshot(
                     snapshot,
-                    { topic },
+                    { type: input.type, topic },
                     { conversationId, requestKey: generationKey },
                 );
-                await this.audit(actor.id, conversation, input.type, "QUEUED");
-                return this.toGenerationResult(conversation, job);
-            }
-
-            const generated = input.type === "SUMMARY"
-                ? await this.summariesService.generateSummaryFromAssistantSnapshot(
-                      snapshot,
-                      generationKey,
-                  )
-                : await this.studyToolsService.generateStudyToolFromAssistantSnapshot(
-                      snapshot,
-                      { type: input.type, topic },
-                      generationKey,
-                  );
-            const row = await this.artifactModel
-                .findOne({
-                    _id: new Types.ObjectId(generated._id),
-                    userId: new Types.ObjectId(actor.id),
-                    assistantConversationId: conversation._id,
-                })
-                .lean();
-            if (!row) throw this.artifactNotFound();
-            const artifact = row as ArtifactRecord;
-            await this.promoteConversation(conversation, input.type, topic, artifact);
-            await this.audit(actor.id, conversation, input.type, "SUCCESS");
-            return {
-                status: "DONE" as const,
-                artifact: await this.toArtifactView(actor.id, artifact, conversation),
-            };
+            await this.audit(actor.id, conversation, input.type, "QUEUED");
+            return this.toGenerationResult(conversation, job);
         } catch (error) {
             await this.audit(actor.id, conversation, input.type, "FAILED");
             throw error;
@@ -356,7 +325,7 @@ export class StudentAiAssistantArtifactsService {
         }
         return {
             id: job._id,
-            type: "QUIZ" as const,
+            type: job.artifactType,
             status: job.status,
             ...(job.topic ? { topic: job.topic } : {}),
             ...(artifact ? { artifact } : {}),
@@ -446,45 +415,6 @@ export class StudentAiAssistantArtifactsService {
                 canDelete: true,
             },
         };
-    }
-
-    private async promoteConversation(
-        conversation: ConversationRecord,
-        type: StudentAssistantArtifactType,
-        topic: string | undefined,
-        artifact: ArtifactRecord,
-    ): Promise<void> {
-        const title = this.artifactConversationTitle(type, topic, conversation);
-        await this.conversationModel.updateOne(
-            { _id: conversation._id, studentId: conversation.studentId },
-            {
-                $set: {
-                    status: "ACTIVE",
-                    lastMessageAt: artifact.createdAt ?? new Date(),
-                },
-                $unset: { draftExpiresAt: 1 },
-            },
-        );
-        if (conversation.title === "Nova conversa") {
-            await this.conversationModel.updateOne(
-                {
-                    _id: conversation._id,
-                    studentId: conversation.studentId,
-                    title: "Nova conversa",
-                },
-                { $set: { title } },
-            );
-        }
-    }
-
-    private artifactConversationTitle(
-        type: StudentAssistantArtifactType,
-        topic: string | undefined,
-        conversation: ConversationRecord,
-    ): string {
-        if (type === "SUMMARY") return `Resumo — ${conversation.contextLabelSnapshot}`;
-        const suffix = topic || conversation.contextLabelSnapshot;
-        return this.truncateTitle(`${this.typeLabel(type)} — ${suffix}`);
     }
 
     private typeLabel(type: StudentAssistantArtifactType): string {
@@ -678,13 +608,6 @@ export class StudentAiAssistantArtifactsService {
         return new NotFoundException({
             code: "ASSISTANT_CONVERSATION_NOT_FOUND",
             message: "Conversa não encontrada.",
-        });
-    }
-
-    private artifactNotFound(): NotFoundException {
-        return new NotFoundException({
-            code: "ASSISTANT_ARTIFACT_NOT_FOUND",
-            message: "Material de estudo não encontrado.",
         });
     }
 

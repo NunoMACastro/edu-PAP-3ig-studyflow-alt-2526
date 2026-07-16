@@ -18,6 +18,7 @@ export type PublicUserDto = {
     id: string;
     email: string;
     role: UserRole;
+    displayName?: string;
 };
 
 /**
@@ -119,6 +120,9 @@ export class UsersService {
             id: user.id,
             email: user.email,
             role: user.role,
+            ...(user.displayName?.trim()
+                ? { displayName: user.displayName.trim() }
+                : {}),
         };
     }
 

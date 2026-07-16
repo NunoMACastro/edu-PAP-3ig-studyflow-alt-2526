@@ -9,6 +9,7 @@ export function AccountMenu({ user, onLogout, pending }: {
     onLogout: () => void;
     pending: boolean;
 }) {
+    const primaryIdentity = user.displayName?.trim() || user.email;
     const [open, setOpen] = useState(false);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -31,13 +32,16 @@ export function AccountMenu({ user, onLogout, pending }: {
     }, [open]);
     return (
         <div className="relative">
-            <button ref={triggerRef} aria-label={`Conta: ${user.email}`} aria-expanded={open} aria-haspopup="menu" className="flex min-h-11 items-center gap-2 rounded-xl px-2 text-left hover:bg-studyflow-card" onClick={() => setOpen((value) => !value)} type="button">
+            <button ref={triggerRef} aria-label={`Conta: ${primaryIdentity}`} aria-expanded={open} aria-haspopup="menu" className="flex min-h-11 items-center gap-2 rounded-xl px-2 text-left hover:bg-studyflow-card" onClick={() => setOpen((value) => !value)} type="button">
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-studyflow-brand/20 text-studyflow-brandText"><ShellIcon className="h-5 w-5" name="user" /></span>
-                <span className="hidden max-w-44 truncate text-sm font-semibold xl:block">{user.email}</span>
+                <span className="hidden max-w-44 truncate text-sm font-semibold xl:block">{primaryIdentity}</span>
             </button>
             {open ? (
                 <div ref={menuRef} className="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-studyflow-border/10 bg-studyflow-card p-2 shadow-2xl" role="menu">
-                    <p className="truncate border-b border-studyflow-border/10 px-3 py-3 text-sm font-semibold">{user.email}</p>
+                    <div className="border-b border-studyflow-border/10 px-3 py-3">
+                        <p className="truncate text-sm font-semibold">{primaryIdentity}</p>
+                        {primaryIdentity !== user.email ? <p className="mt-1 truncate text-xs text-studyflow-text/60">{user.email}</p> : null}
+                    </div>
                     <AccountLink href="/app/perfil" icon="user" label="Perfil" />
                     <AccountLink href="/app/conta/notificacoes" icon="bell" label="Preferências de notificações" />
                     <AccountLink href="/app/privacidade" icon="shield" label="Privacidade e consentimentos" />

@@ -6,11 +6,13 @@ import {
     ForbiddenException,
     Injectable,
     NotFoundException,
+    Optional,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AuthenticatedUser } from "../../common/types/authenticated-request.js";
 import { User, UserDocument } from "../auth/schemas/user.schema.js";
+import { StudentProfileService } from "../students/student-profile.service.js";
 import { AddRoomMemberDto } from "./dto/add-room-member.dto.js";
 import { CreateStudyRoomDto } from "./dto/create-study-room.dto.js";
 import {
@@ -31,6 +33,7 @@ export type StudyRoomView = {
     disciplineName?: string;
     description?: string;
     memberIds: string[];
+    members: Array<{ id: string; displayName: string }>;
     collaborationKind: CollaborationKind;
     collaborationKindSource: CollaborationKindSource;
     createdAt?: Date;
@@ -58,6 +61,8 @@ export class StudyRoomsService {
         private readonly roomModel: Model<StudyRoomDocument>,
         @InjectModel(User.name)
         private readonly userModel: Model<UserDocument>,
+        @Optional()
+        private readonly studentProfileService?: StudentProfileService,
     ) {}
 
     /**
@@ -94,7 +99,7 @@ export class StudyRoomsService {
             collaborationKindSource: "NATIVE",
         });
 
-        return this.toRoomView(room.toObject());
+        return this.toAuthorizedRoomView(room.toObject());
     }
 
     /**
@@ -127,7 +132,7 @@ export class StudyRoomsService {
             })
             .sort({ createdAt: -1 })
             .lean();
-        return rooms.map((room) => this.toRoomView(room));
+        return Promise.all(rooms.map((room) => this.toAuthorizedRoomView(room)));
     }
 
     /** Devolve uma sala concreta apenas depois de confirmar membership e kind. */
@@ -181,7 +186,7 @@ export class StudyRoomsService {
             )
             .lean();
         if (!updated) throw this.roomNotFound();
-        return this.toRoomView(updated);
+        return this.toAuthorizedRoomView(updated);
     }
 
     /**
@@ -219,7 +224,7 @@ export class StudyRoomsService {
             throw this.roomNotFound();
         }
 
-        return this.toRoomView(room);
+        return this.toAuthorizedRoomView(room);
     }
 
     /**
@@ -255,7 +260,7 @@ export class StudyRoomsService {
      * @param room Valor de room usado pela função para executar to room view com dados explícitos.
      * @returns Contrato público pronto para a UI, sem campos internos de persistência.
      */
-    private toRoomView(room: {
+    private async toAuthorizedRoomView(room: {
         _id: unknown;
         ownerStudentId: unknown;
         name: string;
@@ -266,7 +271,11 @@ export class StudyRoomsService {
         collaborationKind?: CollaborationKind;
         collaborationKindSource?: CollaborationKindSource;
         createdAt?: Date;
-    }): StudyRoomView {
+    }): Promise<StudyRoomView> {
+        const memberIds = room.memberIds.map((memberId) => String(memberId));
+        const names = this.studentProfileService
+            ? await this.studentProfileService.resolvePublicDisplayNames(memberIds)
+            : new Map<string, string>();
         return {
             _id: String(room._id),
             ownerStudentId: String(room.ownerStudentId),
@@ -274,7 +283,12 @@ export class StudyRoomsService {
             type: room.type,
             disciplineName: room.disciplineName,
             description: room.description,
-            memberIds: room.memberIds.map((memberId) => String(memberId)),
+            memberIds,
+            members: memberIds.map((id) => ({
+                id,
+                displayName: names.get(id)
+                    ?? `Aluno ${id.slice(-4).toUpperCase()}`,
+            })),
             collaborationKind: this.resolveCollaborationKind(room),
             collaborationKindSource: room.collaborationKindSource ?? "LEGACY_INFERRED",
             createdAt: room.createdAt,

@@ -14,7 +14,10 @@ import { MaterialsService } from "../materials/materials.service.js";
 import { StudyAreasService } from "../study-areas/study-areas.service.js";
 import { AiAreaProfileService } from "./ai-area-profile.service.js";
 import { toAiArtifactDto } from "./dto/ai-artifact.dto.js";
-import { GovernedAiExecutionService } from "./governed-ai-execution.service.js";
+import {
+    GovernedAiExecutionService,
+    type GovernedAiExecutionMode,
+} from "./governed-ai-execution.service.js";
 import { buildSummaryPrompt } from "./prompts/summary.prompt.js";
 import { AiSource } from "./providers/ai-provider.js";
 import {
@@ -64,6 +67,7 @@ export class SummariesService {
         studyAreaId: string,
         generationKey?: string,
         assistantConversationId?: string,
+        executionMode: GovernedAiExecutionMode = "INTERACTIVE",
     ) {
         const area = await this.areasService.getMyStudyArea(userId, studyAreaId);
         if (generationKey) {
@@ -95,6 +99,7 @@ export class SummariesService {
             const execution = await this.aiExecution.execute({
                 userId,
                 purpose: "SUMMARY",
+                executionMode,
                 quota: { scope: "USER", targetId: userId },
                 sources,
                 guardrailText: `Criar um resumo pedagógico de ${area.name}.`,
@@ -196,6 +201,7 @@ export class SummariesService {
     async generateSummaryFromAssistantSnapshot(
         snapshot: AssistantArtifactGenerationSnapshot,
         generationKey: string,
+        executionMode: GovernedAiExecutionMode = "INTERACTIVE",
     ) {
         const existing = await this.artifactModel
             .findOne({
@@ -210,6 +216,7 @@ export class SummariesService {
             const execution = await this.aiExecution.execute({
                 userId: snapshot.userId,
                 purpose: "SUMMARY",
+                executionMode,
                 quota: { scope: "USER", targetId: snapshot.userId },
                 sources: snapshot.sources,
                 guardrailText: "Criar um resumo pedagógico a partir desta conversa.",
@@ -279,6 +286,25 @@ export class SummariesService {
             throw new ServiceUnavailableException({
                 code: "AI_PROVIDER_UNAVAILABLE",
                 message: "A IA está temporariamente indisponível.",
+            });
+        }
+    }
+
+    /**
+     * Confirma ownership, perfil e fontes antes de aceitar um job assíncrono.
+     * O worker repete estas leituras ao gerar, mantendo esta validação apenas
+     * como barreira de aceitação rápida e segura.
+     */
+    async assertGenerationReady(userId: string, studyAreaId: string): Promise<void> {
+        await this.areasService.getMyStudyArea(userId, studyAreaId);
+        const profile = await this.profileService.prepareProfile(userId, studyAreaId);
+        const sources = await this.getProcessableSources(userId, studyAreaId);
+
+        if (profile.status !== "READY_FOR_GENERATION" || sources.length === 0) {
+            throw new UnprocessableEntityException({
+                code: "NO_PROCESSABLE_SOURCES",
+                message:
+                    "Este material ainda não tem texto processável para gerar resumo.",
             });
         }
     }

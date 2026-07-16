@@ -21,17 +21,12 @@ import {
     stat,
     writeFile,
 } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import {
     ensureStudyFlowDirectory,
     normaliseDedicatedLocalDirectory,
 } from "../../common/storage/dedicated-local-directory.js";
-import {
-    defaultMaterialStorageDirectory,
-} from "../../common/storage/material-storage-directory.js";
-import {
-    hasExpectedPrivateFilesystemMode,
-} from "../../common/storage/private-filesystem-mode.js";
 
 const DEFAULT_USER_QUOTA_BYTES = 250 * 1024 * 1024;
 const DEFAULT_GLOBAL_QUOTA_BYTES = 5 * 1024 * 1024 * 1024;
@@ -101,10 +96,7 @@ export class MaterialStorageService {
             });
             await chmod(probePath, 0o600);
             const metadata = await stat(probePath);
-            if (
-                !metadata.isFile() ||
-                !hasExpectedPrivateFilesystemMode(metadata.mode, 0o600)
-            ) {
+            if (!metadata.isFile() || (metadata.mode & 0o777) !== 0o600) {
                 throw new Error("Material storage readiness probe is not private.");
             }
         } finally {
@@ -569,7 +561,7 @@ export class MaterialStorageService {
 
     private storageRoot(): string {
         return normaliseDedicatedLocalDirectory(
-            process.env.MATERIALS_STORAGE_DIR ?? defaultMaterialStorageDirectory(),
+            process.env.MATERIALS_STORAGE_DIR ?? join(tmpdir(), "studyflow-materials"),
             {
                 envName: "MATERIALS_STORAGE_DIR",
                 blockedRoots: this.blockedRoots(),
